@@ -43,7 +43,7 @@ def load_metal_data(metal_type):
         prices: the prices of metal without any preprocessing 
     """
 
-    feature_path = f"data/{metal_type}/{metal_type}_features_true.csv"
+    feature_path = f"data/{metal_type}/{metal_type}_features.csv"
     price_path = f"data/{metal_type}/{metal_type}_raw_prices.csv"
 
     feature = pd.read_csv(feature_path)
@@ -86,9 +86,9 @@ def transform_full_data(full_data, is_drop_nan=False):
         full_data = full_data.dropna()
     
     full_data["Price"] = np.log(full_data["Price"])
-    return full_data.iloc[:, :-1], full_data.iloc[:, -1]
+    return full_data.iloc[:, :-1], full_data.iloc[:, [0,-1]]
 
-def load_transform_data(metal_type, is_drop_nan=False):
+def load_transform_data(metal_type, return_lag, is_drop_nan=False):
     """
     Loading and Transform the data in one function 
         to get the dataset and label. We will assume log-price. 
@@ -103,7 +103,8 @@ def load_transform_data(metal_type, is_drop_nan=False):
     """
     data_all = load_metal_data(metal_type)
     X, y = transform_full_data(data_all, is_drop_nan=is_drop_nan)
-    return X, y
+    y = cal_lag_return(y, return_lag)
+    return X[:len(X)-return_lag], y[:len(X)-return_lag]
 
 def df_to_numpy(data, label):
     """
@@ -121,16 +122,41 @@ def df_to_numpy(data, label):
     label = label.to_numpy()
     return data, label
 
-def prepare_dataset(X, first_day, y, len_inp, len_out=22, convert_date=True, 
+def cal_lag_return(output, length_lag):
+    """
+    Calculate the lagged return for the data
+
+    Args:
+        output: Price that we wanted to calculate the lag. 
+        length_lag: The length between difference returns that we want to calculate. 
+            (If equal to zero, then return the original data)
+    
+    Returns:
+        lag_return: Result of Log-Return over a length of lag
+    """
+    if length_lag != 0:
+        length_data = len(output)
+        first = output["Price"][:length_data-length_lag].to_numpy()
+        second = output.tail(length_data-length_lag)["Price"].to_numpy()
+        diff = np.pad(second-first, (0, length_lag), 'constant', constant_values=np.nan)
+        lag_return = output.copy()
+        lag_return["Price"] = diff
+    else:
+        lag_return = output
+
+    return lag_return
+
+def prepare_dataset(X, first_day, y, len_inp, len_out=22, return_lag=22, convert_date=True, 
                         is_rand=False, offset=1, 
                         relative_time=False, is_show_progress=False):
     """
     Creating Set for the prediction Chopping up the data (can be used for both training and testing):
-            -------xxxx
-            (offset)-------xxxx
-                    (offset)-------xxxx
+            -----+++xxxx
+            (offset)-----+++xxxx
+                    (offset)-----+++xxxx
         where - indicates input-data
               x indicates output-data
+              + indicates lags
     
     Args:
         X: Training input (not including prices)
@@ -147,14 +173,14 @@ def prepare_dataset(X, first_day, y, len_inp, len_out=22, convert_date=True,
     Return:
         train_set: Training set, including the input and out 
     """
-
+    
     size_data = len(X)
-    size_subset = len_inp+len_out
+    size_subset = len_inp+len_out+return_lag
     assert size_subset <= size_data
 
     if offset == -1:
         offset = size_subset
-
+    
     num_subset = math.floor((size_data-size_subset)/offset) + 1
     all_subset = []
 
@@ -169,10 +195,11 @@ def prepare_dataset(X, first_day, y, len_inp, len_out=22, convert_date=True,
             else:
                 date_val = np.arange(size_subset)
 
+            # This is universal so there shouldn't be a problem ?
             data.loc[:, "Date"] = date_val
 
-        data_inp, data_out = data[:len_inp], data[len_inp:]
-        label_inp, label_out = label[:len_inp], label[len_inp:]
+        data_inp, data_out = data[:len_inp], data[len_inp+return_lag:]
+        label_inp, label_out = label[:len_inp], label[len_inp+return_lag:]
 
         all_subset.append(
             TrainingPoint(data_inp, label_inp, data_out, label_out)
@@ -230,6 +257,8 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
     loss_list, num_test_list = [], []
     for i, data in enumerate(fold_list):
         X_train, y_train, X_test, y_test = data
+        print(y_test)
+        assert False
 
         train_dataset = prepare_dataset(X_train, first_day, y_train, len_inp, 
                             len_out=len_out, is_rand=is_rand, 
