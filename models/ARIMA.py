@@ -3,7 +3,7 @@ import math
 from statsmodels.tsa.arima.model import ARIMA
 
 from models.base_model import BaseModel
-from utils.data_preprocessing import data_to_date_label
+from utils.data_preprocessing import parse_series_time
 from utils.data_structure import Prediction
 
 class ARIMAModel(BaseModel):
@@ -11,8 +11,6 @@ class ARIMAModel(BaseModel):
     Auto Regressive Integrated Moving Average Model wrapper. 
 
     Args:
-        x_train: Data from the training set
-        y_train: Log-Price of training set
         order: The order of the ARIMA model
         pred_rollout: Prediction rollout of ARIMA model
         upper_rollout: Upperbound on the rollout
@@ -23,7 +21,7 @@ class ARIMAModel(BaseModel):
     def __init__(self, x_train, y_train, order):
 
         # Although repeated, we want to keep the same interface
-        x_train, _ = data_to_date_label(x_train)
+        x_train, _ = parse_series_time(x_train["Date"].to_list())
         super().__init__(x_train, y_train)
         self.order = order
         self.initialize()
