@@ -286,3 +286,38 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
 
     return loss_list, num_test_list
  
+def find_missing_data(full_data_x, full_data_y, y_train, y_test, first_day, lag):
+    """
+    Fill in the gaps between missing data due to lag. 
+
+    Args:
+        full_data_x: All data that we have
+        full_data_y: All label that we have (Already Lagged)
+        y_train: Training label (it doesn't have transformed Date)
+        y_test: Testing data (it doesn't have transformed Date )
+        first_day: Necessary for transform the correct X
+        lag: Sanity check that we acutally got correct data.
+    
+    Return:
+        X_missing: Missing data 
+            or, Gap between X_train and X_test
+        y_missing: Missing label 
+            or, Gap between y_train and y_test, 
+            where we assume it correspond to correct X
+    """
+
+    start_lag = y_train.index[-1]
+    end_lag = y_test.index[0]
+
+    assert end_lag - start_lag - 1 == lag
+
+    # To be fair, relies on index can be too risky ?
+    missing_x = full_data_x.copy().iloc[start_lag+1:end_lag, :]
+    missing_y = full_data_y.copy().iloc[start_lag+1:end_lag, :]
+
+    date_val, _ = parse_series_time(missing_x["Date"].to_list(), first_day)
+    missing_x.loc[:, "Date"] = date_val
+
+    return missing_x, missing_y
+
+
