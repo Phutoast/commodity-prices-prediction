@@ -1,4 +1,3 @@
-
 class BaseModel(object):
     """
     Abstraction of training model. 
@@ -10,7 +9,7 @@ class BaseModel(object):
     """
     def __init__(self, train_data, model_hyperparam):
         self.train_data = train_data
-        self.model_hyperparam = model_hyperparam
+        self.hyperparam = model_hyperparam
     
 
     def train(self):
@@ -18,7 +17,7 @@ class BaseModel(object):
         Training the data given the training parameters.
         """
         pass
-    
+     
     def predict(self, test_data, step_ahead=-1):
         """
         Predict the data given data given the current model

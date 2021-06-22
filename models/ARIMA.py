@@ -3,8 +3,7 @@ import math
 from statsmodels.tsa.arima.model import ARIMA
 
 from models.base_model import BaseModel
-from utils.data_preprocessing import parse_series_time
-from utils.data_structure import Prediction
+from utils.data_structure import pack_data
 
 class ARIMAModel(BaseModel):
     """
@@ -15,15 +14,12 @@ class ARIMAModel(BaseModel):
         pred_rollout: Prediction rollout of ARIMA model
         upper_rollout: Upperbound on the rollout
         lower_rollout: Lowerbound on the rollout
-        all_data: All y_train data
 
     """
-    def __init__(self, x_train, y_train, order):
+    def __init__(self, train_data, model_hyperparam):
 
         # Although repeated, we want to keep the same interface
-        x_train, _ = parse_series_time(x_train["Date"].to_list())
-        super().__init__(x_train, y_train)
-        self.order = order
+        super().__init__(train_data, model_hyperparam)
         self.initialize()
     
     def initialize(self):
@@ -31,7 +27,6 @@ class ARIMAModel(BaseModel):
         Reset all the data for a new prediction.
         """
         self.pred_rollout, self.upper_rollout, self.lower_rollout = [], [], []
-        self.all_data = self.y_train.to_list()
     
     def train(self):
         """
@@ -40,7 +35,7 @@ class ARIMAModel(BaseModel):
         """
         warnings.warn("There is no formal training in ARIMA model")
     
-    def predict_time_step(self, pred_span):
+    def predict_time_step(self, pred_span, ci):
         """
         Predict the ARIMA mdoel given the number of steps ahead, 
             and update the interal value
@@ -48,16 +43,18 @@ class ARIMAModel(BaseModel):
         Args:
             pred_span: Number of data points we want to predict ahead of time
         """
-        model = ARIMA(self.all_data, order=self.order).fit()
+
+        order = self.hyperparam["order"]
+        model = ARIMA(self.all_data, order=order).fit()
         result = model.get_forecast(pred_span)
-        upper_pred, lower_pred = result.conf_int(alpha=0.1).T 
+        upper_pred, lower_pred = result.conf_int(alpha=1-ci).T 
         mean_pred = result.summary_frame()["mean"].to_list()
 
         self.upper_rollout += list(upper_pred)
         self.lower_rollout += list(lower_pred)
         self.pred_rollout += mean_pred
     
-    def predict(self, x_pred, y_pred, pred_span, ci=90):
+    def predict(self, test_data, pred_span, ci=0.9):
         """
         Predict the data for each time span until it covers al the testing time step, 
             for pred_span = 1, we retrain (using testing resutk) the model every step 
@@ -74,27 +71,19 @@ class ARIMAModel(BaseModel):
             prediction: Tuple contains means, upper and lower bound of the prediction. 
         """
         self.initialize()
-        x_pred, _ = data_to_date_label(x_pred)
-        length_data = len(x_pred)
+        self.all_data = test_data.label_inp["Price"].to_list()
+        span_per_round = self.hyperparam["ind_span_pred"]
 
-        assert len(y_pred) == length_data or y_pred is None
+        num_iter = math.floor(pred_span/span_per_round)
+        num_left = pred_span - span_per_round*num_iter
 
-        if y_pred is None:
-            pred_span = len(x_pred)
-        else:
-            assert length_data >= pred_span
-            y_pred = y_pred.to_list()
-        
-        num_iter = math.floor(length_data/pred_span)
-        num_left = length_data - pred_span*num_iter
+        y_pred = test_data.label_out["Price"].to_list()
 
         for i in range(num_iter):
-            self.predict_time_step(pred_span)
-
-            if y_pred is not None:
-                self.all_data += y_pred[i*pred_span:(i+1)*pred_span]
+            self.predict_time_step(span_per_round, ci)
+            self.all_data += y_pred[i*span_per_round:(i+1)*span_per_round]
 
         if num_left > 0:
-            self.predict_time_step(num_left)
+            self.predict_time_step(num_left, ci)
         
-        return Prediction(self.pred_rollout, self.upper_rollout, self.lower_rollout)
+        return pack_data(self.pred_rollout, self.upper_rollout, self.lower_rollout, test_data.data_out["Date"].to_list())

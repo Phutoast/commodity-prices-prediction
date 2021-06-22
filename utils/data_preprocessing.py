@@ -146,9 +146,10 @@ def cal_lag_return(output, length_lag):
 
     return lag_return
 
-def prepare_dataset(X, first_day, y, len_inp, len_out=22, return_lag=22, convert_date=True, 
-                        is_rand=False, offset=1, 
-                        relative_time=False, is_show_progress=False):
+def prepare_dataset(X, first_day, y, len_inp, 
+            len_out=22, return_lag=22, convert_date=True, 
+            is_rand=False, offset=1, relative_time=False, 
+            is_show_progress=False, num_dataset=-1):
     """
     Creating Set for the prediction Chopping up the data (can be used for both training and testing):
             -----+++xxxx
@@ -169,6 +170,7 @@ def prepare_dataset(X, first_day, y, len_inp, len_out=22, return_lag=22, convert
         offset: Number of data that got left-out from previous training data (If -1 then we consider the partion)
         relative_time: If True, each date feature will start at 0, else, we set date from the first datapoint
         is_show_progress: showing tqdm progress bar
+        num_dataset: getting first_numdataset dataset we want to output (-1 if we want all)
     
     Return:
         train_set: Training set, including the input and out 
@@ -178,10 +180,11 @@ def prepare_dataset(X, first_day, y, len_inp, len_out=22, return_lag=22, convert
     size_subset = len_inp+len_out+return_lag
     assert size_subset <= size_data
 
+
     if offset == -1:
         offset = size_subset
     
-    num_subset = math.floor((size_data-size_subset)/offset) + 1
+    num_subset = math.floor((size_data-size_subset)/offset) + 1 if num_dataset == -1 else num_dataset
     all_subset = []
 
     for index in tqdm(range(num_subset), disable=(not is_show_progress)):
@@ -282,4 +285,4 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
         num_test_list.append(num_test)
 
     return loss_list, num_test_list
-
+ 
