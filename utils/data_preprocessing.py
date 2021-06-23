@@ -17,7 +17,7 @@ def parse_series_time(dates, first_day):
         time_step: Number of day from the first date. 
         label: Label used for displaying the data
     """
-
+    
     parse_date = lambda d : datetime.datetime.strptime(d, '%Y-%m-%d')
     first_day = parse_date(first_day)
     time_step, label = [], []
@@ -147,17 +147,20 @@ def cal_lag_return(output, length_lag):
     return lag_return
 
 def prepare_dataset(X, first_day, y, len_inp, 
-            len_out=22, return_lag=22, convert_date=True, 
-            is_rand=False, offset=1, relative_time=False, 
-            is_show_progress=False, num_dataset=-1):
+            len_out=22, return_lag=22, is_padding=False, convert_date=True, 
+            is_rand=False, offset=1, is_show_progress=False, num_dataset=-1):
     """
     Creating Set for the prediction Chopping up the data (can be used for both training and testing):
             -----+++xxxx
             (offset)-----+++xxxx
                     (offset)-----+++xxxx
+                            (lack)-----+++xxxx
+            ssssssssssssssssssssssssssssssssss
         where - indicates input-data
               x indicates output-data
               + indicates lags
+    
+    if padding is true then, we will find the offset (lack) that allow us to get the full data
     
     Args:
         X: Training input (not including prices)
@@ -165,10 +168,11 @@ def prepare_dataset(X, first_day, y, len_inp,
         y: Training output
         len_input: Length of input data
         len_out: Length of output horizon we want to predict
+        return_lag: Lagging of the return (used in lagged return)
+        is_padding: Pad the dataset so that we cover all the data in the dataset.
         convert_date: Convert the date to a number or not.
         is_rand: If True, Shuffle the data-subset and then split training-testing
         offset: Number of data that got left-out from previous training data (If -1 then we consider the partion)
-        relative_time: If True, each date feature will start at 0, else, we set date from the first datapoint
         is_show_progress: showing tqdm progress bar
         num_dataset: getting first_numdataset dataset we want to output (-1 if we want all)
     
@@ -180,33 +184,53 @@ def prepare_dataset(X, first_day, y, len_inp,
     size_subset = len_inp+len_out+return_lag
     assert size_subset <= size_data
 
-
     if offset == -1:
         offset = size_subset
     
-    num_subset = math.floor((size_data-size_subset)/offset) + 1 if num_dataset == -1 else num_dataset
+    num_offset_apply = math.floor((size_data-size_subset)/offset)
+    num_subset = num_offset_apply + 1 if num_dataset == -1 else num_dataset
     all_subset = []
 
-    for index in tqdm(range(num_subset), disable=(not is_show_progress)):
-        start_index = index*offset
-        data = X[start_index:start_index+size_subset]
-        label = y[start_index:start_index+size_subset]
+    def split_data(start_index):
+        
+        """
+        Method for splitting data into usable forms
+
+        Args:
+            start_index: index where the cut starts
+        
+        Return:
+            data: tuple containing all the data
+        """
+        data = X[start_index:start_index+size_subset].copy()
+        label = y[start_index:start_index+size_subset].copy()
 
         if convert_date:
-            if not relative_time: 
-                date_val, _ = parse_series_time(data["Date"].to_list(), first_day)
-            else:
-                date_val = np.arange(size_subset)
+            date_val, _ = parse_series_time(data["Date"].to_list(), first_day)
 
             # This is universal so there shouldn't be a problem ?
             data.loc[:, "Date"] = date_val
 
         data_inp, data_out = data[:len_inp], data[len_inp+return_lag:]
         label_inp, label_out = label[:len_inp], label[len_inp+return_lag:]
+        return data_inp, label_inp, data_out, label_out
+
+    for index in tqdm(range(num_subset), disable=(not is_show_progress)):
+        start_index = index*offset
+        data = split_data(start_index)
 
         all_subset.append(
-            TrainingPoint(data_inp, label_inp, data_out, label_out)
+            TrainingPoint(*data)
         )
+    
+    if is_padding and num_subset == num_offset_apply+1:
+        # Have to check that whether padding is needed or not ?
+        last_index = num_offset_apply*offset + size_subset
+        if last_index != len(X):
+            data = split_data(len(X)-size_subset)
+            all_subset.append(
+                TrainingPoint(*data)
+            )
     
     if is_rand:
         random.shuffle(all_subset)
@@ -214,7 +238,9 @@ def prepare_dataset(X, first_day, y, len_inp,
     return all_subset
 
 def walk_forward(X, y, model, model_hyperparam, loss, size_train, 
-            size_test, train_offset, test_offset, test_step, is_rand=False, relative_time=False):
+            size_test, train_offset, test_offset, test_step, return_lag, 
+            is_train_pad, is_test_pad, 
+            is_rand=False):
     """
     Performing walk forward testing (k-fold like) of the models
         In terms of setting up training and testing data.
@@ -226,6 +252,25 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
     
     size_train: Length of (------) -- Within training we can have offset calculating the tests
     size_test: Length of (xxx) -- Within testing we can have offset for calculating the tests
+    
+    Within the "fold" we have, At training section:
+    A------------------iiiiiii
+     (train_offset)------------------iiiiiii
+                    (train_offset)------------------iiiiiii
+                                  (padding)------------------iiiiiii
+    I----------------------training length-------------------------I
+
+    At testing section:
+
+    xxxxxxxxxxxxxxxxxxkkkkkkkk
+    (test_offset)xxxxxxxxxxxxxxxxxxkkkkkkkk
+                (padding)xxxxxxxxxxxxxxxxxxkkkkkkkk
+    I-------------testing length------------------I
+                                                
+    
+    len_inp (in model_hyperparam): Length of ------- && xxxxxxxx
+    len_out (in model_hyperparam): Length of iiiiiii
+    test_step: Length of kkkkkkkk
 
     Args:
         X: All data avaliable
@@ -239,9 +284,10 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
         train_offset: Offset during the training. 
         test_offset: Offset during the testing.
         test_step: number of testing ahead we want to test for
+        return_lag: Lagging of the return (used in lagged return)
+        is_train_pad: Pad the dataset so that we cover all the data in the training set.
+        is_test_pad: Pad the dataset so that we cover all the data in the testing set.
         is_rand: If true, shuffle the data-subset and then split training-testing
-        relative_time: If true, each date feature will 
-            start at 0, else, we set date from the first datapoint
     
     Return:
         perf: Performance of model given
@@ -254,31 +300,31 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
     first_day = X["Date"][0]
     fold_list = prepare_dataset(X, first_day, y, size_train, 
                 len_out=size_test, convert_date=False, 
-                is_rand=is_rand, offset=size_test, 
-                relative_time=relative_time)
+                is_rand=is_rand, offset=size_test, return_lag=return_lag, 
+                is_padding=False)
     
     loss_list, num_test_list = [], []
     for i, data in enumerate(fold_list):
         X_train, y_train, X_test, y_test = data
-        print(y_test)
-        assert False
 
         train_dataset = prepare_dataset(X_train, first_day, y_train, len_inp, 
-                            len_out=len_out, is_rand=is_rand, 
-                            offset=train_offset, relative_time=relative_time)  
-
+                            len_out=len_out, return_lag=return_lag, 
+                            is_padding=is_train_pad, is_rand=is_rand, 
+                            offset=train_offset)  
+        
         model_fold = model(train_dataset, model_hyperparam)         
         model_fold.train()
 
         # Testing Model
         test_dataset = prepare_dataset(X_test, first_day, y_test, len_inp, 
-                            len_out=test_step, is_rand=is_rand, offset=1)
+                            len_out=test_step, return_lag=return_lag, is_padding=is_test_pad,
+                            is_rand=is_rand, offset=test_offset)
 
         loss_total, num_test = 0, 0
         for j, data_test in enumerate(test_dataset):
             # We assume that during the prediction there is no change of state within the predictor
             model_pred = model_fold.predict(data_test, step_ahead=test_step)
-            loss_total += loss(data_test.label_out, model_pred)
+            loss_total += loss(data_test.label_out["Price"].to_numpy(), model_pred)
             num_test += 1
         
         loss_list.append(loss_total)
@@ -309,13 +355,14 @@ def find_missing_data(full_data_x, full_data_y, y_train, y_test, first_day, lag)
     start_lag = y_train.index[-1]
     end_lag = y_test.index[0]
 
-    assert end_lag - start_lag - 1 == lag
+    assert end_lag-start_lag-1 == lag
 
     # To be fair, relies on index can be too risky ?
     missing_x = full_data_x.copy().iloc[start_lag+1:end_lag, :]
     missing_y = full_data_y.copy().iloc[start_lag+1:end_lag, :]
 
     date_val, _ = parse_series_time(missing_x["Date"].to_list(), first_day)
+    # date_val = missing_x["Date"].to_list()
     missing_x.loc[:, "Date"] = date_val
 
     return missing_x, missing_y

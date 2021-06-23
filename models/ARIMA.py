@@ -14,11 +14,9 @@ class ARIMAModel(BaseModel):
         pred_rollout: Prediction rollout of ARIMA model
         upper_rollout: Upperbound on the rollout
         lower_rollout: Lowerbound on the rollout
-
+        all_data: All data collected during training (and added during testing for additional input)
     """
     def __init__(self, train_data, model_hyperparam):
-
-        # Although repeated, we want to keep the same interface
         super().__init__(train_data, model_hyperparam)
         self.initialize()
     
@@ -30,23 +28,49 @@ class ARIMAModel(BaseModel):
     
     def train(self):
         """
-        No formal training in ARIMA model as we simply fit the data, 
-        while when performing a prediction we will have to refit some of the data
+        The training part for ARIMA is to construct appropriate train set 
+            by augmenting all the data points into 1 data-list 
+            (although we assume the offset to be -1, we make sure that everything works)
         """
-        warnings.warn("There is no formal training in ARIMA model")
+
+        # It is clear that the last index of the dataset is the last index of the training set
+        # Also did a testing for any weird behavior, it is consistence with training loop 
+        #      as we have to go through all the training data anyways
+
+        collection = {}
+
+        def add_data(df_data):
+            for index, data in zip(df_data.index, df_data["Price"]):
+                if index in collection:
+                    assert collection[index] == data
+                else:
+                    collection[index] = data
+
+        for data in self.train_data:
+            _, train_inp, _, train_out = data
+            add_data(train_inp)
+            # if model_hyperparam
+            add_data(train_out)
+        
+        # Abit redundance but it works 
+        last_index = self.train_data[-1].label_out.index[-1]
+        first_index = self.train_data[0].label_inp.index[0]    
+
+        self.all_data = [collection[i] for i in sorted(collection.keys())]
     
-    def predict_time_step(self, pred_span, ci):
+    
+    def predict_time_step(self, step_ahead, ci):
         """
         Predict the ARIMA mdoel given the number of steps ahead, 
             and update the interal value
 
         Args:
-            pred_span: Number of data points we want to predict ahead of time
+            step_ahead: Number of data points we want to predict ahead of time
         """
 
         order = self.hyperparam["order"]
-        model = ARIMA(self.all_data, order=order).fit()
-        result = model.get_forecast(pred_span)
+        model = ARIMA(self.curr_train, order=order).fit()
+        result = model.get_forecast(step_ahead)
         upper_pred, lower_pred = result.conf_int(alpha=1-ci).T 
         mean_pred = result.summary_frame()["mean"].to_list()
 
@@ -54,34 +78,36 @@ class ARIMAModel(BaseModel):
         self.lower_rollout += list(lower_pred)
         self.pred_rollout += mean_pred
     
-    def predict(self, test_data, pred_span, ci=0.9):
+    def predict(self, test_data, step_ahead, ci=0.9):
         """
         Predict the data for each time span until it covers al the testing time step, 
-            for pred_span = 1, we retrain (using testing resutk) the model every step 
+            for step_ahead = 1, we retrain (using testing resutk) the model every step 
                 (cost a lot of computations)
-            for pred_span = length of test step, we didn't use any of testing result. 
+            for step_ahead = length of test step, we didn't use any of testing result. 
 
         Args:
             x_pred: Data for performing a prediction
-            y_pred: Correct Log-Price of prediction (if None the pred_span is length of test_step)
-            pred_span: Number of prediction step before retrain the data with correct testing data.
+            y_pred: Correct Log-Price of prediction (if None the step_ahead is length of test_step)
+            step_ahead: Number of prediction step before retrain the data with correct testing data.
             ci: confidence interval, in terms of percentage.
         
         Return:
             prediction: Tuple contains means, upper and lower bound of the prediction. 
         """
         self.initialize()
-        self.all_data = test_data.label_inp["Price"].to_list()
+        # Note that ARIMA is clueless about a time step, so we can't do anything.
+        self.curr_train = self.all_data + test_data.label_inp["Price"].to_list()
         span_per_round = self.hyperparam["ind_span_pred"]
 
-        num_iter = math.floor(pred_span/span_per_round)
-        num_left = pred_span - span_per_round*num_iter
+        num_iter = math.floor(step_ahead/span_per_round)
+        num_left = step_ahead - span_per_round*num_iter
 
         y_pred = test_data.label_out["Price"].to_list()
 
+        # Cheating !!!
         for i in range(num_iter):
             self.predict_time_step(span_per_round, ci)
-            self.all_data += y_pred[i*span_per_round:(i+1)*span_per_round]
+            self.curr_train += y_pred[i*span_per_round:(i+1)*span_per_round]
 
         if num_left > 0:
             self.predict_time_step(num_left, ci)

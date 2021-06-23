@@ -18,11 +18,13 @@ class Hyperparameters(dict):
     Args:
         len_inp: length of input (in terms of time step), -1 if auto-regressive
         len_out: length of output (in terms of time step), -1 if auto-regressive
+        is_simple_pred: 
         kwargs: other model specific hyperparameters (e.g hidden-layer size). 
     """
-    def __init__(self, len_inp, len_out, **kwargs): 
+    def __init__(self, len_inp, len_out, is_simple_pred=False, **kwargs): 
         self["len_inp"] = len_inp
         self["len_out"] = len_out
+        self["is_simple_pred"] = len_out
         self.update(kwargs)
     
     def __repr__(self):

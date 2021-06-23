@@ -24,6 +24,7 @@ class PerformanceMetric(object):
             \sum^N_{i=1} (true[i] - pred[i])**2
 
         """
+        pred = np.array(pred["mean"].to_numpy())
         return np.sum(np.square(true-pred))
 
 

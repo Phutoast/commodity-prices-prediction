@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
+from matplotlib.ticker import AutoMinorLocator
 from collections import defaultdict
 
 from utils.data_preprocessing import parse_series_time
@@ -43,9 +43,10 @@ def visualize_time_series(data, inp_color, missing_data, lag_color,
 
     x_train = convert_date(x_train)
     y_train = convert_price(y_train)
-
-    x_missing = convert_date(missing_x)
-    y_missing = convert_price(missing_y)
+    
+    if is_missing:
+        x_missing = convert_date(missing_x)
+        y_missing = convert_price(missing_y)
     
     cut_point = x_train[-1]
 
@@ -75,7 +76,7 @@ def visualize_time_series(data, inp_color, missing_data, lag_color,
     else:
         ax.axvline(cut_point, color=color["k"], linestyle='--')
 
-    ax.xaxis.set_minor_locator(MultipleLocator(2))
+    ax.xaxis.set_minor_locator(AutoMinorLocator())
     ax.grid()
     ax.legend()
 
@@ -83,4 +84,4 @@ def visualize_time_series(data, inp_color, missing_data, lag_color,
     ax.set_ylabel(y_label)
     ax.set_title(title)
 
-    ax.set_xlim(left=cut_point-100)
+    ax.set_xlim(left=cut_point-500)
