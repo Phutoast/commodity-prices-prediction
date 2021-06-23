@@ -99,6 +99,8 @@ class ARIMAModel(BaseModel):
         self.curr_train = self.all_data + test_data.label_inp["Price"].to_list()
         span_per_round = self.hyperparam["ind_span_pred"]
 
+        assert span_per_round <= step_ahead
+
         num_iter = math.floor(step_ahead/span_per_round)
         num_left = step_ahead - span_per_round*num_iter
 

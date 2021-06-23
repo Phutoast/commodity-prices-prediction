@@ -58,7 +58,7 @@ def example_ARIMA_simple_predtion_plot():
         len_inp=len_inp, 
         len_out=len_out, 
         order=(10, 2, 5), 
-        ind_span_pred=5
+        ind_span_pred=20
     )
     model1 = ARIMAModel(training_dataset, ARIMA_hyperparam1)
     model1.train()

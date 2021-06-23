@@ -14,7 +14,6 @@ class MeanModel(BaseModel):
     
     def train(self):
         """
-        No formal training in ARIMA model as we simply fit the data, 
         while when performing a prediction we will have to refit some of the data
         """
         print("train data")

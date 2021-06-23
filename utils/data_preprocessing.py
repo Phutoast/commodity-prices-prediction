@@ -301,10 +301,11 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
     fold_list = prepare_dataset(X, first_day, y, size_train, 
                 len_out=size_test, convert_date=False, 
                 is_rand=is_rand, offset=size_test, return_lag=return_lag, 
-                is_padding=False)
+                is_padding=False) 
     
-    loss_list, num_test_list = [], []
+    loss_list, num_test_list, model_result = [], [], []
     for i, data in enumerate(fold_list):
+        print("At fold", i+1, "/", len(fold_list))
         X_train, y_train, X_test, y_test = data
 
         train_dataset = prepare_dataset(X_train, first_day, y_train, len_inp, 
@@ -319,18 +320,27 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
         test_dataset = prepare_dataset(X_test, first_day, y_test, len_inp, 
                             len_out=test_step, return_lag=return_lag, is_padding=is_test_pad,
                             is_rand=is_rand, offset=test_offset)
-
-        loss_total, num_test = 0, 0
+        
+        num_test = 0
         for j, data_test in enumerate(test_dataset):
             # We assume that during the prediction there is no change of state within the predictor
             model_pred = model_fold.predict(data_test, step_ahead=test_step)
-            loss_total += loss(data_test.label_out["Price"].to_numpy(), model_pred)
+            model_result.append(model_pred)
+            loss_list.append(loss(data_test.label_out["Price"].to_numpy(), model_pred))
             num_test += 1
         
-        loss_list.append(loss_total)
         num_test_list.append(num_test)
+    
+    return loss_list, num_test_list, merge_results(model_result)
 
-    return loss_list, num_test_list
+def merge_results(model_result):
+    df = model_result[0].copy()
+    cutting_index = [(df["x"].iloc[0], df["x"].iloc[-1])]
+
+    for i in range(1, len(model_result)):
+        df = df.append(model_result[i], ignore_index=True)
+        cutting_index.append((model_result[i]["x"].iloc[0], model_result[i]["x"].iloc[-1]))
+    return df, cutting_index
  
 def find_missing_data(full_data_x, full_data_y, y_train, y_test, first_day, lag):
     """
