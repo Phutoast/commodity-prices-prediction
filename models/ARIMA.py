@@ -33,30 +33,8 @@ class ARIMAModel(BaseModel):
             (although we assume the offset to be -1, we make sure that everything works)
         """
 
-        # It is clear that the last index of the dataset is the last index of the training set
-        # Also did a testing for any weird behavior, it is consistence with training loop 
-        #      as we have to go through all the training data anyways
-
-        collection = {}
-
-        def add_data(df_data):
-            for index, data in zip(df_data.index, df_data["Price"]):
-                if index in collection:
-                    assert collection[index] == data
-                else:
-                    collection[index] = data
-
-        for data in self.train_data:
-            _, train_inp, _, train_out = data
-            add_data(train_inp)
-            # if model_hyperparam
-            add_data(train_out)
-        
-        # Abit redundance but it works 
-        last_index = self.train_data[-1].label_out.index[-1]
-        first_index = self.train_data[0].label_inp.index[0]    
-
-        self.all_data = [collection[i] for i in sorted(collection.keys())]
+        all_prices = self.collect_all_prices()
+        self.all_data = all_prices[:, 1].tolist()
     
     
     def predict_time_step(self, step_ahead, ci):
@@ -108,6 +86,7 @@ class ARIMAModel(BaseModel):
 
         # Cheating !!!
         for i in range(num_iter):
+            print("Predicting...", i, "/", num_iter)
             self.predict_time_step(span_per_round, ci)
             self.curr_train += y_pred[i*span_per_round:(i+1)*span_per_round]
 

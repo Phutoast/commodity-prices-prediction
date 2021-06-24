@@ -16,6 +16,5 @@ class MeanModel(BaseModel):
         """
         while when performing a prediction we will have to refit some of the data
         """
-        print("train data")
-        print(self.train_data)
+        all_prices = self.collect_all_prices()
         assert False

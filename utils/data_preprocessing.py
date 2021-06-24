@@ -368,8 +368,9 @@ def find_missing_data(full_data_x, full_data_y, y_train, y_test, first_day, lag)
     assert end_lag-start_lag-1 == lag
 
     # To be fair, relies on index can be too risky ?
-    missing_x = full_data_x.copy().iloc[start_lag+1:end_lag, :]
-    missing_y = full_data_y.copy().iloc[start_lag+1:end_lag, :]
+    # Have to select based on row
+    missing_x = full_data_x.copy().loc[range(start_lag+1, end_lag)]
+    missing_y = full_data_y.copy().loc[range(start_lag+1, end_lag)]
 
     date_val, _ = parse_series_time(missing_x["Date"].to_list(), first_day)
     # date_val = missing_x["Date"].to_list()

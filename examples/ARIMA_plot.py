@@ -19,17 +19,16 @@ def example_ARIMA_simple_predtion_plot():
     # We add this to show that lagging works
     return_lag = 0
     len_inp = 400
-    len_out = 22
+    len_out = 20
 
     len_predict_show = 200
 
     features, log_prices = load_transform_data(metal_type, return_lag=return_lag) 
+    features, log_prices = features.tail(1000), log_prices.tail(1000)
     len_data = len(features)
 
-    first_day = features["Date"][0]
+    first_day = features["Date"].iloc[0]
     features = features[["Date"]]
-
-    cut_pt = len_data-len_predict_show
 
     splitted_data = prepare_dataset(
         features, first_day, log_prices, 
@@ -40,7 +39,7 @@ def example_ARIMA_simple_predtion_plot():
 
     training_dataset = prepare_dataset(
         features_train, first_day, log_prices_train, 
-        len_inp=len_inp, len_out=len_out, return_lag=return_lag, 
+        len_inp=len_inp, len_out=0, return_lag=return_lag, 
         convert_date=False, is_rand=False, offset=-1, is_show_progress=True, num_dataset=-1, is_padding=True
     ) 
 
