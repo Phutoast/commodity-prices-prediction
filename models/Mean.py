@@ -1,8 +1,5 @@
-import warnings
-import math
-
+import numpy as np
 from models.base_model import BaseModel
-from utils.data_structure import pack_data
 
 class MeanModel(BaseModel):
     """
@@ -13,8 +10,14 @@ class MeanModel(BaseModel):
         super().__init__(train_data, model_hyperparam)
     
     def train(self):
-        """
-        while when performing a prediction we will have to refit some of the data
-        """
         all_prices = self.collect_all_prices()
-        assert False
+        self.param = np.mean(all_prices[:, 1])
+    
+    def predict_step_head(self, test_data, step_ahead, ci=0.9):
+        """
+        Args: (See superclass)
+        Returns: (See superclass)
+        """
+        
+        return np.ones(step_ahead) * self.param, [], [], test_data.data_out["Date"].to_list()
+    

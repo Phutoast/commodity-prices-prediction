@@ -1,4 +1,5 @@
 import numpy as np
+from utils.data_structure import pack_data
 
 class BaseModel(object):
     """
@@ -54,10 +55,24 @@ class BaseModel(object):
         for i, (day, d) in enumerate(collection.items()):
             data[i, :] = [day, d]
         return data
-     
-    def predict(self, test_data, step_ahead=-1):
+    
+    def predict_step_head(self, test_data, step_ahead, ci=0.9):
         """
-        Predict the data given data given the current model
+        Wrapping by predict method
+
+        Args:
+            test_data: Testing data given for testing
+            step_ahead: Number of step a ahead we wany ot compute 
+            ci: Confidence Interval set in ratio.
+
+        Returns: 
+            Tuple of list of mean, upperbound and lower bound, which will be used for paching data
+        """
+     
+    def predict(self, test_data, step_ahead=-1, ci=0.9):
+        """
+        Predict the data for each time span until it covers al the testing time step 
+            (if auto-regressive, if not we resort to the use of )
 
         _Warning_ y_pred has to be used carefully, 
             so that there is no leak in the dataset
@@ -66,8 +81,12 @@ class BaseModel(object):
             test_data: Testing data given for testing
             step_ahead: Number of step a ahead we wany ot compute 
                 if -1 then we use the same value as len_out in Hyperparameter
+            ci: Confidence Interval set in ratio.
         
         Returns:
-            pred: prediction of length step_ahead
+            prediction: Dataframe that contains means, upper, 
+                lower bound of the prediction and the data necessary to the plotting
         """
-        pass
+        step_ahead = self.hyperparam["len_out"] if step_ahead == -1 else step_ahead
+        pred_rollout, upper_rollout, lower_rollout, dates = self.predict_step_head(test_data, step_ahead, ci=0.9)
+        return pack_data(pred_rollout, upper_rollout, lower_rollout, dates)

@@ -1,31 +1,28 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import pickle
 
-from utils.data_preprocessing import load_transform_data, prepare_dataset, find_missing_data
+from utils.data_preprocessing import load_transform_data, walk_forward, prepare_dataset, find_missing_data
 from utils.data_structure import DisplayPrediction, Hyperparameters, pack_data
 from utils.data_visualization import visualize_time_series
 from utils.data_structure import TrainingPoint
+from utils.calculation import PerformanceMetric
 
-from models.ARIMA import ARIMAModel
-from models.Mean import MeanModel
+from models.GP import SimpleGaussianProcessModel, FeatureGP
 
-def example_ARIMA_simple_predtion_plot():
-    """
-    Showing the result of ARIMA model on simple prediction tasks. 
-    This only works with return lag = 0
-    """
+def simple_GP_plot():
     metal_type = "aluminium"
 
     # We add this to show that lagging works
     return_lag = 0
-    len_inp = 400
-    len_out = 20
+    len_inp = 5
+    len_out = 1
 
     len_predict_show = 200
 
     features, log_prices = load_transform_data(metal_type, return_lag=return_lag) 
-    features, log_prices = features.tail(1000), log_prices.tail(1000)
+    features, log_prices = features.head(1000), log_prices.head(1000)
     len_data = len(features)
 
     first_day = features["Date"].iloc[0]
@@ -57,10 +54,10 @@ def example_ARIMA_simple_predtion_plot():
     ARIMA_hyperparam1 = Hyperparameters(
         len_inp=len_inp, 
         len_out=len_out, 
-        order=(10, 2, 5), 
-        ind_span_pred=20
+        lr=0.1,
+        optim_iter=250,
     )
-    model1 = ARIMAModel(training_dataset, ARIMA_hyperparam1)
+    model1 = SimpleGaussianProcessModel(training_dataset, ARIMA_hyperparam1)
     model1.train()
 
     # This is special for ARIMA as we may consider the lagging
@@ -78,24 +75,24 @@ def example_ARIMA_simple_predtion_plot():
     # missing_data = ([], [])
 
     pred = model1.predict(show_data, len_predict_show, ci=0.9)
-    ARIMA_pred1 = DisplayPrediction(pred, name="ARIMA", color="p")
+    ARIMA_pred1 = DisplayPrediction(pred, name="GP Simple", color="p")
 
     true_pred = DisplayPrediction(
         pack_data(show_data.label_out["Price"].to_list(), [], [], show_data.data_out["Date"].to_list()),
-        name="True Value", is_bridge=True
+        name="True Value", is_bridge=False
     )
 
     visualize_time_series(
         ((features_train, log_prices_train), [true_pred, ARIMA_pred1]), "k", missing_data, "o", title="Log Lag over Time")
     plt.show()
 
-def examples_Mean_simple_prediction_plot():
+def feature_GP_plot():
     metal_type = "aluminium"
 
     # We add this to show that lagging works
     return_lag = 22
-    len_inp = 400
-    len_out = 20
+    len_inp = 5
+    len_out = 1
 
     len_predict_show = 200
 
@@ -115,15 +112,21 @@ def examples_Mean_simple_prediction_plot():
 
     training_dataset = prepare_dataset(
         features_train, first_day, log_prices_train, 
-        len_inp=len_inp, len_out=0, return_lag=return_lag, 
-        convert_date=False, is_rand=False, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=True
+        len_inp=len_inp, len_out=len_out, return_lag=return_lag, 
+        convert_date=False, is_rand=False, offset=1, is_show_progress=False, num_dataset=-1, is_padding=True
     ) 
 
     # We don't have any inputs now just prediction something !!
     show_dataset = prepare_dataset(
         feature_test, first_day, log_prices_test, 
+        len_inp=len_inp, len_out=len_out, return_lag=0, 
+        convert_date=False, is_rand=False, offset=1, is_show_progress=False, num_dataset=-1, is_padding=True
+    )
+    
+    full_show_dataset = prepare_dataset(
+        feature_test, first_day, log_prices_test, 
         len_inp=0, len_out=len_predict_show, return_lag=0, 
-        convert_date=False, is_rand=False, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=True
+        convert_date=False, is_rand=False, offset=3, is_show_progress=False, num_dataset=-1, is_padding=True
     )
 
     missing_x, missing_y = find_missing_data(features, log_prices, log_prices_train, log_prices_test, first_day, return_lag)
@@ -132,8 +135,11 @@ def examples_Mean_simple_prediction_plot():
     ARIMA_hyperparam1 = Hyperparameters(
         len_inp=len_inp, 
         len_out=len_out, 
+        lr=0.1,
+        optim_iter=150,
+        jitter=1e-4
     )
-    model1 = MeanModel(training_dataset, ARIMA_hyperparam1)
+    model1 = FeatureGP(training_dataset, ARIMA_hyperparam1)
     model1.train()
 
     # This is special for ARIMA as we may consider the lagging
@@ -147,14 +153,14 @@ def examples_Mean_simple_prediction_plot():
     #         missing_y
     #     )
 
-    show_data = show_dataset[0]
+    show_data = show_dataset
     # missing_data = ([], [])
 
-    pred = model1.predict(show_data, len_predict_show, ci=0.9)
-    ARIMA_pred1 = DisplayPrediction(pred, name="ARIMA", color="p")
+    pred = model1.predict(show_data, len_predict_show-len_inp, ci=0.9)
+    ARIMA_pred1 = DisplayPrediction(pred, name="GP Simple", color="p")
 
     true_pred = DisplayPrediction(
-        pack_data(show_data.label_out["Price"].to_list(), [], [], show_data.data_out["Date"].to_list()),
+        pack_data(full_show_dataset[0].label_out["Price"].to_list(), [], [], full_show_dataset[0].data_out["Date"].to_list()),
         name="True Value", is_bridge=False
     )
 
