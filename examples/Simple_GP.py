@@ -16,13 +16,14 @@ def simple_GP_plot():
 
     # We add this to show that lagging works
     return_lag = 0
-    len_inp = 5
+    len_inp = 1
     len_out = 1
 
     len_predict_show = 200
 
     features, log_prices = load_transform_data(metal_type, return_lag=return_lag) 
-    features, log_prices = features.head(1000), log_prices.head(1000)
+    log_prices = log_prices[["Price"]]
+    features, log_prices = features.tail(1000), log_prices.tail(1000)
     len_data = len(features)
 
     first_day = features["Date"].iloc[0]
@@ -55,7 +56,7 @@ def simple_GP_plot():
         len_inp=len_inp, 
         len_out=len_out, 
         lr=0.1,
-        optim_iter=250,
+        optim_iter=0,
     )
     model1 = SimpleGaussianProcessModel(training_dataset, ARIMA_hyperparam1)
     model1.train()
@@ -90,17 +91,22 @@ def feature_GP_plot():
     metal_type = "aluminium"
 
     # We add this to show that lagging works
-    return_lag = 22
+    return_lag = 0
     len_inp = 5
     len_out = 1
 
     len_predict_show = 200
 
     features, log_prices = load_transform_data(metal_type, return_lag=return_lag) 
-    features, log_prices = features.tail(1000), log_prices.tail(1000)
+    # Calculating Not-None Data
+    # print(sum(features.isna().sum(axis=1) == 0))
+    features, log_prices = features.head(1000), log_prices.head(1000)
+    log_prices = log_prices[["Price"]]
     len_data = len(features)
+    # print(log_prices.head(10))
 
     first_day = features["Date"].iloc[0]
+    features = features[["Date", "FeatureFamily.TECHNICAL"]]
     features = features[["Date"]]
 
     splitted_data = prepare_dataset(
@@ -136,7 +142,7 @@ def feature_GP_plot():
         len_inp=len_inp, 
         len_out=len_out, 
         lr=0.1,
-        optim_iter=150,
+        optim_iter=100,
         jitter=1e-4
     )
     model1 = FeatureGP(training_dataset, ARIMA_hyperparam1)

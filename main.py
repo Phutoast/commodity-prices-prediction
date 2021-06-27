@@ -11,7 +11,7 @@ from utils.calculation import PerformanceMetric
 from models.GP import SimpleGaussianProcessModel, FeatureGP
 import pickle
 
-from examples.ARIMA_plot import examples_Mean_simple_prediction_plot
+from examples.ARIMA_plot import examples_Mean_simple_prediction_plot, example_ARIMA_simple_predtion_plot
 from examples.Walk_Forward_Plot import example_ARIMA_walk_forward_plot
 from examples.Simple_GP import simple_GP_plot, feature_GP_plot
 
@@ -22,7 +22,8 @@ np.random.seed(48)
 random.seed(48)
 
 def main():
-    # example_ARIMA_walk_forward_plot()
+    # example_ARIMA_simple_predtion_plot()
+    example_ARIMA_walk_forward_plot()
     # examples_Mean_simple_prediction_plot()
     # simple_GP_plot()
     # feature_GP_plot()

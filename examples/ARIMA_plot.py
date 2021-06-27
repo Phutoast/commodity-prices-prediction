@@ -19,12 +19,13 @@ def example_ARIMA_simple_predtion_plot():
 
     # We add this to show that lagging works
     return_lag = 0
-    len_inp = 400
-    len_out = 20
+    len_inp = 0
+    len_out = 10
 
     len_predict_show = 200
 
     features, log_prices = load_transform_data(metal_type, return_lag=return_lag) 
+    log_prices = log_prices[["Price"]]
     features, log_prices = features.tail(1000), log_prices.tail(1000)
     len_data = len(features)
 
@@ -40,8 +41,8 @@ def example_ARIMA_simple_predtion_plot():
 
     training_dataset = prepare_dataset(
         features_train, first_day, log_prices_train, 
-        len_inp=len_inp, len_out=0, return_lag=return_lag, 
-        convert_date=False, is_rand=False, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=True
+        len_inp=len_inp, len_out=len_out, return_lag=return_lag, 
+        convert_date=False, is_rand=False, offset=1, is_show_progress=False, num_dataset=-1, is_padding=True
     ) 
 
     # We don't have any inputs now just prediction something !!
@@ -93,13 +94,14 @@ def examples_Mean_simple_prediction_plot():
     metal_type = "aluminium"
 
     # We add this to show that lagging works
-    return_lag = 22
-    len_inp = 400
-    len_out = 20
+    return_lag = 0
+    len_inp = 0
+    len_out = 1
 
     len_predict_show = 200
 
     features, log_prices = load_transform_data(metal_type, return_lag=return_lag) 
+    log_prices = log_prices[["Price"]]
     features, log_prices = features.tail(1000), log_prices.tail(1000)
     len_data = len(features)
 
@@ -115,8 +117,8 @@ def examples_Mean_simple_prediction_plot():
 
     training_dataset = prepare_dataset(
         features_train, first_day, log_prices_train, 
-        len_inp=len_inp, len_out=0, return_lag=return_lag, 
-        convert_date=False, is_rand=False, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=True
+        len_inp=len_inp, len_out=len_out, return_lag=return_lag, 
+        convert_date=False, is_rand=False, offset=1, is_show_progress=False, num_dataset=-1, is_padding=True
     ) 
 
     # We don't have any inputs now just prediction something !!
@@ -129,11 +131,11 @@ def examples_Mean_simple_prediction_plot():
     missing_x, missing_y = find_missing_data(features, log_prices, log_prices_train, log_prices_test, first_day, return_lag)
     missing_data = (missing_x, missing_y)
 
-    ARIMA_hyperparam1 = Hyperparameters(
+    MeanParama = Hyperparameters(
         len_inp=len_inp, 
         len_out=len_out, 
     )
-    model1 = MeanModel(training_dataset, ARIMA_hyperparam1)
+    model1 = MeanModel(training_dataset, MeanParama)
     model1.train()
 
     # This is special for ARIMA as we may consider the lagging

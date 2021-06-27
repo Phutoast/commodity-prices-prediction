@@ -18,6 +18,7 @@ class ARIMAModel(BaseModel):
     def __init__(self, train_data, model_hyperparam):
         super().__init__(train_data, model_hyperparam)
         self.initialize()
+        assert self.hyperparam["len_inp"] == 0
     
     def initialize(self):
         """
@@ -32,8 +33,10 @@ class ARIMAModel(BaseModel):
             (although we assume the offset to be -1, we make sure that everything works)
         """
 
-        all_prices = self.collect_all_prices()
-        self.all_data = all_prices[:, 1].tolist()
+        all_prices = self.pack_data(self.train_data)
+        # We will give it only to be date and prediction.
+        self.all_data = all_prices[:, self.hyperparam["len_out"]].tolist()
+        self.curr_train = self.all_data
     
     
     def predict_time_step(self, step_ahead, ci):
@@ -68,7 +71,8 @@ class ARIMAModel(BaseModel):
         """
         self.initialize()
         # Note that ARIMA is clueless about a time step, so we can't do anything.
-        self.curr_train = self.all_data + test_data.label_inp["Price"].to_list()
+        # Have to use old data because ARIMA doesn't have a sense of time :(
+        self.curr_train += test_data.label_inp["Price"].to_list()
         span_per_round = self.hyperparam["ind_span_pred"]
 
         assert span_per_round <= step_ahead
@@ -85,6 +89,7 @@ class ARIMAModel(BaseModel):
             self.curr_train += y_pred[i*span_per_round:(i+1)*span_per_round]
 
         if num_left > 0:
+            print("HERE`")
             self.predict_time_step(num_left, ci)
         
         return self.pred_rollout, self.upper_rollout, self.lower_rollout, test_data.data_out["Date"].to_list()

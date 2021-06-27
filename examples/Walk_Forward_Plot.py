@@ -13,15 +13,16 @@ from models.ARIMA import ARIMAModel
 
 def example_ARIMA_walk_forward_plot():
     metal_type = "aluminium"
-    return_lag = 22
+    return_lag = 0
 
     # What model normally test
-    len_inp = 10
+    len_inp = 0
     
     # What model normally predict
     len_out = 10
 
     features, log_prices = load_transform_data(metal_type, return_lag=return_lag) 
+    log_prices = log_prices[["Price"]]
     first_day = features["Date"][0]
     
     features = features[["Date"]]
@@ -47,8 +48,8 @@ def example_ARIMA_walk_forward_plot():
         out_loss, num_test, (model_result, cutting_index) = walk_forward(
             features, log_prices, ARIMAModel, ARIMA_hyperparam1, 
             metric.square_error, 
-            size_train=300, size_test=200, train_offset=-1, test_offset=len_out, 
-            test_step=len_out, return_lag=return_lag, is_train_pad=True, is_test_pad=False, 
+            size_train=300, size_test=200, train_offset=-1, test_offset=20, 
+            test_step=20, return_lag=return_lag, is_train_pad=True, is_test_pad=False, 
             is_rand=False
         )
 
@@ -62,7 +63,7 @@ def example_ARIMA_walk_forward_plot():
         with open("cache/out_loss.txt", 'wb') as f:
             pickle.dump(out_loss, f)
 
-    # save_data()
+    save_data()
 
     with open("cache/cutting_index.txt", 'rb') as f:
         cutting_index = pickle.load( f)

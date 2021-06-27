@@ -6,6 +6,11 @@ import warnings
 DisplayPrediction = namedtuple("DisplayPrediction", ["packed_data", "name", "color", "is_bridge"], defaults=(None, "k", True))
 
 # Storing Trainig Data
+# We are interested in the model where
+# ([data_inp], [label_inp]) -> Model (at state ready to do prediction)
+# Model + [data_out] -> [pred_label]
+# Loss=l([pred_label], [label_out])
+# In normal regressor, the inp would be: Model([data_inp], [label_inp], [data_out]) -> [pred_label]
 TrainingPoint = namedtuple("TrainingSet", ["data_inp", "label_inp", "data_out", "label_out"])
 
 # Storing Useful Hyperparameters
@@ -50,3 +55,38 @@ def pack_data(mean, upper, lower, x):
     d = {"mean": mean, "upper": upper, "lower": lower, "x": x}
     return pd.DataFrame(data=d)
 
+# class FeatureDataset(object):
+#     """
+#     Transforming TrainingPoint object 
+#         into a list corresponding to user-specified label. 
+
+#     Args:
+#         data_feat: List of feature name that 
+#             we want to include in the input of the model.
+#         label_feat_data: List of feature name that 
+#             we want to include in the label of the input of the model. 
+#         label_feat_pred: List of feature name that 
+#             we want to include as the predion of the model. 
+#     """
+#     def __init__(self, data_feat=None, label_feat=None):
+
+#         self.data_feat = data_feat
+#         self.label_feat = label_feat
+    
+#     def __call__(self, data_point):
+#         """
+#         Transform the data_point into a list based 
+#             on the label passed in __init__ so that 
+#             we can add them to numpy array. 
+#             The data will be returned in the following format. 
+
+#             [data_feat] + [label_feat] + [data_feat] + []
+        
+#         Args:
+#             data_point: Data from dataset stored in TrainingPoint format.
+        
+#         Return:
+#             data_list: Computed data format that is ready 
+#                 to be stored in number array
+#             total_length: Total length of the data_list
+#         """

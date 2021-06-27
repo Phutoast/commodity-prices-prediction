@@ -1,4 +1,6 @@
 import numpy as np
+import pandas as pd
+
 from utils.data_structure import pack_data
 
 class BaseModel(object):
@@ -20,41 +22,48 @@ class BaseModel(object):
         Training the data given the training parameters.
         """
         pass
-    
-    def collect_all_prices(self):
+     
+    def pack_data(self, dataset):
         """
-        Given the training data, gather all prices together with the time index.
+        Given the training data, pack all the data 
+            into the single numpy array where the last column is the target
 
-        Return:
-            data_collection: (num_data x 2) the full collection 
-                of the dataset together with at tine (for now)
-        """
-        # It is clear that the last index of the dataset is the last index of the training set
-        # Also did a testing for any weird behavior, it is consistence with training loop 
-        #      as we have to go through all the training data anyways
-        # Abit redundance but it works 
-        # last_index = self.train_data[-1].label_out.index[-1]
-        # first_index = self.train_data[0].label_inp.index[0]    
-
-        collection = {}
-
-        def add_data(df_data):
-            for index, data in zip(df_data.index, df_data["Price"]):
-                if index in collection:
-                    assert collection[index] == data
-                else:
-                    collection[index] = data
-
-        for data in self.train_data:
-            _, train_inp, _, train_out = data
-            add_data(train_inp)
-            add_data(train_out)
+        WARNING: It won't do any jobs on the transformation of data 
+            (including selecting relevent feature) 
         
-        num_data = len(collection)
-        data = np.zeros((num_data, 2))
-        for i, (day, d) in enumerate(collection.items()):
-            data[i, :] = [day, d]
-        return data
+        Args:
+            dataset: Training dataset.  
+        
+        Return:
+            full_numpy: The full training data in numpy format.
+        """
+
+        def datapoint_to_list(data_point):
+            """
+            For each data point in the data set, we turn 
+                them into row of the full numpy array
+
+            Args:
+                data_point: Element of the dataset
+            
+            Return:
+                row_data: Row of the full_numpy array
+            """
+            all_float = lambda df, order: df.apply(pd.to_numeric, errors='coerce').to_numpy().flatten(order)
+            first = all_float(data_point.data_inp, "C")
+            second = all_float(data_point.label_inp, "C")
+            third = all_float(data_point.data_out, "C")
+            forth = all_float(data_point.label_out, "F")
+            return np.concatenate([first, second, third, forth])
+
+        num_data = len(dataset)
+        num_feature = len(datapoint_to_list(dataset[0]))
+        all_prices = np.zeros((num_data, num_feature))
+
+        for i, data in enumerate(dataset):
+            all_prices[i] = datapoint_to_list(data)
+        
+        return all_prices
     
     def predict_step_head(self, test_data, step_ahead, ci=0.9):
         """
@@ -78,7 +87,7 @@ class BaseModel(object):
             so that there is no leak in the dataset
         
         Args:
-            test_data: Testing data given for testing
+            test_data: Testing data set given for testing (must be dataframe)
             step_ahead: Number of step a ahead we wany ot compute 
                 if -1 then we use the same value as len_out in Hyperparameter
             ci: Confidence Interval set in ratio.

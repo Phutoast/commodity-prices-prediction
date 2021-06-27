@@ -10,7 +10,8 @@ class MeanModel(BaseModel):
         super().__init__(train_data, model_hyperparam)
     
     def train(self):
-        all_prices = self.collect_all_prices()
+        all_prices = self.pack_data(self.train_data)
+        print(all_prices)
         self.param = np.mean(all_prices[:, 1])
     
     def predict_step_head(self, test_data, step_ahead, ci=0.9):

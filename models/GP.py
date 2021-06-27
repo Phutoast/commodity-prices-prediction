@@ -8,10 +8,11 @@ class ExactGPModel(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood):
         super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
         self.mean_module = gpytorch.means.ConstantMean()
-        # self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
+        self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
         # self.covar_module = gpytorch.kernels.SpectralMixtureKernel(num_mixtures=4, ard_num_dims=6)
         # self.covar_module.initialize_from_data(train_x, train_y)
-        self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.MaternKernel()) 
+        # self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel() + gpytorch.kernels.PeriodicKernel())
+            
     
     def forward(self, x):
         mean_x = self.mean_module(x)
@@ -28,7 +29,7 @@ class SimpleGaussianProcessModel(BaseModel):
         self.likelihood = gpytorch.likelihoods.GaussianLikelihood()
     
     def train(self):
-        all_prices = self.collect_all_prices()
+        all_prices = self.pack_data(self.train_data)
         train_x = torch.from_numpy(all_prices[:, 0]).float()
         train_y = torch.from_numpy(all_prices[:, 1]).float()
         
@@ -37,7 +38,6 @@ class SimpleGaussianProcessModel(BaseModel):
 
         train_x = (train_x - self.mean_x)/self.std_x
         self.model = ExactGPModel(train_x, train_y, self.likelihood)
-
 
         self.model.train()
         self.likelihood.train()
@@ -93,26 +93,9 @@ class FeatureGP(BaseModel):
         super().__init__(train_data, model_hyperparam)
         self.likelihood = gpytorch.likelihoods.GaussianLikelihood()
     
-    def pack_set(self, dataset):
-        num_data = len(dataset)
-        all_dim = (self.hyperparam["len_inp"] + self.hyperparam["len_out"])*2
-        all_prices = np.zeros((num_data, all_dim))
-
-        for i, data in enumerate(dataset):
-            all_x_date = data.data_inp["Date"].to_list()
-            all_x_price = data.label_inp["Price"].to_list()
-            all_y_date = data.data_out["Date"].to_list()
-            all_y_price = data.label_out["Price"].to_list()
-
-            all_data = all_x_date + all_x_price + all_y_date + all_y_price
-            all_prices[i] = all_data
-        
-        return all_prices
-
-    
     def train(self):
         with gpytorch.settings.cholesky_jitter(self.hyperparam["jitter"]):
-            all_prices = self.pack_set(self.train_data)
+            all_prices = self.pack_data(self.train_data)
 
             train_x = torch.from_numpy(all_prices[:, :-1]).float()
             train_y = torch.from_numpy(all_prices[:, -1]).float()
@@ -153,7 +136,7 @@ class FeatureGP(BaseModel):
         """
 
         with gpytorch.settings.cholesky_jitter(self.hyperparam["jitter"]):
-            inp_test = self.pack_set(test_data)[:, :-1]
+            inp_test = self.pack_data(test_data)[:, :-1]
             size_test_data = len(inp_test)
             assert step_ahead <= size_test_data
             
