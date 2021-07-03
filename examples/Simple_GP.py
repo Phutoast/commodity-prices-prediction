@@ -132,8 +132,11 @@ def feature_GP_plot():
     full_show_dataset = prepare_dataset(
         feature_test, first_day, log_prices_test, 
         len_inp=0, len_out=len_predict_show, return_lag=0, 
-        convert_date=False, is_rand=False, offset=3, is_show_progress=False, num_dataset=-1, is_padding=True
+        convert_date=False, is_rand=False, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=True
     )
+
+    # print(show_dataset[0])
+    # assert False
 
     missing_x, missing_y = find_missing_data(features, log_prices, log_prices_train, log_prices_test, first_day, return_lag)
     missing_data = (missing_x, missing_y)

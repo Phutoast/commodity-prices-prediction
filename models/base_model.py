@@ -65,7 +65,7 @@ class BaseModel(object):
         
         return all_prices
     
-    def predict_step_head(self, test_data, step_ahead, ci=0.9):
+    def predict_step_ahead(self, test_data, step_ahead, ci=0.9):
         """
         Wrapping by predict method
 
@@ -78,7 +78,7 @@ class BaseModel(object):
             Tuple of list of mean, upperbound and lower bound, which will be used for paching data
         """
      
-    def predict(self, test_data, step_ahead=-1, ci=0.9):
+    def predict(self, test_data, step_ahead, all_date, ci=0.9):
         """
         Predict the data for each time span until it covers al the testing time step 
             (if auto-regressive, if not we resort to the use of )
@@ -97,5 +97,5 @@ class BaseModel(object):
                 lower bound of the prediction and the data necessary to the plotting
         """
         step_ahead = self.hyperparam["len_out"] if step_ahead == -1 else step_ahead
-        pred_rollout, upper_rollout, lower_rollout, dates = self.predict_step_head(test_data, step_ahead, ci=0.9)
-        return pack_data(pred_rollout, upper_rollout, lower_rollout, dates)
+        pred_rollout, upper_rollout, lower_rollout = self.predict_step_ahead(test_data, step_ahead, ci=0.9)
+        return pack_data(pred_rollout, upper_rollout, lower_rollout, all_date)

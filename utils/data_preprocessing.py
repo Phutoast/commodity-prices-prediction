@@ -312,7 +312,7 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
                             len_out=len_out, return_lag=return_lag, 
                             is_padding=is_train_pad, is_rand=is_rand, 
                             offset=train_offset)  
-                             
+
         model_fold = model(train_dataset, model_hyperparam)         
         model_fold.train()
 

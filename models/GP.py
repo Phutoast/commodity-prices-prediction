@@ -18,7 +18,7 @@ class ExactGPModel(gpytorch.models.ExactGP):
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
-
+    
 class SimpleGaussianProcessModel(BaseModel):
     """
     Simple Gaussian Process Model that takes date 
@@ -62,7 +62,7 @@ class SimpleGaussianProcessModel(BaseModel):
         self.model.eval()
         self.likelihood.eval()
     
-    def predict_step_head(self, test_data, step_ahead, ci=0.9):
+    def predict_step_ahead(self, test_data, step_ahead, ci=0.9):
         """
         Args: (See superclass)
         Returns: (See superclass)
@@ -83,7 +83,7 @@ class SimpleGaussianProcessModel(BaseModel):
             pred_upper = upper.numpy().tolist()
         
         return pred_mean, pred_lower, pred_upper, inp_test["Date"].to_list()
-    
+        
 class FeatureGP(BaseModel):
     """
     Simple Gaussian Process Model that takes date 
@@ -129,7 +129,7 @@ class FeatureGP(BaseModel):
             self.model.eval()
             self.likelihood.eval()
     
-    def predict_step_head(self, test_data, step_ahead, ci=0.9):
+    def predict_step_ahead(self, test_data, step_ahead, ci=0.9):
         """
         Args: (See superclass)
         Returns: (See superclass)
