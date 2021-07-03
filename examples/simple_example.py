@@ -40,7 +40,7 @@ def example_plot_all_algorithms():
     algo_name = "Mean"
     hyperparam, algo_class = algorithms_dic[algo_name]
 
-    return_lag = 0
+    return_lag = 22
     len_inp = hyperparam["len_inp"]
     len_out = hyperparam["len_out"]
     len_predict_show = 200
@@ -72,7 +72,7 @@ def example_plot_all_algorithms():
 
     model = algo_class(train_dataset, hyperparam)
     model.train()
-    pred = model.predict(pred_dataset, len_predict_show, true_date, ci=0.9)
+    pred = model.predict(pred_dataset, 100, true_date[:100], ci=0.9)
 
     ARIMA_pred = DisplayPrediction(pred, name="ARIMA", color="p")
     true_pred = DisplayPrediction(
