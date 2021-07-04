@@ -46,8 +46,8 @@ def visualize_time_series(data, inp_color, missing_data, lag_color,
     y_train = convert_price(y_train)
     
     if is_missing:
-        x_missing = convert_date(missing_x)
-        y_missing = convert_price(missing_y)
+        x_missing = missing_x
+        y_missing = missing_y
     
     cut_point = x_train[-1]
 

@@ -13,7 +13,7 @@ import pickle
 
 from examples.Walk_Forward_Plot import example_ARIMA_walk_forward_plot
 from examples.Simple_GP import simple_GP_plot, feature_GP_plot
-from examples.simple_example import example_plot_all_algorithms
+from examples.simple_example import example_plot_all_algo_lag 
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -27,7 +27,8 @@ def main():
     # examples_Mean_simple_prediction_plot()
     # simple_GP_plot()
     # feature_GP_plot()
-    example_plot_all_algorithms()
+    # example_plot_all_algo()
+    example_plot_all_algo_lag()
 
 if __name__ == '__main__':
     main()
