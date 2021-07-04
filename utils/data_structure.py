@@ -11,7 +11,14 @@ DisplayPrediction = namedtuple("DisplayPrediction", ["packed_data", "name", "col
 # Model + [data_out] -> [pred_label]
 # Loss=l([pred_label], [label_out])
 # In normal regressor, the inp would be: Model([data_inp], [label_inp], [data_out]) -> [pred_label]
-TrainingPoint = namedtuple("TrainingSet", ["data_inp", "label_inp", "data_out", "label_out"])
+class TrainingPoint(namedtuple("TrainingSet", ["data_inp", "label_inp", "data_out", "label_out"])):
+    def __eq__(self, other):
+        cond1 = self.data_inp.equals(other.data_inp)
+        cond2 = self.label_inp.equals(other.label_inp)
+        cond3 = self.data_out.equals(other.data_out)
+        cond4 = self.label_out.equals(other.label_out)
+
+        return all([cond1, cond2, cond3, cond4])
 
 # Storing Useful Hyperparameters
 class Hyperparameters(dict):

@@ -32,21 +32,21 @@ def simple_GP_plot():
     splitted_data = prepare_dataset(
         features, first_day, log_prices, 
         len_inp=len_data-len_predict_show-return_lag, len_out=len_predict_show, return_lag=return_lag, 
-        convert_date=True, is_rand=False, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=True
+        convert_date=True, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=True
     ) 
     features_train, log_prices_train, feature_test, log_prices_test = splitted_data[0]
 
     training_dataset = prepare_dataset(
         features_train, first_day, log_prices_train, 
         len_inp=len_inp, len_out=0, return_lag=return_lag, 
-        convert_date=False, is_rand=False, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=True
+        convert_date=False, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=True
     ) 
 
     # We don't have any inputs now just prediction something !!
     show_dataset = prepare_dataset(
         feature_test, first_day, log_prices_test, 
         len_inp=0, len_out=len_predict_show, return_lag=0, 
-        convert_date=False, is_rand=False, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=True
+        convert_date=False, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=True
     )
 
     missing_x, missing_y = find_missing_data(features, log_prices, log_prices_train, log_prices_test, first_day, return_lag)
@@ -112,27 +112,27 @@ def feature_GP_plot():
     splitted_data = prepare_dataset(
         features, first_day, log_prices, 
         len_inp=len_data-len_predict_show-return_lag, len_out=len_predict_show, return_lag=return_lag, 
-        convert_date=True, is_rand=False, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=True
+        convert_date=True, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=True
     ) 
     features_train, log_prices_train, feature_test, log_prices_test = splitted_data[0]
 
     training_dataset = prepare_dataset(
         features_train, first_day, log_prices_train, 
         len_inp=len_inp, len_out=len_out, return_lag=return_lag, 
-        convert_date=False, is_rand=False, offset=1, is_show_progress=False, num_dataset=-1, is_padding=True
+        convert_date=False, offset=1, is_show_progress=False, num_dataset=-1, is_padding=True
     ) 
 
     # We don't have any inputs now just prediction something !!
     show_dataset = prepare_dataset(
         feature_test, first_day, log_prices_test, 
         len_inp=len_inp, len_out=len_out, return_lag=0, 
-        convert_date=False, is_rand=False, offset=1, is_show_progress=False, num_dataset=-1, is_padding=True
+        convert_date=False, offset=1, is_show_progress=False, num_dataset=-1, is_padding=True
     )
     
     full_show_dataset = prepare_dataset(
         feature_test, first_day, log_prices_test, 
         len_inp=0, len_out=len_predict_show, return_lag=0, 
-        convert_date=False, is_rand=False, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=True
+        convert_date=False, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=True
     )
 
     # print(show_dataset[0])

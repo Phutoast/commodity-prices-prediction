@@ -147,8 +147,7 @@ def cal_lag_return(output, length_lag):
     return lag_return
 
 def prepare_dataset(X, first_day, y, len_inp, 
-            len_out=22, return_lag=22, is_padding=False, convert_date=True, 
-            is_rand=False, offset=1, is_show_progress=False, num_dataset=-1):
+            len_out=22, return_lag=22, is_padding=False, convert_date=True, offset=1, is_show_progress=False, num_dataset=-1):
     """
     Creating Set for the prediction Chopping up the data (can be used for both training and testing):
             -----+++xxxx
@@ -171,7 +170,6 @@ def prepare_dataset(X, first_day, y, len_inp,
         return_lag: Lagging of the return (used in lagged return)
         is_padding: Pad the dataset so that we cover all the data in the dataset.
         convert_date: Convert the date to a number or not.
-        is_rand: If True, Shuffle the data-subset and then split training-testing
         offset: Number of data that got left-out from previous training data (If -1 then we consider the partion)
         is_show_progress: showing tqdm progress bar
         num_dataset: getting first_numdataset dataset we want to output (-1 if we want all)
@@ -232,15 +230,11 @@ def prepare_dataset(X, first_day, y, len_inp,
                 TrainingPoint(*data)
             )
     
-    if is_rand:
-        random.shuffle(all_subset)
-
     return all_subset
 
 def walk_forward(X, y, model, model_hyperparam, loss, size_train, 
             size_test, train_offset, test_offset, test_step, return_lag, 
-            is_train_pad, is_test_pad, 
-            is_rand=False):
+            is_train_pad, is_test_pad):
     """
     Performing walk forward testing (k-fold like) of the models
         In terms of setting up training and testing data.
@@ -287,7 +281,6 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
         return_lag: Lagging of the return (used in lagged return)
         is_train_pad: Pad the dataset so that we cover all the data in the training set.
         is_test_pad: Pad the dataset so that we cover all the data in the testing set.
-        is_rand: If true, shuffle the data-subset and then split training-testing
     
     Return:
         perf: Performance of model given
@@ -299,8 +292,7 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
 
     first_day = X["Date"][0]
     fold_list = prepare_dataset(X, first_day, y, size_train, 
-                len_out=size_test, convert_date=False, 
-                is_rand=is_rand, offset=size_test, return_lag=return_lag, 
+                len_out=size_test, convert_date=False, offset=size_test, return_lag=return_lag, 
                 is_padding=False) 
     
     loss_list, num_test_list, model_result = [], [], []
@@ -310,16 +302,14 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
 
         train_dataset = prepare_dataset(X_train, first_day, y_train, len_inp, 
                             len_out=len_out, return_lag=return_lag, 
-                            is_padding=is_train_pad, is_rand=is_rand, 
-                            offset=train_offset)  
+                            is_padding=is_train_pad, offset=train_offset)  
 
         model_fold = model(train_dataset, model_hyperparam)         
         model_fold.train()
 
         # Testing Model
         test_dataset = prepare_dataset(X_test, first_day, y_test, len_inp, 
-                            len_out=test_step, return_lag=return_lag, is_padding=is_test_pad,
-                            is_rand=is_rand, offset=test_offset)
+                            len_out=test_step, return_lag=return_lag, is_padding=is_test_pad, offset=test_offset)
         
         num_test = 0
         for j, data_test in enumerate(test_dataset):
