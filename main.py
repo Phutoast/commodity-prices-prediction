@@ -12,7 +12,6 @@ from models.GP import FeatureGP
 import pickle
 
 from examples.Walk_Forward_Plot import example_ARIMA_walk_forward_plot
-from examples.Simple_GP import simple_GP_plot, feature_GP_plot
 from examples.simple_example import example_plot_all_algo_lag 
 
 import warnings
@@ -22,12 +21,7 @@ np.random.seed(48)
 random.seed(48)
 
 def main():
-    # example_ARIMA_simple_predtion_plot()
     # example_ARIMA_walk_forward_plot()
-    # examples_Mean_simple_prediction_plot()
-    # simple_GP_plot()
-    # feature_GP_plot()
-    # example_plot_all_algo()
     example_plot_all_algo_lag()
 
 if __name__ == '__main__':

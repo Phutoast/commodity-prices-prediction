@@ -9,7 +9,10 @@ from utils.data_structure import TrainingPoint
 
 from models.ARIMA import ARIMAModel
 from models.Mean import IIDDataModel
+from models.GP import FeatureGP
 import itertools
+
+from gpytorch import kernels
 
 def get_data_example(return_lag):
     metal_type = "aluminium"
@@ -35,13 +38,22 @@ algorithms_dic = {
         len_out=10, 
         dist="Gaussian"
     ), IIDDataModel],
+    "GP": [Hyperparameters(
+        len_inp=5, 
+        len_out=1, 
+        lr=0.1,
+        optim_iter=200,
+        jitter=1e-4,
+        is_time_only=True,
+        kernel=kernels.ScaleKernel(kernels.MaternKernel())
+    ), FeatureGP],
 }
 
 def example_plot_all_algo_lag():
-    algo_name = "ARIMA"
+    algo_name = "GP"
     hyperparam, algo_class = algorithms_dic[algo_name]
 
-    return_lag = 22
+    return_lag = 0
     len_inp = hyperparam["len_inp"]
     len_out = hyperparam["len_out"]
     len_predict_show = 200
