@@ -20,7 +20,7 @@ def main():
     #     "GP", load_path=("gp", "model"),
     #     is_save=False, is_load=True
     # )
-    example_plot_walk_forward("GP-2", "07-07-21-22-42-16-GP-2")
+    example_plot_walk_forward("GP-2")
 
 if __name__ == '__main__':
     main()

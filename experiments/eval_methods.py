@@ -203,7 +203,7 @@ def walk_forward(X, y, algo_class, model_hyperparam, loss, size_train,
 
         interval_loss = []
         if intv_loss is None:
-            intv_loss = lambda x, y : np.average(loss(x, y))
+            intv_loss = lambda x, y : np.median(loss(x, y))
 
         for i in range(len(pred)//len_out):
             parti = pred.iloc[i*len_out:(i+1)*len_out, :]

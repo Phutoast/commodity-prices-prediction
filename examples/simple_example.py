@@ -5,7 +5,7 @@ import itertools
 
 from utils.data_preprocessing import load_transform_data
 from utils.data_structure import DisplayPrediction, pack_data
-from utils.data_visualization import visualize_time_series, visualize_walk_forward
+from utils.data_visualization import visualize_time_series, visualize_walk_forward, show_result_fold
 from utils.others import create_folder, save_fold_data, load_fold_data
 
 from experiments.algo_dict import algorithms_dic
@@ -91,7 +91,7 @@ def example_plot_all_algo_lag(algo_name, plot_gap=True, load_path=None, is_save=
 def example_plot_walk_forward(algo_name, base_name=None):
     hyperparam, algo_class = algorithms_dic[algo_name]
 
-    return_lag = 0
+    return_lag = 22
     len_inp = hyperparam["len_inp"]
     len_out = hyperparam["len_out"]
     features, log_prices, first_day, len_data = get_data_example(return_lag)
@@ -100,6 +100,7 @@ def example_plot_walk_forward(algo_name, base_name=None):
 
     if base_name is not None:
         fold_result = load_fold_data(base_name, algo_name)
+        show_result_fold(fold_result, algo_name)
     else:
         fold_result = walk_forward(
             features, log_prices, algo_class, hyperparam, 

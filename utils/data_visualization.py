@@ -218,6 +218,21 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result,
 
     return fig, axs
 
-def show_result_fold():
-    pass
+def show_result_fold(fold_result, name):
+    """
+    Printing out the Result of the fold data
+
+    Args:
+        fold_result: Result of walk_forward 
+        name: Name of the Algorithm
+
+    """
+    all_error_ind, all_error_intv = [], []
+    for result in fold_result:
+        all_error_ind += result.pred["time_step_error"].to_list() 
+        all_error_intv += [loss for _, _, loss in result.interval_loss]
+    print("-"*16 + f" Result({name}) " + "-"*16)
+    print(f"Averate of All Test Pred: {round(np.mean(all_error_ind), 7)} ± {round(np.std(all_error_ind), 7)}")
+    print(f"Average of Test Interval: {round(np.mean(all_error_intv), 7)} ± {round(np.std(all_error_intv), 7)}")
+    print("-"*16 + "-"*len(f" Result({name}) ") + "-"*16)
     
