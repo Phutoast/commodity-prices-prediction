@@ -3,8 +3,10 @@ import pandas as pd
 import numpy as np
 import math
 from tqdm import tqdm
-from utils.data_structure import TrainingPoint
+import itertools
 import random
+
+from utils.data_structure import TrainingPoint
 
 def parse_series_time(dates, first_day):
     """
@@ -232,9 +234,9 @@ def prepare_dataset(X, first_day, y, len_inp,
     
     return all_subset
 
-def walk_forward(X, y, model, model_hyperparam, loss, size_train, 
-            size_test, train_offset, test_offset, test_step, return_lag, 
-            is_train_pad, is_test_pad):
+def walk_forward(X, y, algo_class, model_hyperparam, loss, size_train, 
+            size_test, train_offset, test_offset, return_lag, 
+            is_train_pad=True, is_test_pad=False):
     """
     Performing walk forward testing (k-fold like) of the models
         In terms of setting up training and testing data.
@@ -264,12 +266,12 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
     
     len_inp (in model_hyperparam): Length of ------- && xxxxxxxx
     len_out (in model_hyperparam): Length of iiiiiii
-    test_step: Length of kkkkkkkk
+    len_out: Length of kkkkkkkk
 
     Args:
         X: All data avaliable
         y: All label avaliable
-        model: Training Model class
+        algo_class: Training Model class
         model_hyperparam: Hyperparameter for the model 
             (will be used to construct a model object)
         loss: Loss for calculating performance.
@@ -277,7 +279,6 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
         size_test: number of testing size
         train_offset: Offset during the training. 
         test_offset: Offset during the testing.
-        test_step: number of testing ahead we want to test for
         return_lag: Lagging of the return (used in lagged return)
         is_train_pad: Pad the dataset so that we cover all the data in the training set.
         is_test_pad: Pad the dataset so that we cover all the data in the testing set.
@@ -292,7 +293,8 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
 
     first_day = X["Date"][0]
     fold_list = prepare_dataset(X, first_day, y, size_train, 
-                len_out=size_test, convert_date=False, offset=size_test, return_lag=return_lag, 
+                len_out=size_test, convert_date=False, 
+                offset=size_test, return_lag=return_lag, 
                 is_padding=False) 
     
     loss_list, num_test_list, model_result = [], [], []
@@ -300,28 +302,36 @@ def walk_forward(X, y, model, model_hyperparam, loss, size_train,
         print("At fold", i+1, "/", len(fold_list))
         X_train, y_train, X_test, y_test = data
 
-        train_dataset = prepare_dataset(X_train, first_day, y_train, len_inp, 
-                            len_out=len_out, return_lag=return_lag, 
-                            is_padding=is_train_pad, offset=train_offset)  
+        train_dataset = prepare_dataset(
+            X_train, first_day, y_train, 
+            len_inp=len_inp, len_out=len_out, return_lag=return_lag, 
+            offset=train_offset, is_padding=is_train_pad
+        )
 
-        model_fold = model(train_dataset, model_hyperparam)         
-        model_fold.train()
+        test_dataset = prepare_dataset(
+            X_test, first_day, y_test, len_inp, 
+            len_out=len_out, return_lag=return_lag, 
+            offset=test_offset,is_padding=is_test_pad
+        )
+        all_date_pred = list(
+            itertools.chain.from_iterable([point.data_out["Date"].to_list() for point in test_dataset])
+        )
+        true_date = X_test["Date"].to_list()
+        true_price = y_test["Price"].to_list() 
+        
+        print(len(train_dataset))
+        
+        model = algo_class(train_dataset, model_hyperparam)         
+        model.train()
+        assert False
 
-        # Testing Model
-        test_dataset = prepare_dataset(X_test, first_day, y_test, len_inp, 
-                            len_out=test_step, return_lag=return_lag, is_padding=is_test_pad, offset=test_offset)
+        pred = model.predict(
+            test_dataset, 
+            len(all_date_pred), 
+            all_date_pred, ci=0.9
+        )
         
-        num_test = 0
-        for j, data_test in enumerate(test_dataset):
-            # We assume that during the prediction there is no change of state within the predictor
-            model_pred = model_fold.predict(data_test, step_ahead=test_step)
-            model_result.append(model_pred)
-            loss_list.append(loss(data_test.label_out["Price"].to_numpy(), model_pred))
-            num_test += 1
-        
-        num_test_list.append(num_test)
-    
-    return loss_list, num_test_list, merge_results(model_result)
+
 
 def merge_results(model_result):
     df = model_result[0].copy()

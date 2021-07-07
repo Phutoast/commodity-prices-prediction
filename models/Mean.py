@@ -10,7 +10,7 @@ class IIDDataModel(FullARModel):
     """
     def __init__(self, train_data, model_hyperparam):
         super().__init__(train_data, model_hyperparam)
-    
+     
     def predict_fix_step(self, step_ahead, ci=0.9):
         if self.hyperparam["dist"] == "Gaussian":
             mean = np.mean(self.all_data)

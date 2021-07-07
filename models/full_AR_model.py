@@ -5,7 +5,7 @@ from models.base_model import BaseModel
 
 class FullARModel(BaseModel):
     """
-    Full Auto-Regressive Model: A model that can output any size. However, len_out is what the model is number of trained/expect output to be. 
+    Full Auto-Regressive Model: A model that can output any size. However, len_out doesn't affect the training.
 
     Args:
         pred_rollout: Prediction rollout of ARIMA model
@@ -27,7 +27,7 @@ class FullARModel(BaseModel):
     def get_all_data(self, train_data):
         """
         Getting all the train data and transform into the self.all_data 
-        that contains a matrix of features N x d where d is the 
+        that contains a matrix of features N x d where d is the feature dimension.
 
         Args:
             train_data: Training dataset in our defined dataset format.
@@ -35,8 +35,33 @@ class FullARModel(BaseModel):
         Return:
             all_data: Collection of data in numpy array
         """
-        packed_data = self.pack_data(train_data)
-        return packed_data[:, [self.hyperparam["len_out"]]]
+        packed_data = self.pack_data(train_data, is_full_AR=True)
+
+        # Getting all data, get the first training point, 
+        # Get the last one that is the target
+
+        total_num_data = self.hyperparam["len_inp"] + self.hyperparam["len_out"]
+        assert packed_data.shape[1] == total_num_data
+
+        all_data = packed_data[:, 0, :]
+
+        # The missing data (occur because padding)
+        all_data = np.concatenate(
+            [all_data, packed_data[-1, range(1, total_num_data), :]]
+        )
+
+        if not self.hyperparam["is_date"]:
+            all_data = all_data[:, 1:]
+
+        return all_data
+    
+    def train(self):
+        """
+        Symbolically create the all_data as to define the training process
+        """
+        # Only getting the value this is for Mean and ARIMA only
+        self.all_data = self.get_all_data(self.train_data)[:, [-1]]
+     
     
     def get_batch_test_data(self, test_data):
         """
@@ -49,15 +74,12 @@ class FullARModel(BaseModel):
         Returns:
             list_packed_data: a list with (possible the same size as num_iter) containing len_out x d.
         """
-        packed_data = self.pack_data(test_data)
-        out = packed_data[:, self.hyperparam["len_out"]:]
-        return list(np.expand_dims(out, -1))
-    
-    def train(self):
-        """
-        Symbolically create the all_data as to define the training process
-        """
-        self.all_data = self.get_all_data(self.train_data)
+        packed_data = self.pack_data(test_data, is_full_AR=True)
+        
+        if not self.hyperparam["is_date"]:
+            packed_data = packed_data[:, :, 1:]
+
+        return list(packed_data)
     
     def append_all_data(self, new_data):
         """
@@ -110,7 +132,7 @@ class FullARModel(BaseModel):
             mean, upper, lower = self.predict_fix_step(span_per_round, ci)
             self.add_results(mean, upper, lower)
 
-            # Constantly adding the dta
+            # Constantly adding the data
             self.append_all_data(data[i])
             
         if num_left > 0:

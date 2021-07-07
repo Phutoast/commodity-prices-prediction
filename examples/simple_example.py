@@ -2,10 +2,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from utils.data_preprocessing import load_transform_data, prepare_dataset, find_missing_data
+from utils.data_preprocessing import load_transform_data, prepare_dataset, find_missing_data, walk_forward
 from utils.data_structure import DisplayPrediction, Hyperparameters, pack_data
-from utils.data_visualization import visualize_time_series
+from utils.data_visualization import visualize_time_series, visualize_walk_forward
 from utils.data_structure import TrainingPoint
+from utils.calculation import PerformanceMetric
 
 from models.ARIMA import ARIMAModel
 from models.Mean import IIDDataModel
@@ -23,6 +24,7 @@ def get_data_example(return_lag):
     len_data = len(features)
 
     first_day = features["Date"].iloc[0]
+    # features = features[["Date", "FeatureFamily.TECHNICAL"]]
     features = features[["Date"]]
     return features, log_prices, first_day, len_data
 
@@ -30,34 +32,48 @@ algorithms_dic = {
     # The ind span pred should be the same as len_out
     "ARIMA": [Hyperparameters(
         len_inp=0, 
-        len_out=10, 
+        len_out=3, 
+        is_date=False, 
         order=(10, 2, 5), 
+    ), ARIMAModel],
+    "ARIMA2": [Hyperparameters(
+        len_inp=0, 
+        len_out=20, 
+        is_date=False, 
+        order=(5, 4, 5), 
+    ), ARIMAModel],
+    "ARMA": [Hyperparameters(
+        len_inp=0, 
+        len_out=20, 
+        is_date=False, 
+        order=(5, 0, 5), 
     ), ARIMAModel],
     "Mean": [Hyperparameters(
         len_inp=0, 
         len_out=10, 
+        is_date=False, 
         dist="Gaussian"
     ), IIDDataModel],
     "GP": [Hyperparameters(
         len_inp=5, 
         len_out=1, 
         lr=0.1,
-        optim_iter=200,
+        optim_iter=100,
         jitter=1e-4,
-        is_time_only=True,
-        kernel=kernels.ScaleKernel(kernels.MaternKernel())
+        is_time_only=False,
+        is_date=True, 
+        kernel=kernels.ScaleKernel(kernels.RBFKernel())
     ), FeatureGP],
 }
 
-def example_plot_all_algo_lag():
+def example_plot_all_algo_lag(plot_gap=False):
     algo_name = "GP"
     hyperparam, algo_class = algorithms_dic[algo_name]
 
-    return_lag = 0
+    return_lag = 22
     len_inp = hyperparam["len_inp"]
     len_out = hyperparam["len_out"]
     len_predict_show = 200
-    true_features, true_log_prices, true_first_day, true_len_data = get_data_example(0)
     features, log_prices, first_day, len_data = get_data_example(return_lag)
     splitted_data = prepare_dataset(
         features, first_day, log_prices, 
@@ -80,14 +96,17 @@ def example_plot_all_algo_lag():
     true_date = feature_test["Date"].to_list()
     true_price = log_prices_test["Price"].to_list() 
     
-    missing_x = true_date[:len_inp+return_lag]
-    missing_y = true_price[:len_inp+return_lag] 
-    missing_data = (missing_x, missing_y)
+    if plot_gap:
+        missing_x = true_date[:len_inp+return_lag]
+        missing_y = true_price[:len_inp+return_lag] 
+        missing_data = (missing_x, missing_y)
+    else:
+        missing_data = ([], [])
     
     model = algo_class(train_dataset, hyperparam)
     model.train()
     pred = model.predict(pred_dataset, len(all_date_pred), all_date_pred, ci=0.9)
-    ARIMA_pred = DisplayPrediction(pred, name=algo_name, color="p")
+    ARIMA_pred = DisplayPrediction(pred, name=algo_name, color="p", is_bridge=False)
 
     true_pred = DisplayPrediction(
         pack_data(true_price[len_inp+return_lag:], [], [], true_date[len_inp+return_lag:]),
@@ -98,4 +117,25 @@ def example_plot_all_algo_lag():
     plt.show()
 
 
+def example_plot_walk_forward():
+    algo_name = "ARIMA"
+    hyperparam, algo_class = algorithms_dic[algo_name]
 
+    return_lag = 0
+    len_inp = hyperparam["len_inp"]
+    len_out = hyperparam["len_out"]
+    features, log_prices, first_day, len_data = get_data_example(return_lag)
+        
+    metric = PerformanceMetric()
+    out_loss, num_test, (model_result, cutting_index) = walk_forward(
+        features, log_prices, algo_class, hyperparam, 
+        metric.square_error, 
+        size_train=300, size_test=200, 
+        train_offset=1, 
+        test_offset=len_out, 
+        return_lag=return_lag, 
+        is_train_pad=True, 
+        is_test_pad=False 
+    )
+    
+    visualize_walk_forward(features, log_prices, model_result, out_loss, cutting_index, num_test, first_day)

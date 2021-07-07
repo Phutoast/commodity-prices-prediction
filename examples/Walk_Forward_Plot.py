@@ -63,7 +63,7 @@ def example_ARIMA_walk_forward_plot():
         with open("cache/out_loss.txt", 'wb') as f:
             pickle.dump(out_loss, f)
 
-    save_data()
+    # save_data()
 
     with open("cache/cutting_index.txt", 'rb') as f:
         cutting_index = pickle.load( f)
@@ -73,6 +73,10 @@ def example_ARIMA_walk_forward_plot():
     
     with open("cache/out_loss.txt", 'rb') as f:
         out_loss = pickle.load(f)
+    
+    print("Cutting Index", cutting_index)
+    print("Num Test", num_test)
+    print("Out loss", out_loss)
 
     model_result = pd.read_csv("cache/test.csv", index_col=0) 
     visualize_walk_forward(features, log_prices, model_result, out_loss, cutting_index, num_test, first_day)

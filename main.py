@@ -12,7 +12,7 @@ from models.GP import FeatureGP
 import pickle
 
 from examples.Walk_Forward_Plot import example_ARIMA_walk_forward_plot
-from examples.simple_example import example_plot_all_algo_lag 
+from examples.simple_example import example_plot_all_algo_lag, example_plot_walk_forward
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -23,6 +23,7 @@ random.seed(48)
 def main():
     # example_ARIMA_walk_forward_plot()
     example_plot_all_algo_lag()
+    # example_plot_walk_forward()
 
 if __name__ == '__main__':
     main()

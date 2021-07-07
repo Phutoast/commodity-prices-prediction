@@ -13,7 +13,7 @@ class ARIMAModel(FullARModel):
     def __init__(self, train_data, model_hyperparam):
         super().__init__(train_data, model_hyperparam)
         assert self.hyperparam["len_inp"] == 0
-     
+    
     def predict_fix_step(self, step_ahead, ci):
         order = self.hyperparam["order"]
         model = ARIMA(np.squeeze(self.all_data), order=order).fit()

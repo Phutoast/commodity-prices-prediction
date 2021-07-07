@@ -23,7 +23,7 @@ class BaseModel(object):
         """
         pass
      
-    def pack_data(self, dataset):
+    def pack_data(self, dataset, is_full_AR=False):
         """
         Given the training data, pack all the data 
             into the single numpy array where the last column is the target
@@ -37,6 +37,20 @@ class BaseModel(object):
         Return:
             full_numpy: The full training data in numpy format.
         """
+
+        def sort_data_points(data, label, len_data):
+            assert len(data)%len_data == 0
+            feature_num = len(data) // len_data
+
+            list_data = []
+            for i in range(len_data):
+                point_data = np.concatenate((
+                    data[i*feature_num:(i+1)*feature_num], 
+                    [label[i]]
+                ))
+                list_data.append(np.expand_dims(point_data, axis=0))
+            
+            return np.concatenate(list_data)
 
         def datapoint_to_list(data_point):
             """
@@ -54,16 +68,32 @@ class BaseModel(object):
             second = all_float(data_point.label_inp, "C")
             third = all_float(data_point.data_out, "C")
             forth = all_float(data_point.label_out, "F")
-            return np.concatenate([first, second, third, forth])
+            if not is_full_AR:
+                return np.concatenate([first, second, third, forth])
+            else:
+                full_data = []
+                if len(first) != 0 or len(second) != 0:
+                    data = sort_data_points(
+                        first, second, self.hyperparam["len_inp"]
+                    )
+                    full_data.append(data)
+
+                data = sort_data_points(
+                    third, forth, self.hyperparam["len_out"]
+                )
+                full_data.append(data)
+                return np.expand_dims(np.vstack(full_data), axis=0) 
 
         num_data = len(dataset)
         num_feature = len(datapoint_to_list(dataset[0]))
-        all_prices = np.zeros((num_data, num_feature))
 
-        for i, data in enumerate(dataset):
-            all_prices[i] = datapoint_to_list(data)
+        all_prices = []
+        for data in dataset:
+            row_data = datapoint_to_list(data)
+            all_prices.append(row_data)
         
-        return all_prices
+        out_data = np.vstack(all_prices)
+        return out_data
     
     def predict_step_ahead(self, test_data, step_ahead, ci=0.9):
         """

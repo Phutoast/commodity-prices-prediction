@@ -30,11 +30,13 @@ class Hyperparameters(dict):
     Args:
         len_inp: length of input (in terms of time step)
         len_out: length of output (in terms of time step)
+        is_date: Include date into the training ?
         kwargs: other model specific hyperparameters (e.g hidden-layer size). 
     """
-    def __init__(self, len_inp, len_out, **kwargs): 
+    def __init__(self, len_inp, len_out, is_date, **kwargs): 
         self["len_inp"] = len_inp
         self["len_out"] = len_out
+        self["is_date"] = is_date
         self.update(kwargs)
     
     def __repr__(self):
