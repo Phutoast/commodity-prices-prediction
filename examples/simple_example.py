@@ -1,19 +1,16 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-
-from utils.data_preprocessing import load_transform_data, prepare_dataset, find_missing_data, walk_forward
-from utils.data_structure import DisplayPrediction, Hyperparameters, pack_data
-from utils.data_visualization import visualize_time_series, visualize_walk_forward
-from utils.data_structure import TrainingPoint
-from utils.calculation import PerformanceMetric
-
-from models.ARIMA import ARIMAModel
-from models.Mean import IIDDataModel
-from models.GP import FeatureGP
 import itertools
 
-from gpytorch import kernels
+from utils.data_preprocessing import load_transform_data
+from utils.data_structure import DisplayPrediction, pack_data
+from utils.data_visualization import visualize_time_series, visualize_walk_forward
+from utils.others import create_folder
+
+from experiments.algo_dict import algorithms_dic
+from experiments.eval_methods import prepare_dataset, walk_forward
+from experiments.calculation import PerformanceMetric
 
 def get_data_example(return_lag):
     metal_type = "aluminium"
@@ -28,52 +25,13 @@ def get_data_example(return_lag):
     features = features[["Date"]]
     return features, log_prices, first_day, len_data
 
-algorithms_dic = {
-    # The ind span pred should be the same as len_out
-    "ARIMA": [Hyperparameters(
-        len_inp=0, 
-        len_out=10, 
-        is_date=False, 
-        order=(10, 2, 5), 
-    ), ARIMAModel],
-    "ARIMA2": [Hyperparameters(
-        len_inp=0, 
-        len_out=20, 
-        is_date=False, 
-        order=(5, 4, 5), 
-    ), ARIMAModel],
-    "ARMA": [Hyperparameters(
-        len_inp=0, 
-        len_out=20, 
-        is_date=False, 
-        order=(5, 0, 5), 
-    ), ARIMAModel],
-    "Mean": [Hyperparameters(
-        len_inp=0, 
-        len_out=10, 
-        is_date=False, 
-        dist="Gaussian"
-    ), IIDDataModel],
-    "GP": [Hyperparameters(
-        len_inp=10, 
-        len_out=1, 
-        lr=0.1,
-        optim_iter=400,
-        jitter=1e-4,
-        is_time_only=False,
-        is_date=True, 
-        kernel=kernels.ScaleKernel(kernels.MaternKernel())
-    ), FeatureGP],
-}
-
-def example_plot_all_algo_lag(plot_gap=True):
-    algo_name = "Mean"
+def example_plot_all_algo_lag(algo_name, plot_gap=True, load_path=None, is_save=True, is_load=False):
     hyperparam, algo_class = algorithms_dic[algo_name]
 
-    return_lag = 22
+    return_lag = 0
     len_inp = hyperparam["len_inp"]
     len_out = hyperparam["len_out"]
-    len_predict_show = 200
+    len_predict_show = 50
     features, log_prices, first_day, len_data = get_data_example(return_lag)
     splitted_data = prepare_dataset(
         features, first_day, log_prices, 
@@ -104,8 +62,19 @@ def example_plot_all_algo_lag(plot_gap=True):
         missing_data = ([], [])
     
     model = algo_class(train_dataset, hyperparam)
-    model.train()
+    if load_path is not None and is_load:
+        parent, file_name = load_path
+        model.load(f"save/{parent}/{file_name}")
+    else:
+        model.train()
+
+    if load_path is not None and is_save:
+        parent, file_name = load_path
+        create_folder(f"save/{parent}")
+        model.save(f"save/{parent}/{file_name}")
+
     pred = model.predict(pred_dataset, len(all_date_pred), all_date_pred, ci=0.9)
+
     ARIMA_pred = DisplayPrediction(pred, name=algo_name, color="p", is_bridge=False)
 
     true_pred = DisplayPrediction(
@@ -114,11 +83,11 @@ def example_plot_all_algo_lag(plot_gap=True):
     )
     visualize_time_series(
         ((features_train, log_prices_train), [true_pred, ARIMA_pred]), "k", missing_data, "o", title="Log Lag over Time")
+        
     plt.show()
 
 
-def example_plot_walk_forward():
-    algo_name = "GP"
+def example_plot_walk_forward(algo_name):
     hyperparam, algo_class = algorithms_dic[algo_name]
 
     return_lag = 22

@@ -15,9 +15,9 @@ class ExactGPModel(gpytorch.models.ExactGP):
         # self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel() + gpytorch.kernels.PeriodicKernel()) 
     
     def forward(self, x):
-        mean_x = self.mean_module(x)
-        covar_x = self.covar_module(x)
-        return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
+        mean = self.mean_module(x)
+        covar = self.covar_module(x)
+        return gpytorch.distributions.MultivariateNormal(mean, covar)
      
 class FeatureGP(BaseModel):
     """
@@ -33,17 +33,17 @@ class FeatureGP(BaseModel):
             all_prices = self.pack_data(self.train_data)
 
             if self.hyperparam["is_time_only"]:
-                train_x = torch.from_numpy(all_prices[:, 0]).float()
-                train_y = torch.from_numpy(all_prices[:, -1]).float()
+                self.train_x = torch.from_numpy(all_prices[:, 0]).float()
+                self.train_y = torch.from_numpy(all_prices[:, -1]).float()
             else:
-                train_x = torch.from_numpy(all_prices[:, :-1]).float()
-                train_y = torch.from_numpy(all_prices[:, -1]).float()
+                self.train_x = torch.from_numpy(all_prices[:, :-1]).float()
+                self.train_y = torch.from_numpy(all_prices[:, -1]).float()
             
-            self.mean_x = torch.mean(train_x, axis=0)
-            self.std_x = torch.std(train_x, axis=0)
+            self.mean_x = torch.mean(self.train_x, axis=0)
+            self.std_x = torch.std(self.train_x, axis=0)
 
-            train_x = (train_x - self.mean_x)/self.std_x
-            self.model = ExactGPModel(train_x, train_y, self.likelihood, self.hyperparam["kernel"])
+            self.train_x = (self.train_x - self.mean_x)/self.std_x
+            self.model = ExactGPModel(self.train_x, self.train_y, self.likelihood, self.hyperparam["kernel"])
 
             self.model.train()
             self.likelihood.train()
@@ -59,8 +59,8 @@ class FeatureGP(BaseModel):
             num_iter = self.hyperparam["optim_iter"]
             for i in range(num_iter):
                 optimizer.zero_grad()
-                output = self.model(train_x)
-                loss = -mll(output, train_y)
+                output = self.model(self.train_x)
+                loss = -mll(output, self.train_y)
                 print(f"Loss {i}/{num_iter}", loss)
                 loss.backward()
                 optimizer.step()
@@ -73,6 +73,9 @@ class FeatureGP(BaseModel):
         Args: (See superclass)
         Returns: (See superclass)
         """
+        
+        self.model.eval()
+        self.likelihood.eval()
 
         with gpytorch.settings.cholesky_jitter(self.hyperparam["jitter"]):
             if self.hyperparam["is_time_only"]:
@@ -93,3 +96,26 @@ class FeatureGP(BaseModel):
                 pred_upper = upper.numpy().tolist()
             
             return pred_mean, pred_lower, pred_upper
+    
+    def save(self, path):
+        torch.save(self.model.state_dict(), path + ".pth")
+        torch.save(self.train_x, path + "_x.pt")
+        torch.save(self.train_y, path + "_y.pt")
+        torch.save(self.mean_x, path + "_mean_x.pt")
+        torch.save(self.std_x, path + "_std_x.pt")
+    
+    def load(self, path):
+        state_dict = torch.load(path + ".pth")
+        self.train_x = torch.load(path + "_x.pt")
+        self.train_y = torch.load(path + "_y.pt")
+        self.mean_x = torch.load(path + "_mean_x.pt")
+        self.std_x = torch.load(path + "_std_x.pt")
+
+        self.model = ExactGPModel(
+            self.train_x, self.train_y, 
+            self.likelihood, 
+            self.hyperparam["kernel"]
+        )
+
+        self.model.load_state_dict(state_dict)
+    

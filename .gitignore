@@ -132,3 +132,5 @@ data/
 archive/
 *.csv
 *.txt
+
+save/

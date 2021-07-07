@@ -53,15 +53,15 @@ class FullARModel(BaseModel):
         if not self.hyperparam["is_date"]:
             all_data = all_data[:, 1:]
 
-        return all_data
+        return all_data 
     
     def train(self):
         """
         Symbolically create the all_data as to define the training process
         """
         # Only getting the value this is for Mean and ARIMA only
-        self.all_data = self.get_all_data(self.train_data)
-     
+        self.all_data = self.get_all_data(self.train_data) 
+        self.model = self.build_model()
     
     def get_batch_test_data(self, test_data):
         """

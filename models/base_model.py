@@ -129,3 +129,28 @@ class BaseModel(object):
         step_ahead = self.hyperparam["len_out"] if step_ahead == -1 else step_ahead
         pred_rollout, upper_rollout, lower_rollout = self.predict_step_ahead(test_data, step_ahead, ci=0.9)
         return pack_data(pred_rollout, upper_rollout, lower_rollout, all_date)
+    
+    def save(self, path):
+        """
+        Save the model to the path given
+
+        Args:
+            path: Path where the model is going to be saved (not including the extensions)
+        """
+    
+    def load(self, path):
+        """
+        Load the model from the given path
+        
+        Args:
+            path: Path where the model is saved (not including the extensions)
+        """
+    
+    def build_model(self):
+        """
+        Creating the model from the data 
+            (used when training doesn't give us the true model like: ARIMA and Mean)
+        
+        Return:
+            model: Preliminary model
+        """

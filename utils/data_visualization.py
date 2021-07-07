@@ -127,6 +127,7 @@ def plot_area(axs, x, y, miss, start_ind, end_ind, lag_color):
 
 
 def visualize_walk_forward(full_data_x, full_data_y, fold_result, 
+
         lag_color="o", pred_color="p", below_err="g"):
     convert_date = lambda x: x["Date"].to_list()
     convert_price = lambda x: x["Price"].to_list()
@@ -136,7 +137,7 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result,
     y = convert_price(full_data_y)
     get_first_day = lambda df: df["x"][0]
 
-    _, (miss_x, miss_y), _ = fold_result[0]
+    _, (miss_x, miss_y), _, _ = fold_result[0]
     day_plot = (
         0, 0, miss_x[0], x.index(miss_x[0])
     )
@@ -152,7 +153,7 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result,
         color=color["k"], linestyle='-'
     )
 
-    for i, (pred, missing_data, intv_loss) in enumerate(fold_result):
+    for i, (pred, missing_data, intv_loss, _) in enumerate(fold_result):
         first_day = pred["x"].iloc[0]
         first_index = x.index(first_day)
         last_day = pred["x"].iloc[-1]
@@ -215,4 +216,7 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result,
     axs[1].set_xlabel("Time Step")
     axs[0].set_ylabel("Log Prices")
     axs[1].set_ylabel("Square Loss")
+
+def show_result_fold():
+    pass
     

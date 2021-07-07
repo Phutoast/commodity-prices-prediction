@@ -5,7 +5,7 @@ import warnings
 # Storing Prediction Results for Plotting
 DisplayPrediction = namedtuple("DisplayPrediction", ["packed_data", "name", "color", "is_bridge"], defaults=(None, "k", True))
 
-FoldWalkForewardResult = namedtuple("FoldWalkForewardResult", ["pred", "missing_data", "interval_loss"])
+FoldWalkForewardResult = namedtuple("FoldWalkForewardResult", ["pred", "missing_data", "interval_loss", "model"])
 
 # Storing Trainig Data
 # We are interested in the model where
