@@ -20,11 +20,9 @@ class PerformanceMetric(object):
     def square_error(self, true, pred):
         """
         Square Error (se) calculated as:
-
-            \sum^N_{i=1} (true[i] - pred[i])**2
+            (true[i] - pred[i])**2
 
         """
-        pred = np.array(pred["mean"].to_numpy())
-        return np.sum(np.square(true-pred))
+        return np.square(true-pred)
 
 

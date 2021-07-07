@@ -6,7 +6,7 @@ from tqdm import tqdm
 import itertools
 import random
 
-from utils.data_structure import TrainingPoint
+from utils.data_structure import TrainingPoint, FoldWalkForewardResult
 
 def parse_series_time(dates, first_day):
     """
@@ -236,7 +236,7 @@ def prepare_dataset(X, first_day, y, len_inp,
 
 def walk_forward(X, y, algo_class, model_hyperparam, loss, size_train, 
             size_test, train_offset, test_offset, return_lag, 
-            is_train_pad=True, is_test_pad=False):
+            is_train_pad=True, is_test_pad=False, intv_loss=None):
     """
     Performing walk forward testing (k-fold like) of the models
         In terms of setting up training and testing data.
@@ -282,6 +282,7 @@ def walk_forward(X, y, algo_class, model_hyperparam, loss, size_train,
         return_lag: Lagging of the return (used in lagged return)
         is_train_pad: Pad the dataset so that we cover all the data in the training set.
         is_test_pad: Pad the dataset so that we cover all the data in the testing set.
+        intv_loss: Loss on interval if none then it is normal loss averaged
     
     Return:
         perf: Performance of model given
@@ -293,11 +294,11 @@ def walk_forward(X, y, algo_class, model_hyperparam, loss, size_train,
 
     first_day = X["Date"][0]
     fold_list = prepare_dataset(X, first_day, y, size_train, 
-                len_out=size_test, convert_date=False, 
+                len_out=size_test, convert_date=True, 
                 offset=size_test, return_lag=return_lag, 
                 is_padding=False) 
     
-    loss_list, num_test_list, model_result = [], [], []
+    fold_result_list = []
     for i, data in enumerate(fold_list):
         print("At fold", i+1, "/", len(fold_list))
         X_train, y_train, X_test, y_test = data
@@ -305,33 +306,67 @@ def walk_forward(X, y, algo_class, model_hyperparam, loss, size_train,
         train_dataset = prepare_dataset(
             X_train, first_day, y_train, 
             len_inp=len_inp, len_out=len_out, return_lag=return_lag, 
-            offset=train_offset, is_padding=is_train_pad
+            offset=train_offset, is_padding=is_train_pad, convert_date=False
         )
 
         test_dataset = prepare_dataset(
             X_test, first_day, y_test, len_inp, 
             len_out=len_out, return_lag=return_lag, 
-            offset=test_offset,is_padding=is_test_pad
+            offset=test_offset,is_padding=is_test_pad, convert_date=False
         )
         all_date_pred = list(
             itertools.chain.from_iterable([point.data_out["Date"].to_list() for point in test_dataset])
         )
+
         true_date = X_test["Date"].to_list()
         true_price = y_test["Price"].to_list() 
         
-        print(len(train_dataset))
-        
         model = algo_class(train_dataset, model_hyperparam)         
         model.train()
-        assert False
-
         pred = model.predict(
             test_dataset, 
             len(all_date_pred), 
             all_date_pred, ci=0.9
         )
-        
 
+        true_date_pred = true_date[len_inp+return_lag:]
+        true_data_pred = true_price[len_inp+return_lag:]
+
+        pred["true_mean"] = pred["x"].map(
+            dict(zip(true_date_pred, true_data_pred))
+        )
+        pred["time_step_error"] = loss(pred["true_mean"], pred["mean"])
+
+        # Sometimes the method uses the test data to do the prediction 
+        # Retrain, such as in the case of ARIMA so it is better to consider the loss
+        # It is useful to have multiple output error data too 
+
+        assert len(pred)%len_out == 0
+
+        interval_loss = []
+        if intv_loss is None:
+            intv_loss = lambda x, y : np.average(loss(x, y))
+
+        for i in range(len(pred)//len_out):
+            parti = pred.iloc[i*len_out:(i+1)*len_out, :]
+            interval_loss.append((
+                parti["x"].iloc[0], 
+                parti["x"].iloc[-1], 
+                intv_loss(parti["true_mean"], parti["mean"])
+            ))
+        
+        missing_x = true_date[:len_inp+return_lag]
+        missing_y = true_price[:len_inp+return_lag] 
+        missing_data = (missing_x, missing_y)
+
+        result_fold = FoldWalkForewardResult(
+            pred=pred, missing_data=missing_data, interval_loss=interval_loss,
+        )
+
+        fold_result_list.append(result_fold)
+    
+    return fold_result_list
+         
 
 def merge_results(model_result):
     df = model_result[0].copy()

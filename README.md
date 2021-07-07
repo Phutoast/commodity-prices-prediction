@@ -1,6 +1,12 @@
 # Commodity Prices Prediction
 Part of my master project, which includes the following algorithms 
 
-- [ ] ARIMA
-- [ ] Gaussian Process
+- [x] ARIMA
+- [x] Gaussian Process
+
+See `main.py` for examples. Running a Test for Data-Splitting Algorithm
+
+```sh
+python -m pytest
+```
 

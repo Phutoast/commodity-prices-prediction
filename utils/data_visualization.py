@@ -3,6 +3,8 @@ from matplotlib.ticker import AutoMinorLocator
 from collections import defaultdict
 
 from utils.data_preprocessing import parse_series_time
+from scipy.interpolate import make_interp_spline
+import numpy as np
 
 color = {
     "o": "#ff7500",
@@ -10,7 +12,8 @@ color = {
     "b": "#0062b8",
     "k": "#1a1a1a",
     "g": "#20c406",
-    "grey": "#ebebeb"
+    "grey": "#ebebeb",
+    "r": "#d6022a"
 }
 color = defaultdict(lambda:"#1a1a1a", color)
 
@@ -45,15 +48,10 @@ def visualize_time_series(data, inp_color, missing_data, lag_color,
     x_train = convert_date(x_train)
     y_train = convert_price(y_train)
     
-    if is_missing:
-        x_missing = missing_x
-        y_missing = missing_y
-    
     cut_point = x_train[-1]
 
     fig, ax = plt.subplots(figsize=(15, 5))
     ax.plot(x_train, y_train, color=color[inp_color])
-        
 
     for i, y_pred in enumerate(y_pred_list):
         data, plot_name, color_code, is_bridge = y_pred
@@ -61,7 +59,7 @@ def visualize_time_series(data, inp_color, missing_data, lag_color,
 
         if i == 0 and is_missing:
             ax.axvline(x_test[0], color=color[lag_color], linestyle='--', linewidth=0.5, dashes=(5, 0), alpha=0.2)
-            ax.plot([x_missing[-1], x_test[0]], [y_missing[-1], mean_pred[0]], color[lag_color], linestyle="dashed")
+            ax.plot([missing_x[-1], x_test[0]], [missing_y[-1], mean_pred[0]], color[lag_color], linestyle="dashed")
             ax.axvspan(cut_point, x_test[0], color=color[lag_color], alpha=0.1)
 
         plot_bound(ax, data, color[color_code], plot_name)
@@ -70,8 +68,8 @@ def visualize_time_series(data, inp_color, missing_data, lag_color,
             ax.plot([x_train[-1], x_test[0]], [y_train[-1], mean_pred[0]], color[color_code], linewidth=1.5)
 
     if is_missing:
-        ax.plot(x_missing, y_missing, color=color[lag_color], linestyle="dashed")
-        ax.plot([x_train[-1], x_missing[0]], [y_train[-1], y_missing[0]], color[lag_color], linestyle="dashed")
+        ax.plot(missing_x, missing_y, color=color[lag_color], linestyle="dashed")
+        ax.plot([x_train[-1], missing_x[0]], [y_train[-1], missing_y[0]], color[lag_color], linestyle="dashed")
         ax.axvline(cut_point, color=color[lag_color], linestyle='--', linewidth=0.5, dashes=(5, 0), alpha=0.2)
     else:
         ax.axvline(cut_point, color=color["k"], linestyle='--')
@@ -100,56 +98,121 @@ def plot_bound(ax, data, color, plot_name):
     ax.fill_between(x_test, upper_pred, lower_pred, color=color, alpha=0.3)
     ax.plot(x_test, mean_pred, color, linewidth=1.5, label=plot_name)
 
+def plot_area(axs, x, y, miss, start_ind, end_ind, lag_color):
+    missing_x, missing_y = miss
+    axs[0].plot(
+        missing_x, missing_y, 
+        color=color[lag_color], 
+        linestyle="dashed", alpha=0.6
+    )
+    axs[0].axvline(
+        x[start_ind], color=color[lag_color], 
+        linestyle='--', linewidth=1.5, dashes=(5, 0), 
+        alpha=0.2
+    )
+    axs[0].axvline(
+        x[end_ind], color=color[lag_color], 
+        linestyle='--', linewidth=1.5, dashes=(5, 0), 
+        alpha=0.2
+    )
+    axs[0].axvspan(x[start_ind], x[end_ind], color=color[lag_color], alpha=0.1)
+    axs[0].plot(
+        [x[start_ind], missing_x[0]], [y[start_ind], missing_y[0]], 
+        color[lag_color], linestyle="dashed"
+    )
+    axs[0].plot(
+        [missing_x[-1], x[end_ind]], [missing_y[-1], y[end_ind]], 
+        color[lag_color], linestyle="dashed"
+    )
 
-def visualize_walk_forward(full_data_x, full_data_y, model_result, out_loss, cutting_index, num_test, first_day):
+
+def visualize_walk_forward(full_data_x, full_data_y, fold_result, 
+        lag_color="o", pred_color="p", below_err="g"):
     convert_date = lambda x: x["Date"].to_list()
     convert_price = lambda x: x["Price"].to_list()
+    first_day = full_data_x["Date"][0] 
 
     x, _ = parse_series_time(convert_date(full_data_x), first_day)
     y = convert_price(full_data_y)
+    get_first_day = lambda df: df["x"][0]
+
+    _, (miss_x, miss_y), _ = fold_result[0]
+    day_plot = (
+        0, 0, miss_x[0], x.index(miss_x[0])
+    )
 
     fig = plt.figure(figsize=(15, 5))
     gs = fig.add_gridspec(2, hspace=0)
     axs = gs.subplots(sharex=True, sharey=False)
     fig.suptitle("Walk Forward Validation Loss Visualization")
 
-    ind = 0
-    for i in num_test:
-        indexes = cutting_index[ind:ind+i]
-        loss_cut = out_loss[ind:ind+i]
-        first_x = indexes[0][0]
-        last_x = indexes[-1][1]
-        
-        axs[0].axvline(first_x, color=color["grey"], linestyle='-')
-        axs[0].axvline(last_x, color=color["grey"], linestyle='-')
-        axs[0].axvspan(first_x, last_x, color=color["grey"], alpha=0.4)
+    axs[0].plot(
+        x[day_plot[1]:day_plot[3]], 
+        y[day_plot[1]:day_plot[3]], 
+        color=color["k"], linestyle='-'
+    )
 
-        # We will have to search for it :(
-        loc_first = model_result.index[model_result["x"] == first_x].tolist()[0]
-        loc_last = model_result.index[model_result["x"] == last_x].tolist()[0] 
-        plot_bound(axs[0], model_result.iloc[loc_first:loc_last+1, :], color["b"], "Output")
+    for i, (pred, missing_data, intv_loss) in enumerate(fold_result):
+        first_day = pred["x"].iloc[0]
+        first_index = x.index(first_day)
+        last_day = pred["x"].iloc[-1]
+        last_index = x.index(last_day)
         
-        axs[1].axvline(first_x, color=color["grey"], linestyle='-')
-        axs[1].axvline(last_x, color=color["grey"], linestyle='-')
-        axs[1].axvspan(first_x, last_x, color=color["grey"], alpha=0.4)
+        missing_x, _ = missing_data
+        is_missing = len(missing_x) != 0
 
-        for (i_start, j_start), loss in zip(indexes, loss_cut):
+        axs[0].plot(
+            pred["x"].to_list(), pred["true_mean"].to_list(),
+            color=color["k"] 
+        )
+
+        start_area_index = day_plot[3]-1
+
+        # Fixing incomplete testing (since we don't do padding)
+        start_miss = x.index(missing_x[0])
+        axs[0].plot(
+            x[start_area_index:start_miss+1], y[start_area_index:start_miss+1],
+            color=color["k"], linestyle='-'
+        )
+
+
+        plot_area(
+            axs, x, y, missing_data, start_miss, 
+            first_index, lag_color
+        )
+
+        axs[0].axvspan(
+            first_day, last_day, 
+            color="grey", alpha=0.1
+        )
+
+        plot_bound(axs[0], pred, color[pred_color], "Test")
+        
+        axs[1].axvline(first_day, color=color["grey"])
+        axs[1].axvline(last_day, color=color["grey"])
+        axs[1].axvspan(first_day, last_day, color=color["grey"], alpha=0.4) 
+
+        axs[1].plot(pred["x"], pred["time_step_error"], 
+            color=color[below_err], alpha=0.6)
+
+        day_plot = (
+            first_day, first_index, last_day, last_index
+        )
+        
+        for i_start, j_start, loss in intv_loss:
             loc_bar = (i_start + j_start)/2
             width = loc_bar - i_start
-            axs[1].bar(loc_bar, loss, width, color=color['o'])
-
-        ind += i
-
-    axs[0].plot(x, y, color=color['k'])
+            if width == 0:
+                width = 1.0
+            axs[1].bar(loc_bar, loss, width, color=color[below_err], alpha=0.6)
+        
 
     axs[0].xaxis.set_minor_locator(AutoMinorLocator())
     axs[0].grid()
-    axs[1].grid()
     axs[0].set_xlim(left=0)
+    axs[1].set_xlim(left=0)
     
     axs[1].set_xlabel("Time Step")
     axs[0].set_ylabel("Log Prices")
-
     axs[1].set_ylabel("Square Loss")
-
-    plt.show()
+    

@@ -60,7 +60,7 @@ class FullARModel(BaseModel):
         Symbolically create the all_data as to define the training process
         """
         # Only getting the value this is for Mean and ARIMA only
-        self.all_data = self.get_all_data(self.train_data)[:, [-1]]
+        self.all_data = self.get_all_data(self.train_data)
      
     
     def get_batch_test_data(self, test_data):

@@ -32,7 +32,7 @@ algorithms_dic = {
     # The ind span pred should be the same as len_out
     "ARIMA": [Hyperparameters(
         len_inp=0, 
-        len_out=3, 
+        len_out=10, 
         is_date=False, 
         order=(10, 2, 5), 
     ), ARIMAModel],
@@ -55,19 +55,19 @@ algorithms_dic = {
         dist="Gaussian"
     ), IIDDataModel],
     "GP": [Hyperparameters(
-        len_inp=5, 
+        len_inp=10, 
         len_out=1, 
         lr=0.1,
-        optim_iter=100,
+        optim_iter=400,
         jitter=1e-4,
         is_time_only=False,
         is_date=True, 
-        kernel=kernels.ScaleKernel(kernels.RBFKernel())
+        kernel=kernels.ScaleKernel(kernels.MaternKernel())
     ), FeatureGP],
 }
 
-def example_plot_all_algo_lag(plot_gap=False):
-    algo_name = "GP"
+def example_plot_all_algo_lag(plot_gap=True):
+    algo_name = "Mean"
     hyperparam, algo_class = algorithms_dic[algo_name]
 
     return_lag = 22
@@ -118,16 +118,16 @@ def example_plot_all_algo_lag(plot_gap=False):
 
 
 def example_plot_walk_forward():
-    algo_name = "ARIMA"
+    algo_name = "GP"
     hyperparam, algo_class = algorithms_dic[algo_name]
 
-    return_lag = 0
+    return_lag = 22
     len_inp = hyperparam["len_inp"]
     len_out = hyperparam["len_out"]
     features, log_prices, first_day, len_data = get_data_example(return_lag)
         
     metric = PerformanceMetric()
-    out_loss, num_test, (model_result, cutting_index) = walk_forward(
+    fold_result = walk_forward(
         features, log_prices, algo_class, hyperparam, 
         metric.square_error, 
         size_train=300, size_test=200, 
@@ -137,5 +137,9 @@ def example_plot_walk_forward():
         is_train_pad=True, 
         is_test_pad=False 
     )
-    
-    visualize_walk_forward(features, log_prices, model_result, out_loss, cutting_index, num_test, first_day)
+
+    visualize_walk_forward(
+        features, log_prices, fold_result, 
+        lag_color="o", pred_color="b", below_err="r"
+    )
+    plt.show()

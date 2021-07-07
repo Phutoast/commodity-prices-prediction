@@ -5,6 +5,8 @@ import warnings
 # Storing Prediction Results for Plotting
 DisplayPrediction = namedtuple("DisplayPrediction", ["packed_data", "name", "color", "is_bridge"], defaults=(None, "k", True))
 
+FoldWalkForewardResult = namedtuple("FoldWalkForewardResult", ["pred", "missing_data", "interval_loss"])
+
 # Storing Trainig Data
 # We are interested in the model where
 # ([data_inp], [label_inp]) -> Model (at state ready to do prediction)
