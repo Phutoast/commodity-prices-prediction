@@ -6,7 +6,7 @@ import itertools
 from utils.data_preprocessing import load_transform_data
 from utils.data_structure import DisplayPrediction, pack_data
 from utils.data_visualization import visualize_time_series, visualize_walk_forward
-from utils.others import create_folder
+from utils.others import create_folder, save_fold_data, load_fold_data
 
 from experiments.algo_dict import algorithms_dic
 from experiments.eval_methods import prepare_dataset, walk_forward
@@ -61,11 +61,12 @@ def example_plot_all_algo_lag(algo_name, plot_gap=True, load_path=None, is_save=
     else:
         missing_data = ([], [])
     
-    model = algo_class(train_dataset, hyperparam)
     if load_path is not None and is_load:
+        model = algo_class([], hyperparam)
         parent, file_name = load_path
         model.load(f"save/{parent}/{file_name}")
     else:
+        model = algo_class(train_dataset, hyperparam)
         model.train()
 
     if load_path is not None and is_save:
@@ -87,28 +88,34 @@ def example_plot_all_algo_lag(algo_name, plot_gap=True, load_path=None, is_save=
     plt.show()
 
 
-def example_plot_walk_forward(algo_name):
+def example_plot_walk_forward(algo_name, base_name=None):
     hyperparam, algo_class = algorithms_dic[algo_name]
 
-    return_lag = 22
+    return_lag = 0
     len_inp = hyperparam["len_inp"]
     len_out = hyperparam["len_out"]
     features, log_prices, first_day, len_data = get_data_example(return_lag)
         
     metric = PerformanceMetric()
-    fold_result = walk_forward(
-        features, log_prices, algo_class, hyperparam, 
-        metric.square_error, 
-        size_train=300, size_test=200, 
-        train_offset=1, 
-        test_offset=len_out, 
-        return_lag=return_lag, 
-        is_train_pad=True, 
-        is_test_pad=False 
-    )
 
-    visualize_walk_forward(
+    if base_name is not None:
+        fold_result = load_fold_data(base_name, algo_name)
+    else:
+        fold_result = walk_forward(
+            features, log_prices, algo_class, hyperparam, 
+            metric.square_error, 
+            size_train=300, size_test=200, 
+            train_offset=1, 
+            test_offset=len_out, 
+            return_lag=return_lag, 
+            is_train_pad=True, 
+            is_test_pad=False 
+        )
+        save_fold_data(fold_result, algo_name)
+
+    fig, ax = visualize_walk_forward(
         features, log_prices, fold_result, 
         lag_color="o", pred_color="b", below_err="r"
     )
+    fig.savefig("img/walk_forward.png")
     plt.show()

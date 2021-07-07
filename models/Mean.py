@@ -37,13 +37,13 @@ class IIDDataModel(FullARModel):
         return GaussianParam(mean, std)
 
     def save(self, path):
-        with open(path + ".pickle", 'wb') as handle:
+        with open(path + ".pkl", "wb") as handle:
             pickle.dump(self.model, handle, protocol=pickle.HIGHEST_PROTOCOL)
         
         np.save(path + "_all_data.npy", self.all_data)
     
     def load(self, path):
-        with open(path + ".pickle", 'rb') as handle:
+        with open(path + ".pkl", "rb") as handle:
             self.model = pickle.load(handle)
         
         self.all_data = np.load(path + "_all_data.npy")

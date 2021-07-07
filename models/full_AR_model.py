@@ -128,7 +128,8 @@ class FullARModel(BaseModel):
         num_left = step_ahead - span_per_round*num_iter
 
         for i in range(num_iter):
-            print("Predicting...", i, "/", num_iter)
+            if self.hyperparam["is_verbose"]:
+                print("Predicting...", i, "/", num_iter)
             mean, upper, lower = self.predict_fix_step(span_per_round, ci)
             self.add_results(mean, upper, lower)
 
@@ -136,7 +137,8 @@ class FullARModel(BaseModel):
             self.append_all_data(data[i])
             
         if num_left > 0:
-            print("Predicting num rest", num_left)
+            if self.hyperparam["is_verbose"]:
+                print("Predicting num rest", num_left)
             mean, upper, lower = self.predict_fix_step(num_left, ci)
             self.add_results(mean, upper, lower)
         

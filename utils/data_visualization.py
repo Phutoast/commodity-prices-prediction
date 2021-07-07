@@ -83,6 +83,7 @@ def visualize_time_series(data, inp_color, missing_data, lag_color,
     ax.set_title(title)
 
     ax.set_xlim(left=cut_point-500)
+    return fig, ax
 
 def plot_bound(ax, data, color, plot_name):
     """
@@ -127,7 +128,6 @@ def plot_area(axs, x, y, miss, start_ind, end_ind, lag_color):
 
 
 def visualize_walk_forward(full_data_x, full_data_y, fold_result, 
-
         lag_color="o", pred_color="p", below_err="g"):
     convert_date = lambda x: x["Date"].to_list()
     convert_price = lambda x: x["Price"].to_list()
@@ -176,7 +176,6 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result,
             color=color["k"], linestyle='-'
         )
 
-
         plot_area(
             axs, x, y, missing_data, start_miss, 
             first_index, lag_color
@@ -216,6 +215,8 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result,
     axs[1].set_xlabel("Time Step")
     axs[0].set_ylabel("Log Prices")
     axs[1].set_ylabel("Square Loss")
+
+    return fig, axs
 
 def show_result_fold():
     pass

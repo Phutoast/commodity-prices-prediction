@@ -29,7 +29,8 @@ algorithms_dic = {
         len_inp=0, 
         len_out=10, 
         is_date=False, 
-        dist="Gaussian"
+        dist="Gaussian",
+        is_verbose=False
     ), IIDDataModel],
     "GP": [Hyperparameters(
         len_inp=10, 
@@ -40,5 +41,15 @@ algorithms_dic = {
         is_time_only=False,
         is_date=True, 
         kernel=kernels.ScaleKernel(kernels.MaternKernel())
+    ), FeatureGP],
+    "GP-2": [Hyperparameters(
+        len_inp=10, 
+        len_out=1, 
+        lr=0.1,
+        optim_iter=500,
+        jitter=1e-4,
+        is_time_only=False,
+        is_date=True, 
+        kernel=kernels.ScaleKernel(kernels.RBFKernel()) + kernels.ScaleKernel(kernels.PolynomialKernel(power=2))
     ), FeatureGP],
 }

@@ -12,15 +12,15 @@ random.seed(48)
 
 def main():
     create_folder("save")
-    example_plot_all_algo_lag(
-        "GP", load_path=("gp", "model"),
-        is_save=True, is_load=False
-    )
-    example_plot_all_algo_lag(
-        "GP", load_path=("gp", "model"),
-        is_save=False, is_load=True
-    )
-    # example_plot_walk_forward("Mean")
+    # example_plot_all_algo_lag(
+    #     "GP", load_path=("gp", "model"),
+    #     is_save=True, is_load=False
+    # )
+    # example_plot_all_algo_lag(
+    #     "GP", load_path=("gp", "model"),
+    #     is_save=False, is_load=True
+    # )
+    example_plot_walk_forward("GP-2", "07-07-21-22-42-16-GP-2")
 
 if __name__ == '__main__':
     main()

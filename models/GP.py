@@ -61,7 +61,10 @@ class FeatureGP(BaseModel):
                 optimizer.zero_grad()
                 output = self.model(self.train_x)
                 loss = -mll(output, self.train_y)
-                print(f"Loss {i}/{num_iter}", loss)
+
+                if self.hyperparam["is_verbose"]:
+                    if i%10 == 0:
+                        print(f"Loss {i}/{num_iter}", loss)
                 loss.backward()
                 optimizer.step()
 

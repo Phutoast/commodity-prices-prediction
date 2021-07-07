@@ -35,10 +35,11 @@ class Hyperparameters(dict):
         is_date: Include date into the training ?
         kwargs: other model specific hyperparameters (e.g hidden-layer size). 
     """
-    def __init__(self, len_inp, len_out, is_date, **kwargs): 
+    def __init__(self, len_inp, len_out, is_date, is_verbose=True, **kwargs): 
         self["len_inp"] = len_inp
         self["len_out"] = len_out
         self["is_date"] = is_date
+        self["is_verbose"] = is_verbose
         self.update(kwargs)
     
     def __repr__(self):
