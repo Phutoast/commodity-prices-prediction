@@ -31,7 +31,7 @@ def example_plot_all_algo_lag(algo_name, plot_gap=True, load_path=None, is_save=
     return_lag = 0
     len_inp = hyperparam["len_inp"]
     len_out = hyperparam["len_out"]
-    len_predict_show = 50
+    len_predict_show = 100
     features, log_prices, first_day, len_data = get_data_example(return_lag)
     splitted_data = prepare_dataset(
         features, first_day, log_prices, 
@@ -44,6 +44,11 @@ def example_plot_all_algo_lag(algo_name, plot_gap=True, load_path=None, is_save=
         len_inp=len_inp, len_out=len_out, return_lag=return_lag, 
         convert_date=False, offset=1, is_show_progress=False, num_dataset=-1, is_padding=False
     )  
+    # print(train_dataset[0].data_inp)
+    # print(train_dataset[0].label_inp)
+    # print(train_dataset[0].data_out)
+    # print(train_dataset[0].label_out)
+
     pred_dataset = prepare_dataset(
         feature_test, first_day, log_prices_test, 
         len_inp=len_inp, len_out=len_out, return_lag=return_lag, 

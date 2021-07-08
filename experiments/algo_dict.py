@@ -4,6 +4,7 @@ from models.Mean import IIDDataModel
 from models.GP import FeatureGP
 
 from gpytorch import kernels
+import torch
 
 algorithms_dic = {
     # The ind span pred should be the same as len_out
@@ -36,11 +37,14 @@ algorithms_dic = {
         len_inp=10, 
         len_out=1, 
         lr=0.1,
-        optim_iter=100,
+        optim_iter=500,
         jitter=1e-4,
         is_time_only=False,
         is_date=True, 
-        kernel=kernels.ScaleKernel(kernels.MaternKernel())
+        kernel=kernels.ScaleKernel(
+            kernels.RBFKernel(batch_shape=torch.Size([1])),
+            batch_shape=torch.Size([1])
+        )
     ), FeatureGP],
     "GP-2": [Hyperparameters(
         len_inp=10, 
@@ -48,8 +52,21 @@ algorithms_dic = {
         lr=0.1,
         optim_iter=500,
         jitter=1e-4,
+        is_time_only=True,
+        is_date=True, 
+        kernel=kernels.ScaleKernel(kernels.MaternKernel()) + kernels.ScaleKernel(kernels.PolynomialKernel(power=2))
+    ), FeatureGP],
+    "GP-Multi-Out": [Hyperparameters(
+        len_inp=10, 
+        len_out=2, 
+        lr=0.1,
+        optim_iter=250,
+        jitter=1e-4,
         is_time_only=False,
         is_date=True, 
-        kernel=kernels.ScaleKernel(kernels.RBFKernel()) + kernels.ScaleKernel(kernels.PolynomialKernel(power=2))
+        kernel=kernels.ScaleKernel(
+            kernels.RBFKernel(batch_shape=torch.Size([2])),
+            batch_shape=torch.Size([2])
+        )
     ), FeatureGP],
 }

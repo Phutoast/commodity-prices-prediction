@@ -13,14 +13,14 @@ random.seed(48)
 def main():
     create_folder("save")
     # example_plot_all_algo_lag(
-    #     "GP", load_path=("gp", "model"),
+    #     "GP-Multi-Out", load_path=("gp-multi-out", "model"),
     #     is_save=True, is_load=False
     # )
-    # example_plot_all_algo_lag(
-    #     "GP", load_path=("gp", "model"),
-    #     is_save=False, is_load=True
-    # )
-    example_plot_walk_forward("GP-2")
+    example_plot_all_algo_lag(
+        "GP", load_path=("gp", "model"),
+        is_save=True, is_load=False
+    )
+    # example_plot_walk_forward("GP-3")
 
 if __name__ == '__main__':
     main()
