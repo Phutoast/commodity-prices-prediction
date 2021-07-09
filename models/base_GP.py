@@ -2,7 +2,7 @@ import gpytorch
 import torch
 
 class OneDimensionGP(gpytorch.models.ExactGP):
-    def __init__(self, train_x, train_y, likelihood, kernel, num_out):
+    def __init__(self, train_x, train_y, likelihood, kernel):
         super(OneDimensionGP, self).__init__(train_x, train_y, likelihood)
         self.mean_module = gpytorch.means.ConstantMean()
         self.covar_module = kernel

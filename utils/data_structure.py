@@ -45,7 +45,7 @@ class Hyperparameters(dict):
     def __repr__(self):
         return f"{type(self).__name__}({super().__repr__()})"
 
-def pack_data(mean, upper, lower, x):
+def pack_result_data(mean, upper, lower, x):
     """
     Given the numpy/list data, pack the result into panda dataframe
         Ready for display/save 

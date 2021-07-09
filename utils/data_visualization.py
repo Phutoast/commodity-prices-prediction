@@ -17,7 +17,7 @@ color = {
 }
 color = defaultdict(lambda:"#1a1a1a", color)
 
-def visualize_time_series(data, inp_color, missing_data, lag_color,
+def visualize_time_series(fig_ax, data, inp_color, missing_data, lag_color,
     x_label="Number of Days", y_label="Log of Aluminium Price", title="Prices over time"):
     """
     Ploting out the time series, given each time step label to be stored in the DataFrame
@@ -37,6 +37,7 @@ def visualize_time_series(data, inp_color, missing_data, lag_color,
         y_label: Label of y-axis
         title: Plot title 
     """
+    fig, ax = fig_ax
     ((x_train, y_train), y_pred_list) = data
 
     missing_x, missing_y = missing_data
@@ -49,8 +50,6 @@ def visualize_time_series(data, inp_color, missing_data, lag_color,
     y_train = convert_price(y_train)
     
     cut_point = x_train[-1]
-
-    fig, ax = plt.subplots(figsize=(15, 5))
     ax.plot(x_train, y_train, color=color[inp_color])
 
     for i, y_pred in enumerate(y_pred_list):
@@ -78,7 +77,7 @@ def visualize_time_series(data, inp_color, missing_data, lag_color,
     ax.grid()
     ax.legend()
 
-    ax.set_xlabel(x_label)
+    # ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
     ax.set_title(title)
 
@@ -211,8 +210,9 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_d
 
     axs[0].xaxis.set_minor_locator(AutoMinorLocator())
     axs[0].grid()
-    axs[0].set_xlim(left=0)
-    axs[1].set_xlim(left=0)
+
+    axs[0].set_xlim(left=x[0])
+    axs[1].set_xlim(left=x[0])
     
     axs[1].set_xlabel("Time Step")
     axs[0].set_ylabel("Log Prices")

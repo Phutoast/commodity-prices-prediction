@@ -11,7 +11,8 @@ warnings.filterwarnings("ignore")
 
 np.random.seed(48)
 random.seed(48)
-torch.manual_seed(0)
+torch.manual_seed(48)
+torch.random.manual_seed(48)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -22,19 +23,19 @@ def main():
     algo = args.algo
     test_type = args.test_type
     create_folder("save")
+    
+    exp_setting = [
+        ("GP-Test", 0, 4, 100),
+        ("GP", 22, 5, 100),
+    ]
 
     if test_type == "f":
         example_plot_all_algo_lag(
-            algo, load_path=(algo.lower(), "model"),
-            is_save=True, is_load=False
+            exp_setting, is_save=False, is_load=True,
+            load_path="07-09-21-19-17-16-test-multi-1"
         )
     elif test_type == "w":
         example_plot_walk_forward(algo)
-
-    # example_plot_all_algo_lag(
-    #     "GP", load_path=("gp", "model"),
-    #     is_save=True, is_load=False
-    # )
 
 if __name__ == '__main__':
     main()

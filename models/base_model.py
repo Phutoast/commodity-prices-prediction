@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from utils.data_structure import pack_data
+from utils.data_structure import pack_result_data
 
 class BaseModel(object):
     """
@@ -128,7 +128,11 @@ class BaseModel(object):
         """
         step_ahead = self.hyperparam["len_out"] if step_ahead == -1 else step_ahead
         pred_rollout, upper_rollout, lower_rollout = self.predict_step_ahead(test_data, step_ahead, ci=0.9)
-        return pack_data(pred_rollout, upper_rollout, lower_rollout, all_date)
+
+        return pack_result_data(
+            pred_rollout, upper_rollout, 
+            lower_rollout, all_date
+        )
     
     def save(self, path):
         """

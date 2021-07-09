@@ -17,6 +17,24 @@ def create_folder(path):
     """
     Path(path).mkdir(parents=True, exist_ok=True)
 
+def create_name(base_folder, name):
+    """
+    Create Base Folder Name using the Date Time
+
+    Args:
+        base_folder: Base Folder Name
+        model_name: The sub-name that goes 
+            together with date
+    
+    Returns:
+        modified_base_folder: Appending a 
+            new folder under the base folder
+    """
+    now = datetime.now()
+    date_time = now.strftime("%m-%d-%y-%H-%M-%S") + f"-{name}/"
+    base_folder += date_time
+    return base_folder
+
 def save_fold_data(fold_result, model_name):
     """
     Given the result of the walk forward model, 
@@ -27,10 +45,7 @@ def save_fold_data(fold_result, model_name):
         model_name: Name of the model
     """
     base_folder = "save/"
-    now = datetime.now()
-    date_time = now.strftime("%m-%d-%y-%H-%M-%S") + f"-{model_name}/"
-    base_folder += date_time
-
+    base_folder = create_name(base_folder, model_name)
     create_folder(base_folder)
 
     for i, (pred, miss_data, intv_loss, model) in enumerate(fold_result):

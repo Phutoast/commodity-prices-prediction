@@ -32,26 +32,23 @@ algorithms_dic = {
         len_inp=10, 
         len_out=1, 
         lr=0.1,
-        optim_iter=100,
+        optim_iter=250,
         jitter=1e-4,
         is_time_only=False,
         is_date=True, 
         is_batch=False,
         kernel=kernels.ScaleKernel(kernels.RBFKernel())
     ), IndependentGP],
-    "GP-Multi-Out-Batch": [Hyperparameters(
-        len_inp=5, 
-        len_out=2, 
+    "GP-Test": [Hyperparameters(
+        len_inp=10, 
+        len_out=1, 
         lr=0.1,
-        optim_iter=10,
+        optim_iter=100,
         jitter=1e-4,
         is_time_only=False,
         is_date=True, 
-        is_batch=True,
-        kernel=kernels.ScaleKernel(
-            kernels.RBFKernel(batch_shape=torch.Size([2])),
-            batch_shape=torch.Size([2])
-        )
+        is_batch=False,
+        kernel=kernels.ScaleKernel(kernels.MaternKernel())
     ), IndependentGP],
 }
 
