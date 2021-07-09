@@ -1,6 +1,8 @@
 import numpy as np
-from utils.data_preprocessing import load_transform_data, prepare_dataset
+from utils.data_preprocessing import load_transform_data
+from experiments.eval_methods import prepare_dataset
 from utils.data_structure import TrainingPoint
+from pandas._testing import assert_frame_equal
 
 import unittest
 from unittest.mock import patch
@@ -9,7 +11,7 @@ from test.test_utils import generate_fake_data, fake_price_data, fake_first_day
 class LoadingDataLag(unittest.TestCase): 
 
     def setUp(self):
-        self.len_inp, self.len_out, self.lag_num = 3, 2, 6
+        self.len_inp, self.len_out, self.lag_num, self.skip = 3, 2, 6, 5
         self.the_data = generate_fake_data()
         self.the_data["Price"] = np.log(self.the_data["Price"].to_numpy())
         self.the_data["Date_str"] = self.the_data["Date"]
@@ -54,11 +56,39 @@ class LoadingDataLag(unittest.TestCase):
     @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
     def test_lag_load_data(self, mock):
         feature, log_prices = load_transform_data(None, self.lag_num)
+        feature_no_lag, _ = load_transform_data(None, 0)
         true_data = np.array(fake_price_data, dtype=np.float32)
         expected_out = []
         for i in range(len(true_data)-self.lag_num):
             expected_out.append(true_data[i+self.lag_num] - true_data[i])
         self.assertEqual(log_prices["Price"].to_list(), expected_out)
+        assert_frame_equal(feature_no_lag.head(len(feature_no_lag)-self.lag_num), feature)
+    
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    def test_simple_load_data_skip(self, mock):
+        feature, log_prices = load_transform_data(None, 0, skip=self.skip)
+        feature_no_lag, _ = load_transform_data(None, 0)
+        true_data = np.array(fake_price_data, dtype=np.float32)
+        expected_out = []
+        for i in range(len(true_data)-self.skip):
+            expected_out.append(true_data[i+self.skip]) 
+        self.assertEqual(log_prices["Price"].to_list(), expected_out)
+        assert_frame_equal(feature_no_lag.head(len(feature_no_lag)-self.skip), feature)
+    
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    def test_simple_load_data_skip_lag(self, mock):
+        feature, log_prices = load_transform_data(None, self.lag_num, skip=self.skip)
+        feature_no_lag, _ = load_transform_data(None, 0)
+        true_data = np.array(fake_price_data, dtype=np.float32)
+        expected_out2 = []
+        for i in range(len(true_data)-self.lag_num):
+            expected_out2.append(true_data[i+self.lag_num] - true_data[i])
+        expected_out = []
+        for i in range(len(expected_out2)-self.skip):
+            expected_out.append(expected_out2[i+self.skip]) 
+        self.assertEqual(log_prices["Price"].to_list(), expected_out)
+        assert_frame_equal(feature_no_lag.head(len(feature_no_lag)-self.skip-self.lag_num), feature)
+    
 
     @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
     def test_no_lag_split_partion_no_pad(self, mock):

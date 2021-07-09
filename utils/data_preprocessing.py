@@ -84,7 +84,7 @@ def transform_full_data(full_data, is_drop_nan=False):
     full_data["Price"] = np.log(full_data["Price"])
     return full_data.iloc[:, :-1], full_data.iloc[:, [0,-1]]
 
-def load_transform_data(metal_type, return_lag, is_drop_nan=False):
+def load_transform_data(metal_type, return_lag, skip=0, is_drop_nan=False):
     """
     Loading and Transform the data in one function 
         to get the dataset and label. We will assume log-price. 
@@ -100,7 +100,8 @@ def load_transform_data(metal_type, return_lag, is_drop_nan=False):
     data_all = load_metal_data(metal_type)
     X, y = transform_full_data(data_all, is_drop_nan=is_drop_nan)
     y = cal_lag_return(y, return_lag)
-    return X[:len(X)-return_lag], y[:len(X)-return_lag]
+    X, y = X[:len(X)-return_lag], y[:len(y)-return_lag]
+    return X[:len(X)-skip], y[skip:]
 
 def df_to_numpy(data, label):
     """

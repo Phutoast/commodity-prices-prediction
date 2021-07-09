@@ -127,13 +127,15 @@ def plot_area(axs, x, y, miss, start_ind, end_ind, lag_color):
     )
 
 
-def visualize_walk_forward(full_data_x, full_data_y, fold_result, 
+def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_dict,
         lag_color="o", pred_color="p", below_err="g"):
+
     convert_date = lambda x: x["Date"].to_list()
     convert_price = lambda x: x["Price"].to_list()
     first_day = full_data_x["Date"][0] 
 
     x, _ = parse_series_time(convert_date(full_data_x), first_day)
+    x = list(map(lambda a: convert_date_dict[a], x))
     y = convert_price(full_data_y)
     get_first_day = lambda df: df["x"][0]
 

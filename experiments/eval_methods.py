@@ -93,7 +93,7 @@ def prepare_dataset(X, first_day, y, len_inp,
     return all_subset
 
 def walk_forward(X, y, algo_class, model_hyperparam, loss, size_train, 
-            size_test, train_offset, test_offset, return_lag, 
+            size_test, train_offset, test_offset, return_lag, convert_date,
             is_train_pad=True, is_test_pad=False, intv_loss=None):
     """
     Performing walk forward testing (k-fold like) of the models
@@ -173,10 +173,10 @@ def walk_forward(X, y, algo_class, model_hyperparam, loss, size_train,
             offset=test_offset,is_padding=is_test_pad, convert_date=False
         )
         all_date_pred = list(
-            itertools.chain.from_iterable([point.data_out["Date"].to_list() for point in test_dataset])
+            itertools.chain.from_iterable([point.data_out["Date"].map(convert_date).to_list() for point in test_dataset])
         )
 
-        true_date = X_test["Date"].to_list()
+        true_date = X_test["Date"].map(convert_date).to_list()
         true_price = y_test["Price"].to_list() 
         
         model = algo_class(train_dataset, model_hyperparam)         
