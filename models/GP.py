@@ -2,37 +2,22 @@ import numpy as np
 import gpytorch
 import torch
 from models.base_model import BaseModel
-from gpytorch.constraints import Positive
-
-class ExactGPModel(gpytorch.models.ExactGP):
-    def __init__(self, train_x, train_y, likelihood, kernel, num_out):
-        super(ExactGPModel, self).__init__(train_x, train_y, likelihood)
-        self.mean_module = gpytorch.means.ConstantMean(
-            batch_shape=torch.Size([num_out])
-        )
-        self.covar_module = kernel
-        # self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
-        # self.covar_module = gpytorch.kernels.SpectralMixtureKernel(num_mixtures=4, ard_num_dims=6)
-        # self.covar_module.initialize_from_data(train_x, train_y)
-        # self.covar_module = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel() + gpytorch.kernels.PeriodicKernel()) 
-    
-    def forward(self, x):
-        mean = self.mean_module(x)
-        covar = self.covar_module(x)
-        return gpytorch.distributions.MultitaskMultivariateNormal.from_batch_mvn(
-            gpytorch.distributions.MultivariateNormal(mean, covar)
-        )
-     
-class FeatureGP(BaseModel):
+from models.base_GP import OneDimensionGP, BatchGP
+ 
+class IndependentGP(BaseModel):
     """
     Simple Gaussian Process Model that takes date 
         as inp and return the price prediction.
     """
     def __init__(self, train_data, model_hyperparam):
         super().__init__(train_data, model_hyperparam)
-        self.likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
-            num_tasks=self.hyperparam["len_out"]
-        )
+
+        if self.hyperparam["is_batch"]:
+            self.likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
+                num_tasks=self.hyperparam["len_out"]
+            )
+        else:
+            self.likelihood = gpytorch.likelihoods.GaussianLikelihood()
     
     def train(self):
         with gpytorch.settings.cholesky_jitter(self.hyperparam["jitter"]):
@@ -47,14 +32,21 @@ class FeatureGP(BaseModel):
                 self.train_x = torch.from_numpy(all_prices[:, :self.index_out]).float()
                 self.train_y = torch.from_numpy(all_prices[:, self.index_out:]).float()
             
+            if self.hyperparam["len_out"] == 1:
+                self.train_y = self.train_y.flatten()
+            
             self.mean_x = torch.mean(self.train_x, axis=0)
             self.std_x = torch.std(self.train_x, axis=0)
 
             self.train_x = (self.train_x - self.mean_x)/self.std_x
-
-            self.model = ExactGPModel(
-                self.train_x, self.train_y, self.likelihood, self.hyperparam["kernel"], self.hyperparam["len_out"]
-            )
+            if self.hyperparam["is_batch"]:
+                self.model = BatchGP(
+                    self.train_x, self.train_y, self.likelihood, self.hyperparam["kernel"], self.hyperparam["len_out"]
+                )
+            else:
+                self.model = OneDimensionGP(
+                    self.train_x, self.train_y, self.likelihood, self.hyperparam["kernel"], self.hyperparam["len_out"]
+                ) 
 
             self.model.train()
             self.likelihood.train()
@@ -74,7 +66,7 @@ class FeatureGP(BaseModel):
                 loss = -mll(output, self.train_y)
 
                 if self.hyperparam["is_verbose"]:
-                    if i%1 == 0:
+                    if i%10 == 0:
                         print(f"Loss {i}/{num_iter}", loss)
                 loss.backward()
                 optimizer.step()
@@ -95,7 +87,8 @@ class FeatureGP(BaseModel):
             if self.hyperparam["is_time_only"]:
                 inp_test = self.pack_data(test_data)[:, 0]
             else:
-                inp_test = self.pack_data(test_data)[:, :self.index_out]
+                inp_test = self.pack_data(test_data)[:, :self.index_out] 
+                
             size_test_data = len(inp_test)
             assert step_ahead == size_test_data * self.hyperparam["len_out"]
             
@@ -127,7 +120,7 @@ class FeatureGP(BaseModel):
         self.mean_x = torch.load(path + "_mean_x.pt")
         self.std_x = torch.load(path + "_std_x.pt")
 
-        self.model = ExactGPModel(
+        self.model = OneDimensionGP(
             self.train_x, self.train_y, 
             self.likelihood, 
             self.hyperparam["kernel"]
@@ -135,9 +128,5 @@ class FeatureGP(BaseModel):
 
         self.model.load_state_dict(state_dict)
 
-class IndependentMultiOutput(BaseModel):
-    """
-    Gaussian Process that predict the next few steps 
-        (independently at first)
-    """
+
 

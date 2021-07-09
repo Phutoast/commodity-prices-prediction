@@ -44,10 +44,6 @@ def example_plot_all_algo_lag(algo_name, plot_gap=True, load_path=None, is_save=
         len_inp=len_inp, len_out=len_out, return_lag=return_lag, 
         convert_date=False, offset=1, is_show_progress=False, num_dataset=-1, is_padding=False
     )  
-    # print(train_dataset[0].data_inp)
-    # print(train_dataset[0].label_inp)
-    # print(train_dataset[0].data_out)
-    # print(train_dataset[0].label_out)
 
     pred_dataset = prepare_dataset(
         feature_test, first_day, log_prices_test, 
