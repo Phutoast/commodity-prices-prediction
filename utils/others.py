@@ -35,31 +35,34 @@ def create_name(base_folder, name):
     base_folder += date_time
     return base_folder
 
-def save_fold_data(fold_result, model_name):
+def save_fold_data(all_fold_result, model_name):
     """
     Given the result of the walk forward model, 
         we save it in the folder separated by each fold.
     
     Args:
-        fold_result: Result from the walk forward model
+        all_fold_result: Result from all forward model
         model_name: Name of the model
     """
     base_folder = "save/"
     base_folder = create_name(base_folder, model_name)
     create_folder(base_folder)
 
-    for i, (pred, miss_data, intv_loss, model) in enumerate(fold_result):
-        curr_folder = base_folder + f"fold_{i}/"
-        create_folder(curr_folder)
+    for task_num, fold_result in enumerate(all_fold_result):
+        task_folder = base_folder + f"task_{task_num}/"
+        create_folder(task_folder)
+        for i, (pred, miss_data, intv_loss, model) in enumerate(fold_result):
+            curr_folder = task_folder + f"fold_{i}/"
+            create_folder(curr_folder)
 
-        pred.to_csv(curr_folder + "pred.csv")
-        with open(curr_folder + "miss_data.pkl", "wb") as handle:
-            pickle.dump(miss_data, handle, protocol=pickle.HIGHEST_PROTOCOL) 
-        with open(curr_folder + "intv_loss.pkl", "wb") as handle:
-            pickle.dump(intv_loss, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            pred.to_csv(curr_folder + "pred.csv")
+            with open(curr_folder + "miss_data.pkl", "wb") as handle:
+                pickle.dump(miss_data, handle, protocol=pickle.HIGHEST_PROTOCOL) 
+            with open(curr_folder + "intv_loss.pkl", "wb") as handle:
+                pickle.dump(intv_loss, handle, protocol=pickle.HIGHEST_PROTOCOL)
         
-        create_folder(curr_folder + f"model_{model_name}")
-        model.save(curr_folder + f"model_{model_name}/model")
+            create_folder(curr_folder + f"model_{model_name}")
+            model.save(curr_folder + f"model_{model_name}/model")
 
 def load_fold_data(base_folder, model_name):
     """

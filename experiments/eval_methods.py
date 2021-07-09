@@ -92,8 +92,21 @@ def prepare_dataset(X, first_day, y, len_inp,
     
     return all_subset
 
-def walk_forward(X, y, algo_class, model_hyperparam, loss, size_train, 
-            size_test, train_offset, test_offset, return_lag, convert_date,
+def transpose_list(list_mat):
+    result = []
+    num_c = len(list_mat[0])
+    num_r = len(list_mat)
+    for i in range(num_c):
+        temp = []
+        for j in range(num_r):
+            temp.append(list_mat[j][i]) 
+        result.append(temp)
+    
+    return result
+    
+
+def walk_forward(all_data, exp_setting, multi_model_class, loss, size_train, 
+            size_test, train_offset, return_lag, convert_date,
             is_train_pad=True, is_test_pad=False, intv_loss=None):
     """
     Performing walk forward testing (k-fold like) of the models
@@ -146,81 +159,152 @@ def walk_forward(X, y, algo_class, model_hyperparam, loss, size_train,
         fold_result_list: Performance of model + Model
     """
 
-    len_inp, len_out = model_hyperparam["len_inp"], model_hyperparam["len_out"]
-    size_subset = len_inp + len_out
-    assert size_subset <= size_test and size_subset <= size_train
+    task_list_all = []
+    for X, y, convert_date, algo_class in all_data:
+        model_hyperparam, model_class = algo_class
 
-    first_day = X["Date"][0]
-    fold_list = prepare_dataset(X, first_day, y, size_train, 
-                len_out=size_test, convert_date=True, 
-                offset=size_test, return_lag=return_lag, 
-                is_padding=False) 
+        len_inp = model_hyperparam["len_inp"]
+        len_out = model_hyperparam["len_out"]
+        size_subset = len_inp + len_out
+        assert size_subset <= size_test and size_subset <= size_train
+
+        first_day = X["Date"][0]
+        fold = prepare_dataset(X, first_day, y, size_train, 
+                    len_out=size_test, convert_date=True, 
+                    offset=size_test, return_lag=return_lag, 
+                    is_padding=False) 
+        task_list_all.append(fold)
     
+    assert all(len(fold) == len(task_list_all[0]) for fold in task_list_all)
+
+    fold_list_task = transpose_list(task_list_all)
+    
+    # print(fold_list_task[0][0].label_inp)
+    # print(fold_list_task[0][1].label_inp)
+
+    # print(len(fold_list_task))
+    # print(len(fold_list_task[0]))
+
+    # assert False
+
     fold_result_list = []
-    for i, data in enumerate(fold_list):
-        print("At fold", i+1, "/", len(fold_list))
-        X_train, y_train, X_test, y_test = data
+    for i, all_task_data in enumerate(fold_list_task):
+        print("At fold", i+1, "/", len(fold_list_task))
 
-        train_dataset = prepare_dataset(
-            X_train, first_day, y_train, 
-            len_inp=len_inp, len_out=len_out, return_lag=return_lag, 
-            offset=train_offset, is_padding=is_train_pad, convert_date=False
-        )
+        train_dataset_list = []
+        algo_hyper_class_list = []
 
-        test_dataset = prepare_dataset(
-            X_test, first_day, y_test, len_inp, 
-            len_out=len_out, return_lag=return_lag, 
-            offset=test_offset,is_padding=is_test_pad, convert_date=False
-        )
-        all_date_pred = list(
-            itertools.chain.from_iterable([point.data_out["Date"].map(convert_date).to_list() for point in test_dataset])
-        )
-
-        true_date = X_test["Date"].map(convert_date).to_list()
-        true_price = y_test["Price"].to_list() 
+        pred_dataset_list = []
+        date_pred_list = []
+        len_pred_list = []
         
-        model = algo_class(train_dataset, model_hyperparam)         
+        true_pred_list = []
+        missing_data_list = []
+        algo_prop_list = []
+
+        for j, (X_train, y_train, X_test, y_test) in enumerate(all_task_data):
+            _, _, convert_date, algo_class = all_data[j]
+            model_hyperparam, _ = algo_class
+
+            len_inp = model_hyperparam["len_inp"]
+            len_out = model_hyperparam["len_out"]
+
+            _, return_lag, skip, _ = exp_setting[j]
+
+            train_dataset = prepare_dataset(
+                X_train, None, y_train, 
+                len_inp=len_inp, len_out=len_out, return_lag=return_lag, 
+                offset=train_offset, is_padding=is_train_pad, convert_date=False
+            )
+
+            train_dataset_list.append(train_dataset)
+            algo_hyper_class_list.append(algo_class)
+        
+            test_dataset = prepare_dataset(
+                X_test, None, y_test, len_inp, 
+                len_out=len_out, return_lag=return_lag, 
+                offset=len_out,is_padding=is_test_pad, convert_date=False
+            )
+            all_date_pred = list(
+                itertools.chain.from_iterable([point.data_out["Date"].map(convert_date).to_list() for point in test_dataset])
+            )
+
+            pred_dataset_list.append(test_dataset)
+            date_pred_list.append(all_date_pred)
+            len_pred_list.append(len(all_date_pred))
+        
+            true_date = X_test["Date"].map(convert_date).to_list()
+            true_price = y_test["Price"].to_list() 
+
+            missing_x = true_date[:len_inp+return_lag]
+            missing_y = true_price[:len_inp+return_lag] 
+            missing_data = (missing_x, missing_y)
+
+            true_pred_list.append((true_date, true_price))
+            missing_data_list.append(missing_data)
+            algo_prop_list.append((len_inp, len_out, return_lag))
+
+        model = multi_model_class(
+            train_dataset_list, 
+            algo_hyper_class_list,
+            num_model=len(exp_setting)
+        )
         model.train()
-        pred = model.predict(
-            test_dataset, 
-            len(all_date_pred), 
-            all_date_pred, ci=0.9
+        all_task_pred = model.predict(
+            pred_dataset_list, 
+            len_pred_list, 
+            date_pred_list, 
+            ci=0.9
         )
 
-        true_date_pred = true_date[len_inp+return_lag:]
-        true_data_pred = true_price[len_inp+return_lag:]
+        summary_iter = enumerate(zip(
+            all_task_pred, true_pred_list, missing_data_list, algo_prop_list
+        ))
 
-        pred["true_mean"] = pred["x"].map(
-            dict(zip(true_date_pred, true_data_pred))
-        )
-        pred["time_step_error"] = loss(pred["true_mean"], pred["mean"])
-
-        # Sometimes the method uses the test data to do the prediction 
-        # Retrain, such as in the case of ARIMA so it is better to consider the loss
-        # It is useful to have multiple output error data too 
-
-        assert len(pred)%len_out == 0
-
-        interval_loss = []
-        if intv_loss is None:
-            intv_loss = lambda x, y : np.median(loss(x, y))
-
-        for i in range(len(pred)//len_out):
-            parti = pred.iloc[i*len_out:(i+1)*len_out, :]
-            interval_loss.append((
-                parti["x"].iloc[0], 
-                parti["x"].iloc[-1], 
-                intv_loss(parti["true_mean"], parti["mean"])
-            ))
-        
-        missing_x = true_date[:len_inp+return_lag]
-        missing_y = true_price[:len_inp+return_lag] 
-        missing_data = (missing_x, missing_y)
-
-        result_fold = FoldWalkForewardResult(
-            pred=pred, missing_data=missing_data, interval_loss=interval_loss, model=model
-        )
-
-        fold_result_list.append(result_fold)
+        task_result_list = []        
+        for k, (pred, (true_date, true_price), miss_data, algo_prop) in summary_iter:
+            len_inp, len_out, return_lag = algo_prop
+            pred, interval_loss = cal_walk_forward_result(
+                pred, true_date, true_price, 
+                len_inp, len_out, 
+                return_lag, loss, intv_loss
+            )
+            result_fold = FoldWalkForewardResult(
+                pred=pred, missing_data=miss_data, interval_loss=interval_loss, model=model
+            )
+            task_result_list.append(result_fold)
     
-    return fold_result_list
+        fold_result_list.append(task_result_list)
+
+    return transpose_list(fold_result_list)
+
+
+def cal_walk_forward_result(pred, true_date, true_price, len_inp, len_out, return_lag, loss, intv_loss):
+    true_date_pred = true_date[len_inp+return_lag:]
+    true_data_pred = true_price[len_inp+return_lag:]
+
+    pred["true_mean"] = pred["x"].map(
+        dict(zip(true_date_pred, true_data_pred))
+    )
+    pred["time_step_error"] = loss(pred["true_mean"], pred["mean"])
+
+    # Sometimes the method uses the test data to do the prediction 
+    # Retrain, such as in the case of ARIMA so it is better to consider the loss
+    # It is useful to have multiple output error data too 
+
+    assert len(pred)%len_out == 0
+
+    interval_loss = []
+    if intv_loss is None:
+        intv_loss = lambda x, y : np.median(loss(x, y))
+
+    for i in range(len(pred)//len_out):
+        parti = pred.iloc[i*len_out:(i+1)*len_out, :]
+        interval_loss.append((
+            parti["x"].iloc[0], 
+            parti["x"].iloc[-1], 
+            intv_loss(parti["true_mean"], parti["mean"])
+        ))
+    
+    return pred, interval_loss
+

@@ -139,53 +139,67 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_d
     get_first_day = lambda df: df["x"][0]
 
     _, (miss_x, miss_y), _, _ = fold_result[0]
-    day_plot = (
-        0, 0, miss_x[0], x.index(miss_x[0])
-    )
+    is_missing = len(miss_x) != 0
+
+    if is_missing:
+        day_plot = (
+            0, 0, miss_x[0], x.index(miss_x[0])
+        )
 
     fig = plt.figure(figsize=(15, 5))
     gs = fig.add_gridspec(2, hspace=0)
     axs = gs.subplots(sharex=True, sharey=False)
     fig.suptitle("Walk Forward Validation Loss Visualization")
 
-    axs[0].plot(
-        x[day_plot[1]:day_plot[3]], 
-        y[day_plot[1]:day_plot[3]], 
-        color=color["k"], linestyle='-'
-    )
+    if is_missing:
+        axs[0].plot(
+            x[day_plot[1]:day_plot[3]], 
+            y[day_plot[1]:day_plot[3]], 
+            color=color["k"], linestyle='-'
+        )
+
 
     for i, (pred, missing_data, intv_loss, _) in enumerate(fold_result):
         first_day = pred["x"].iloc[0]
         first_index = x.index(first_day)
         last_day = pred["x"].iloc[-1]
         last_index = x.index(last_day)
-        
-        missing_x, _ = missing_data
-        is_missing = len(missing_x) != 0
 
+        if not is_missing:
+            if i == 0:
+                axs[0].plot(
+                    x[:first_index], 
+                    y[:first_index], 
+                    color=color["k"], linestyle='-'
+                )
+                axs[0].axvline(first_day, color=color["k"], linestyle='--')
+            axs[0].axvline(last_day, color=color["k"], linestyle='--')
+        
         axs[0].plot(
             pred["x"].to_list(), pred["true_mean"].to_list(),
             color=color["k"] 
         )
 
-        start_area_index = day_plot[3]-1
+        if is_missing:
+            missing_x, _ = missing_data
+            start_area_index = day_plot[3]-1
 
-        # Fixing incomplete testing (since we don't do padding)
-        start_miss = x.index(missing_x[0])
-        axs[0].plot(
-            x[start_area_index:start_miss+1], y[start_area_index:start_miss+1],
-            color=color["k"], linestyle='-'
-        )
+            # Fixing incomplete testing (since we don't do padding)
+            start_miss = x.index(missing_x[0])
+            axs[0].plot(
+                x[start_area_index:start_miss+1], y[start_area_index:start_miss+1],
+                color=color["k"], linestyle='-'
+            )
 
-        plot_area(
-            axs, x, y, missing_data, start_miss, 
-            first_index, lag_color
-        )
+            plot_area(
+                axs, x, y, missing_data, start_miss, 
+                first_index, lag_color
+            )
 
-        axs[0].axvspan(
-            first_day, last_day, 
-            color="grey", alpha=0.1
-        )
+            axs[0].axvspan(
+                first_day, last_day, 
+                color="grey", alpha=0.1
+            )
 
         plot_bound(axs[0], pred, color[pred_color], "Test")
         
@@ -196,9 +210,10 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_d
         axs[1].plot(pred["x"], pred["time_step_error"], 
             color=color[below_err], alpha=0.6)
 
-        day_plot = (
-            first_day, first_index, last_day, last_index
-        )
+        if is_missing:
+            day_plot = (
+                first_day, first_index, last_day, last_index
+            )
         
         for i_start, j_start, loss in intv_loss:
             loc_bar = (i_start + j_start)/2

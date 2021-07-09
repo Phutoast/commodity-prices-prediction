@@ -95,6 +95,7 @@ def gen_prepare_task(len_inp, len_out, return_lag, len_pred_show, skip, plot_gap
     return (task, helper)
 
 def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=False, load_path=None):
+
     train_dataset_list = []
     algo_hyper_class_list = []
 
@@ -189,7 +190,7 @@ def example_plot_walk_forward(algo_name, base_name=None):
     hyperparam, algo_class = algorithms_dic[algo_name]
 
     return_lag = 22
-    skip = 100
+    skip = 5
     len_inp = hyperparam["len_inp"]
     len_out = hyperparam["len_out"]
     features, log_prices, first_day, len_data, convert_date = get_data_example(return_lag, skip)
@@ -218,5 +219,41 @@ def example_plot_walk_forward(algo_name, base_name=None):
         features, log_prices, fold_result, convert_date,
         lag_color="o", pred_color="b", below_err="r"
     )
-    fig.savefig("img/walk_forward.png")
     plt.show()
+
+def example_plot_walk_forward_test(exp_setting):
+
+    all_data = []
+    for i, (algo_name, return_lag, skip, _) in enumerate(exp_setting): 
+        features, log_prices, _, _, convert_date = get_data_example(
+            return_lag, skip
+        ) 
+        all_data.append(
+            (features, log_prices, convert_date, algorithms_dic[algo_name])
+        )
+ 
+    metric = PerformanceMetric()
+
+    fold_result = walk_forward(
+        all_data, exp_setting,  
+        IndependentMultiModel,
+        metric.square_error, 
+        size_train=300, size_test=200, 
+        train_offset=1, 
+        return_lag=return_lag, 
+        convert_date=convert_date,
+        is_train_pad=True, 
+        is_test_pad=False 
+    )
+
+   # save_fold_data(fold_result, "test-model-name")
+
+    # Since we added more datapoint to not waste data
+    task_number = 1
+    test_features, test_log_prices, test_convert_date, _ = all_data[task_number]
+    fig, ax = visualize_walk_forward(
+        test_features, test_log_prices, fold_result[task_number], test_convert_date,
+        lag_color="o", pred_color="b", below_err="r"
+    )
+    plt.show()
+
