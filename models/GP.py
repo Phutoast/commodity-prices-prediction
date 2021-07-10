@@ -1,8 +1,10 @@
 import numpy as np
 import gpytorch
 import torch
+
 from models.base_model import BaseModel
 from models.base_GP import OneDimensionGP
+from experiments import algo_dict
  
 class IndependentGP(BaseModel):
     """
@@ -28,8 +30,10 @@ class IndependentGP(BaseModel):
             self.std_x = torch.std(self.train_x, axis=0)
 
             self.train_x = (self.train_x - self.mean_x)/self.std_x
+
+            kernel = algo_dict.kernel_name[self.hyperparam["kernel"]]
             self.model = OneDimensionGP(
-                self.train_x, self.train_y, self.likelihood, self.hyperparam["kernel"]
+                self.train_x, self.train_y, self.likelihood, kernel
             )
 
             self.model.train()
@@ -104,7 +108,7 @@ class IndependentGP(BaseModel):
         self.model = OneDimensionGP(
             self.train_x, self.train_y, 
             self.likelihood, 
-            self.hyperparam["kernel"]
+            algo_dict.kernel_name[self.hyperparam["kernel"]]
         )
 
         self.model.load_state_dict(state_dict)

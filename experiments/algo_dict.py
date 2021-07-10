@@ -37,7 +37,7 @@ algorithms_dic = {
         is_time_only=False,
         is_date=True, 
         is_batch=False,
-        kernel=kernels.ScaleKernel(kernels.RBFKernel())
+        kernel="RBF_Scale"
     ), IndependentGP],
     "GP-Test": [Hyperparameters(
         len_inp=10, 
@@ -48,20 +48,27 @@ algorithms_dic = {
         is_time_only=False,
         is_date=True, 
         is_batch=False,
-        kernel=kernels.ScaleKernel(kernels.MaternKernel())
+        kernel="Matern_Scale"
     ), IndependentGP],
 }
 
-# Possible Kernels for Normal GP
-kernels.ScaleKernel(kernels.RBFKernel()) + kernels.ScaleKernel(kernels.PeriodicKernel(power=2))
+class_name = {
+    "ARIMAModel": ARIMAModel,
+    "IIDDataModel": IIDDataModel,
+    "IndependentGP": IndependentGP,
+}
 
-# Possible Kernels for Batch
+kernel_name = {
+    "RBF_Scale": kernels.ScaleKernel(kernels.RBFKernel()),
+    "Matern_Scale": kernels.ScaleKernel(kernels.MaternKernel()),
+    "Composite_1": kernels.ScaleKernel(kernels.RBFKernel()) + kernels.ScaleKernel(kernels.PeriodicKernel(power=2)),
+    "Batch_1": kernels.ScaleKernel(
+        kernels.ScaleKernel(kernels.CosineKernel(batch_shape=torch.Size([1])), batch_shape=torch.Size([1]))+ 
+        kernels.ScaleKernel(kernels.MaternKernel(batch_shape=torch.Size([1])), batch_shape=torch.Size([1])), batch_shape=torch.Size([1])
+    ),
+    "Batch_2": kernels.ScaleKernel(
+        kernels.RBFKernel(batch_shape=torch.Size([2])),
+        batch_shape=torch.Size([2])
+    )
+}
 
-kernels.ScaleKernel(
-    kernels.ScaleKernel(kernels.CosineKernel(batch_shape=torch.Size([1])), batch_shape=torch.Size([1]))+ 
-    kernels.ScaleKernel(kernels.MaternKernel(batch_shape=torch.Size([1])), batch_shape=torch.Size([1])), batch_shape=torch.Size([1])
-)
-kernels.ScaleKernel(
-    kernels.RBFKernel(batch_shape=torch.Size([2])),
-    batch_shape=torch.Size([2])
-)

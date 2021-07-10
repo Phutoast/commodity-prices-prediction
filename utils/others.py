@@ -7,6 +7,7 @@ import pandas as pd
 
 from experiments.algo_dict import algorithms_dic
 from utils.data_structure import FoldWalkForewardResult
+from models.ind_multi_model import IndependentMultiModel
 
 def create_folder(path):
     """
@@ -35,7 +36,7 @@ def create_name(base_folder, name):
     base_folder += date_time
     return base_folder
 
-def save_fold_data(all_fold_result, model_name):
+def save_fold_data(all_fold_result, model_name, base_folder):
     """
     Given the result of the walk forward model, 
         we save it in the folder separated by each fold.
@@ -44,8 +45,6 @@ def save_fold_data(all_fold_result, model_name):
         all_fold_result: Result from all forward model
         model_name: Name of the model
     """
-    base_folder = "save/"
-    base_folder = create_name(base_folder, model_name)
     create_folder(base_folder)
 
     for task_num, fold_result in enumerate(all_fold_result):
@@ -61,8 +60,9 @@ def save_fold_data(all_fold_result, model_name):
             with open(curr_folder + "intv_loss.pkl", "wb") as handle:
                 pickle.dump(intv_loss, handle, protocol=pickle.HIGHEST_PROTOCOL)
         
-            create_folder(curr_folder + f"model_{model_name}")
-            model.save(curr_folder + f"model_{model_name}/model")
+            model_save_folder = curr_folder + model_name
+            create_folder(model_save_folder)
+            model.save(model_save_folder)
 
 def load_fold_data(base_folder, model_name):
     """
@@ -78,25 +78,28 @@ def load_fold_data(base_folder, model_name):
     """
     base_folder = "save/" + base_folder
 
-    fold_folder_list = []
-    for fold_folder in sorted(os.listdir(base_folder)):
-        curr_folder = base_folder + "/" + fold_folder + "/"
+    task_list = []
+    for task_folder in sorted(os.listdir(base_folder)):
+        task_folder = base_folder + "/" + task_folder
 
-        pred = pd.read_csv(curr_folder + "pred.csv")
-        with open(curr_folder + "miss_data.pkl", "rb") as handle:
-            miss_data = pickle.load(handle)
+        fold_result_list = []
+        for fold_folder in sorted(os.listdir(task_folder)):
+            curr_folder = task_folder + "/" + fold_folder + "/"
+            pred = pd.read_csv(curr_folder + "pred.csv")
+            with open(curr_folder + "miss_data.pkl", "rb") as handle:
+                miss_data = pickle.load(handle)
+            
+            with open(curr_folder + "intv_loss.pkl", "rb") as handle:
+                intv_loss = pickle.load(handle)
+            
+            model = IndependentMultiModel.load_from_path(
+                curr_folder + model_name
+            )
+            result_fold = FoldWalkForewardResult(
+                pred=pred, missing_data=miss_data, interval_loss=intv_loss, model=model
+            )
+            fold_result_list.append(result_fold)
         
-        with open(curr_folder + "intv_loss.pkl", "rb") as handle:
-            intv_loss = pickle.load(handle)
-        
-        hyperparam, algo_class = algorithms_dic[model_name]
-        model = algo_class([], hyperparam)
-        model.load(f"{curr_folder}model_{model_name}/model")
-        result_fold = FoldWalkForewardResult(
-            pred=pred, missing_data=miss_data, interval_loss=intv_loss, model=model
-        )
-        fold_folder_list.append(result_fold)
+        task_list.append(fold_result_list)
     
-    return fold_folder_list
-
-
+    return task_list

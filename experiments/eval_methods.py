@@ -246,8 +246,7 @@ def walk_forward(all_data, exp_setting, multi_model_class, loss, size_train,
 
         model = multi_model_class(
             train_dataset_list, 
-            algo_hyper_class_list,
-            num_model=len(exp_setting)
+            algo_hyper_class_list
         )
         model.train()
         all_task_pred = model.predict(

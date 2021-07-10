@@ -1,8 +1,11 @@
 import numpy as np
 import pandas as pd
+import os
+import json
 
-from utils.others import create_name, create_folder
+from utils import others
 from models.base_model import BaseModel
+from experiments.algo_dict import class_name
 
 class IndependentMultiModel(object):
     """
@@ -17,16 +20,23 @@ class IndependentMultiModel(object):
         num_model: Number of models that we want to output.
 
     """
-    def __init__(self, list_train_data, list_config, num_model):
-        self.num_model = num_model
-        assert all(
-            len(a) == num_model 
-            for a in [list_train_data, list_config]
-        )
-        self.models = [
-            list_config[i][1](list_train_data[i], list_config[i][0])
-            for i in range(num_model)
-        ] 
+    def __init__(self, list_train_data, list_config):
+        assert len(list_train_data) == len(list_config) 
+        self.num_model = len(list_config)
+
+        self.models = [] 
+        self.list_config_json = {"hyperparam": [], "model_class": []}
+        for i in range(self.num_model):
+            self.models.append(
+                list_config[i][1](list_train_data[i], list_config[i][0])
+            )
+            self.list_config_json["hyperparam"].append(
+                dict(list_config[i][0])
+            )
+            self.list_config_json["model_class"].append(
+                list_config[i][1].__name__
+            )
+        
 
     def train(self):
         """
@@ -49,10 +59,19 @@ class IndependentMultiModel(object):
         Returns:
             list_prediction: List of all prediction for each models
         """
-        assert all(
-            len(a) == self.num_model 
-            for a in [list_test_data, list_step_ahead, list_all_date]
-        )
+
+        # self.num_model == 0 when we are loading a model
+        if self.num_model != 0:
+            assert all(
+                len(a) == self.num_model 
+                for a in [list_test_data, list_step_ahead, list_all_date]
+            )
+        else:
+            assert all(
+                len(a) == len(list_test_data)
+                for a in [list_test_data, list_step_ahead, list_all_date]
+            )
+
 
         return [
             self.models[i].predict(
@@ -61,32 +80,68 @@ class IndependentMultiModel(object):
             for i in range(self.num_model)
         ]
     
-    def save(self, model_name):
+    def save(self, base_path):
         """
         Save the model to the path given
 
         Args:
             base_model: The name of the whole multimodel
         """
-        base_folder = create_name("save/", model_name)
-        create_folder(base_folder)
+        others.create_folder(base_path)
+
+        with open(f"{base_path}/config.json", 'w', encoding="utf-8") as f:
+            json.dump(
+                self.list_config_json, f, ensure_ascii=False, indent=4
+            )
 
         for i in range(self.num_model):
-            model_path = base_folder + f"model_{i}/"
-            create_folder(model_path)
+            model_path = base_path + f"/model_{i}/"
+            others.create_folder(model_path)
             self.models[i].save(model_path + "model")
 
     
     def load(self, path):
         """
-        Load the model from the given path
+        Load the model from the given path, 
+            if we already know the underlying models
         
         Args:
             path: Path where the model is saved (not including the extensions)
         """ 
 
-        for i in range(self.num_model):
-            model_path = path + f"/model_{i}/model"
+        list_sub_model = [f.path for f in os.scandir(path) if f.is_dir()]
+        self.num_model = len(list_sub_model)
+
+        for i, sub_path in enumerate(list_sub_model):
+            model_path = f"{sub_path}/model"
             self.models[i].load(model_path)
+    
+    @classmethod
+    def load_from_path(cls, path):
+        """
+        Create Model from the path without 
+            knowing the underlying models
+
+        Args:
+            path: Path of the folder where the model is saved 
+        """
+        with open(f"{path}/config.json", 'r', encoding="utf-8") as f:
+            data = json.load(f)
+        
+        num_model = len(data["hyperparam"])
+        assert num_model == len(data["model_class"])
+
+        # Constructing list config
+        list_config = []
+        for hyper, name in zip(data["hyperparam"], data["model_class"]):
+            list_config.append((hyper, class_name[name]))
+        
+        model = cls([[]] * num_model, list_config)
+        model.load(path)
+        
+        return model
+
+
+
     
 
