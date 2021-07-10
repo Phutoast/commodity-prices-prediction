@@ -7,7 +7,7 @@ import pandas as pd
 
 from experiments.algo_dict import algorithms_dic
 from utils.data_structure import FoldWalkForewardResult
-from models.ind_multi_model import IndependentMultiModel
+from models import ind_multi_model
 
 def create_folder(path):
     """
@@ -64,7 +64,7 @@ def save_fold_data(all_fold_result, model_name, base_folder):
             create_folder(model_save_folder)
             model.save(model_save_folder)
 
-def load_fold_data(base_folder, model_name):
+def load_fold_data(base_folder, model_name, model_class):
     """
     Load the fold data given the base_folder and model name
         The data, including the model, which can be used to generate a plot
@@ -92,7 +92,7 @@ def load_fold_data(base_folder, model_name):
             with open(curr_folder + "intv_loss.pkl", "rb") as handle:
                 intv_loss = pickle.load(handle)
             
-            model = IndependentMultiModel.load_from_path(
+            model = model_class.load_from_path(
                 curr_folder + model_name
             )
             result_fold = FoldWalkForewardResult(

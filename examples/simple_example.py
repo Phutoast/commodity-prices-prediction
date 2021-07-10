@@ -108,7 +108,7 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
     log_prices_train_list = []
     missing_data_list = []
     
-    for i, (algo_name, return_lag, skip, len_pred_show) in enumerate(exp_setting):
+    for i, (algo_name, return_lag, skip, len_pred_show) in enumerate(exp_setting["task"]):
         hyperparam, algo_class = algorithms_dic[algo_name]
         len_inp = hyperparam["len_inp"]
         len_out = hyperparam["len_out"]
@@ -147,7 +147,7 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
         log_prices_train_list.append(log_prices_train)
         missing_data_list.append(missing_data)
     
-    model = IndependentMultiModel(
+    model = exp_setting["algo"](
         train_dataset_list, 
         algo_hyper_class_list
     )
@@ -155,7 +155,7 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
     if load_path is not None:
         if is_load:
             # model.load(f"save/{load_path}")
-            model = IndependentMultiModel.load_from_path(f"save/{load_path}")
+            model = exp_setting["algo"].load_from_path(f"save/{load_path}")
         elif is_save:
             model.train()
             base_name = create_name("save/", load_path)
@@ -172,8 +172,8 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
         ci=0.9
     )
 
-    fig, axes = plt.subplots(nrows=len(exp_setting), figsize=(15, 6))
-    for i in range(len(exp_setting)):
+    fig, axes = plt.subplots(nrows=len(exp_setting["task"]), figsize=(15, 6))
+    for i in range(len(exp_setting["task"])):
         model_pred = DisplayPrediction(
             pred[i], name=algo_name, color="p", is_bridge=False
         )
@@ -190,7 +190,7 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
 def example_plot_walk_forward(exp_setting, model_name, load_path, is_save=False, is_load=True):
 
     all_data = []
-    for i, (algo_name, return_lag, skip, _) in enumerate(exp_setting): 
+    for i, (algo_name, return_lag, skip, _) in enumerate(exp_setting["task"]): 
         features, log_prices, _, _, convert_date = get_data_example(
             return_lag, skip
         ) 
@@ -201,8 +201,8 @@ def example_plot_walk_forward(exp_setting, model_name, load_path, is_save=False,
     metric = PerformanceMetric()
 
     run_fold = lambda: walk_forward(
-        all_data, exp_setting,  
-        IndependentMultiModel,
+        all_data, exp_setting["task"],  
+        exp_setting["algo"],
         metric.square_error, 
         size_train=300, size_test=200, 
         train_offset=1, 
@@ -214,7 +214,7 @@ def example_plot_walk_forward(exp_setting, model_name, load_path, is_save=False,
     
     if load_path is not None:
         if is_load:
-            fold_result = load_fold_data(load_path, model_name)
+            fold_result = load_fold_data(load_path, model_name, IndependentMultiModel)
         elif is_save:
             base_folder = create_name("save/", model_name)
             fold_result = run_fold()
@@ -224,12 +224,16 @@ def example_plot_walk_forward(exp_setting, model_name, load_path, is_save=False,
     else:
         fold_result = run_fold()
 
-    # Since we added more datapoint to not waste data
-    task_number = 0
-    test_features, test_log_prices, test_convert_date, _ = all_data[task_number]
-    fig, ax = visualize_walk_forward(
-        test_features, test_log_prices, fold_result[task_number], test_convert_date,
-        lag_color="o", pred_color="b", below_err="r"
-    )
+    for task_number in range(len(all_data)):
+        test_features, test_log_prices, test_convert_date, _ = all_data[task_number]
+        fig, ax = visualize_walk_forward(
+            test_features, test_log_prices, fold_result[task_number], test_convert_date,
+            lag_color="o", pred_color="b", below_err="r",
+            title=f"Task {task_number+1}"
+        )
+        fig.savefig(f"img/walk_forward_task_{task_number}")
+    
+    show_result_fold(fold_result, exp_setting)
+
     plt.show()
 

@@ -1,10 +1,12 @@
+import numpy as np
+from tabulate import tabulate
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 from collections import defaultdict
 
 from utils.data_preprocessing import parse_series_time
 from scipy.interpolate import make_interp_spline
-import numpy as np
+from models.ind_multi_model import IndependentMultiModel
 
 color = {
     "o": "#ff7500",
@@ -126,8 +128,7 @@ def plot_area(axs, x, y, miss, start_ind, end_ind, lag_color):
     )
 
 
-def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_dict,
-        lag_color="o", pred_color="p", below_err="g"):
+def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_dict, lag_color="o", pred_color="p", below_err="g", title="Walk Forward Validation Loss Visualization"):
 
     convert_date = lambda x: x["Date"].to_list()
     convert_price = lambda x: x["Price"].to_list()
@@ -147,9 +148,9 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_d
         )
 
     fig = plt.figure(figsize=(15, 5))
-    gs = fig.add_gridspec(2, hspace=0)
+    gs = fig.add_gridspec(nrows=2, hspace=0)
     axs = gs.subplots(sharex=True, sharey=False)
-    fig.suptitle("Walk Forward Validation Loss Visualization")
+    fig.suptitle(title)
 
     if is_missing:
         axs[0].plot(
@@ -235,21 +236,32 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_d
 
     return fig, axs
 
-def show_result_fold(fold_result, name):
+def show_result_fold(fold_results, exp_setting):
     """
     Printing out the Result of the fold data
 
     Args:
         fold_result: Result of walk_forward 
-        name: Name of the Algorithm
-
+        exp_setting: Experiment Setting for Each Task
     """
-    all_error_ind, all_error_intv = [], []
-    for result in fold_result:
-        all_error_ind += result.pred["time_step_error"].to_list() 
-        all_error_intv += [loss for _, _, loss in result.interval_loss]
-    print("-"*16 + f" Result({name}) " + "-"*16)
-    print(f"Averate of All Test Pred: {round(np.mean(all_error_ind), 7)} ± {round(np.std(all_error_ind), 7)}")
-    print(f"Average of Test Interval: {round(np.mean(all_error_intv), 7)} ± {round(np.std(all_error_intv), 7)}")
-    print("-"*16 + "-"*len(f" Result({name}) ") + "-"*16)
+    header = ["", "All Error", "Interval Error"]
+    table = []
+
+    for i, fold_result in enumerate(fold_results):
+        all_error_ind, all_error_intv = [], []
+        for result in fold_result:
+            all_error_ind += result.pred["time_step_error"].to_list() 
+            all_error_intv += [loss for _, _, loss in result.interval_loss]
+        
+        task_prop = exp_setting["task"][i]
+        table.append([
+            f"Task {i+1} (Lag={task_prop[1]}, Step ahead={task_prop[2]})", 
+            f"{round(np.mean(all_error_ind), 7)} ± {round(np.std(all_error_ind), 7)}", 
+            f"{round(np.mean(all_error_intv), 7)} ± {round(np.std(all_error_intv), 7)}"
+            ])
+
+    print(tabulate(table, headers=header, tablefmt="grid"))
+
+    
+
     
