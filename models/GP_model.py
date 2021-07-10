@@ -27,3 +27,17 @@ class BatchGP(gpytorch.models.ExactGP):
             gpytorch.distributions.MultivariateNormal(mean, covar)
         )
 
+class MultioutputGP(gpytorch.models.ExactGP):
+    def __init__(self, train_x, train_y, likelihood, kernel, num_out):
+        super(MultioutputGP, self).__init__(train_x, train_y, likelihood)
+        self.mean_module = gpytorch.means.MultitaskMean(
+            gpytorch.means.ConstantMean(), num_tasks=num_out
+        )
+        self.covar_module = gpytorch.kernels.MultitaskKernel(
+            kernel, num_tasks=num_out, rank=1
+        )
+    
+    def forward(self, x):
+        mean_x = self.mean_module(x)
+        covar_x = self.covar_module(x)
+        return gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)

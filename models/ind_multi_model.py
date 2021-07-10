@@ -6,6 +6,7 @@ import json
 from utils import others
 from models.base_model import BaseModel
 from experiments.algo_dict import class_name
+from utils.data_preprocessing import replace_dataset
 
 class IndependentMultiModel(object):
     """
@@ -17,15 +18,20 @@ class IndependentMultiModel(object):
         list_config: List of each model 
             and its hyperparameter (as seen in algo_dict), 
             if it is not a list then we apply the same hyperparameter to all models
-        num_model: Number of models that we want to output.
+        using_first: Using the first data set inputs but with difference labels.
 
     """
-    def __init__(self, list_train_data, list_config):
+    def __init__(self, list_train_data, list_config, using_first):
         assert len(list_train_data) == len(list_config) 
         self.num_model = len(list_config)
+        self.using_first = using_first
 
-        self.models = [] 
-        self.list_config_json = {"hyperparam": [], "model_class": []}
+        self.models = []  
+        self.list_config_json = {"hyperparam": [], "model_class": [], "using_first": using_first}
+
+        if self.using_first:
+            list_train_data = replace_dataset(list_train_data)
+
         for i in range(self.num_model):
             self.models.append(
                 list_config[i][1](list_train_data[i], list_config[i][0])
@@ -71,7 +77,9 @@ class IndependentMultiModel(object):
                 len(a) == len(list_test_data)
                 for a in [list_test_data, list_step_ahead, list_all_date]
             )
-
+        
+        if self.using_first:
+            list_test_data = replace_dataset(list_test_data)
 
         return [
             self.models[i].predict(
@@ -136,7 +144,11 @@ class IndependentMultiModel(object):
         for hyper, name in zip(data["hyperparam"], data["model_class"]):
             list_config.append((hyper, class_name[name]))
         
-        model = cls([[]] * num_model, list_config)
+        model = cls(
+            [[]] * num_model, 
+            list_config, 
+            data["using_first"]
+        )
         model.load(path)
         
         return model

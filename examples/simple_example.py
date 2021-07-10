@@ -113,6 +113,9 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
         len_inp = hyperparam["len_inp"]
         len_out = hyperparam["len_out"]
 
+        # Adding info the hyperparam
+        hyperparam["using_first"] = exp_setting["using_first"]
+
         task_helper = gen_prepare_task(
             len_inp=len_inp, 
             len_out=len_out,
@@ -149,7 +152,8 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
     
     model = exp_setting["algo"](
         train_dataset_list, 
-        algo_hyper_class_list
+        algo_hyper_class_list,
+        exp_setting["using_first"]
     )
 
     if load_path is not None:
@@ -175,7 +179,7 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
     fig, axes = plt.subplots(nrows=len(exp_setting["task"]), figsize=(15, 6))
     for i in range(len(exp_setting["task"])):
         model_pred = DisplayPrediction(
-            pred[i], name=algo_name, color="p", is_bridge=False
+            pred[i], name=exp_setting["task"][i][0], color="p", is_bridge=False
         )
 
         fig, ax1 = visualize_time_series(
@@ -208,13 +212,16 @@ def example_plot_walk_forward(exp_setting, model_name, load_path, is_save=False,
         train_offset=1, 
         return_lag=return_lag, 
         convert_date=convert_date,
+        using_first=exp_setting["using_first"],
         is_train_pad=True, 
         is_test_pad=False 
     )
     
     if load_path is not None:
         if is_load:
-            fold_result = load_fold_data(load_path, model_name, IndependentMultiModel)
+            fold_result = load_fold_data(
+                load_path, model_name, exp_setting["algo"]
+            )
         elif is_save:
             base_folder = create_name("save/", model_name)
             fold_result = run_fold()
@@ -231,9 +238,8 @@ def example_plot_walk_forward(exp_setting, model_name, load_path, is_save=False,
             lag_color="o", pred_color="b", below_err="r",
             title=f"Task {task_number+1}"
         )
-        fig.savefig(f"img/walk_forward_task_{task_number}")
+        fig.savefig(f"img/walk_forward_task_{model_name}_task_{task_number}")
     
     show_result_fold(fold_result, exp_setting)
-
-    plt.show()
+    # plt.show()
 

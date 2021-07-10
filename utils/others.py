@@ -32,7 +32,7 @@ def create_name(base_folder, name):
             new folder under the base folder
     """
     now = datetime.now()
-    date_time = now.strftime("%m-%d-%y-%H-%M-%S") + f"-{name}/"
+    date_time = now.strftime("%m-%d-%y-%H-%M-%S") + f"-{name}"
     base_folder += date_time
     return base_folder
 
@@ -48,7 +48,7 @@ def save_fold_data(all_fold_result, model_name, base_folder):
     create_folder(base_folder)
 
     for task_num, fold_result in enumerate(all_fold_result):
-        task_folder = base_folder + f"task_{task_num}/"
+        task_folder = base_folder + f"/task_{task_num}/"
         create_folder(task_folder)
         for i, (pred, miss_data, intv_loss, model) in enumerate(fold_result):
             curr_folder = task_folder + f"fold_{i}/"

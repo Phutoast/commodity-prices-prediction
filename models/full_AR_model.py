@@ -24,7 +24,7 @@ class FullARModel(BaseModel):
         """
         self.pred_rollout, self.upper_rollout, self.lower_rollout = [], [], []
     
-    def get_all_data(self, train_data):
+    def get_all_data(self, train_data, include_miss=True):
         """
         Getting all the train data and transform into the self.all_data 
         that contains a matrix of features N x d where d is the feature dimension.
@@ -46,9 +46,10 @@ class FullARModel(BaseModel):
         all_data = packed_data[:, 0, :]
 
         # The missing data (occur because padding)
-        all_data = np.concatenate(
-            [all_data, packed_data[-1, range(1, total_num_data), :]]
-        )
+        if include_miss:
+            all_data = np.concatenate(
+                [all_data, packed_data[-1, range(1, total_num_data), :]]
+            )
 
         if not self.hyperparam["is_date"]:
             all_data = all_data[:, 1:]
@@ -60,7 +61,10 @@ class FullARModel(BaseModel):
         Symbolically create the all_data as to define the training process
         """
         # Only getting the value this is for Mean and ARIMA only
-        self.all_data = self.get_all_data(self.train_data) 
+
+        self.all_data = self.get_all_data(
+            self.train_data, include_miss=True
+        ) 
         self.model = self.build_model()
     
     def get_batch_test_data(self, test_data):
@@ -103,6 +107,7 @@ class FullARModel(BaseModel):
             upper: Upperbound of the prediction of the model.
             lower: Lowerbound of the prediction of the model.
         """
+        raise NotImplementedError()
     
     def add_results(self, mean, upper, lower):
         """

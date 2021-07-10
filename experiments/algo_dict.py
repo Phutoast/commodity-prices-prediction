@@ -33,23 +33,31 @@ algorithms_dic = {
         len_out=1, 
         lr=0.1,
         optim_iter=100,
-        jitter=1e-4,
         is_time_only=False,
-        is_date=True, 
-        is_batch=False,
-        kernel="RBF_Scale"
+        is_date=False, 
+        is_past_label=False,
+        kernel="Composite_2"
     ), IndependentGP],
     "GP-Test": [Hyperparameters(
         len_inp=10, 
         len_out=1, 
         lr=0.1,
         optim_iter=100,
-        jitter=1e-4,
         is_time_only=False,
-        is_date=True, 
-        is_batch=False,
-        kernel="Matern_Scale"
+        is_date=False, 
+        is_past_label=True,
+        kernel="Composite_2"
     ), IndependentGP],
+    "GP-Multi-Task": [Hyperparameters(
+        len_inp=10, 
+        len_out=1, 
+        lr=0.1,
+        optim_iter=200,
+        is_time_only=False,
+        is_date=False, 
+        is_past_label=True,
+        kernel="Composite_2"
+    ), None],
 }
 
 class_name = {
@@ -62,13 +70,14 @@ kernel_name = {
     "RBF_Scale": kernels.ScaleKernel(kernels.RBFKernel()),
     "Matern_Scale": kernels.ScaleKernel(kernels.MaternKernel()),
     "Composite_1": kernels.ScaleKernel(kernels.RBFKernel()) + kernels.ScaleKernel(kernels.PeriodicKernel(power=2)),
-    "Batch_1": kernels.ScaleKernel(
-        kernels.ScaleKernel(kernels.CosineKernel(batch_shape=torch.Size([1])), batch_shape=torch.Size([1]))+ 
-        kernels.ScaleKernel(kernels.MaternKernel(batch_shape=torch.Size([1])), batch_shape=torch.Size([1])), batch_shape=torch.Size([1])
+    "Composite_2": kernels.ScaleKernel(kernels.RBFKernel()) + kernels.ScaleKernel(kernels.PolynomialKernel(power=2)),
+    "Batch_1": lambda num_task: kernels.ScaleKernel(
+        kernels.ScaleKernel(kernels.CosineKernel(batch_shape=torch.Size([num_task])), batch_shape=torch.Size([num_task]))+ 
+        kernels.ScaleKernel(kernels.MaternKernel(batch_shape=torch.Size([num_task])), batch_shape=torch.Size([num_task])), batch_shape=torch.Size([num_task])
     ),
-    "Batch_2": kernels.ScaleKernel(
-        kernels.RBFKernel(batch_shape=torch.Size([2])),
-        batch_shape=torch.Size([2])
+    "Batch_2": lambda num_task: kernels.ScaleKernel(
+        kernels.RBFKernel(batch_shape=torch.Size([num_task])),
+        batch_shape=torch.Size([num_task])
     )
 }
 

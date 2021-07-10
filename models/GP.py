@@ -3,10 +3,12 @@ import gpytorch
 import torch
 
 from models.base_model import BaseModel
-from models.base_GP import OneDimensionGP
+from models.GP_model import OneDimensionGP
+from models.train_model import BaseTrainModel
+
 from experiments import algo_dict
  
-class IndependentGP(BaseModel):
+class IndependentGP(BaseTrainModel):
     """
     Simple Gaussian Process Model that takes date 
         as inp and return the price prediction.
@@ -15,81 +17,76 @@ class IndependentGP(BaseModel):
         super().__init__(train_data, model_hyperparam)
         self.likelihood = gpytorch.likelihoods.GaussianLikelihood()
     
-    def train(self):
-        with gpytorch.settings.cholesky_jitter(self.hyperparam["jitter"]):
-            all_prices = self.pack_data(self.train_data)
+    def prepare_data(self):
+        all_prices = self.pack_data(
+            self.train_data, is_label=self.hyperparam["is_past_label"]
+        )
 
-            if self.hyperparam["is_time_only"]:
-                self.train_x = torch.from_numpy(all_prices[:, 0]).float()
-                self.train_y = torch.from_numpy(all_prices[:, -1]).float()
-            else:
-                self.train_x = torch.from_numpy(all_prices[:, :-1]).float()
-                self.train_y = torch.from_numpy(all_prices[:, -1]).float()
-            
-            self.mean_x = torch.mean(self.train_x, axis=0)
-            self.std_x = torch.std(self.train_x, axis=0)
+        if self.hyperparam["is_time_only"]:
+            self.train_x = torch.from_numpy(all_prices[:, 0]).float()
+            self.train_y = torch.from_numpy(all_prices[:, -1]).float()
+        else:
+            self.train_x = torch.from_numpy(all_prices[:, :-1]).float()
+            self.train_y = torch.from_numpy(all_prices[:, -1]).float()
+        
+        self.train_x = self.normalize_data(self.train_x, is_train=True)
+        return self.train_x, self.train_y
+    
+    def build_training_model(self):
+        kernel = algo_dict.kernel_name[self.hyperparam["kernel"]]
+        self.model = OneDimensionGP(
+            self.train_x, self.train_y, self.likelihood, kernel
+        )
+        return self.model
+    
+    def build_optimizer_loss(self):
+        self.model.train()
+        self.likelihood.train()
 
-            self.train_x = (self.train_x - self.mean_x)/self.std_x
+        self.optimizer = torch.optim.Adam(
+            [{'params': self.model.parameters()}],
+            lr=self.hyperparam["lr"]
+        )
+        self.loss_obj = gpytorch.mlls.ExactMarginalLogLikelihood(
+            self.likelihood, self.model
+        )
 
-            kernel = algo_dict.kernel_name[self.hyperparam["kernel"]]
-            self.model = OneDimensionGP(
-                self.train_x, self.train_y, self.likelihood, kernel
-            )
-
-            self.model.train()
-            self.likelihood.train()
-
-            optimizer = torch.optim.Adam(
-                [{'params': self.model.parameters()}],
-                lr=self.hyperparam["lr"]
-            )
-            mll = gpytorch.mlls.ExactMarginalLogLikelihood(
-                self.likelihood, self.model
-            )
-
-            num_iter = self.hyperparam["optim_iter"]
-            for i in range(num_iter):
-                optimizer.zero_grad()
-                output = self.model(self.train_x)
-                loss = -mll(output, self.train_y)
-
-                if self.hyperparam["is_verbose"]:
-                    if i%10 == 0:
-                        print(f"Loss {i}/{num_iter}", loss)
-                loss.backward()
-                optimizer.step()
-
-            self.model.eval()
-            self.likelihood.eval()
+        return self.optimizer, self.loss_obj
+    
+    def after_training(self):
+        self.model.eval()
+        self.likelihood.eval()
     
     def predict_step_ahead(self, test_data, step_ahead, ci=0.9):
         """
         Args: (See superclass)
         Returns: (See superclass)
-        """
-        
+        """ 
         self.model.eval()
         self.likelihood.eval()
 
-        with gpytorch.settings.cholesky_jitter(self.hyperparam["jitter"]):
-            if self.hyperparam["is_time_only"]:
-                inp_test = self.pack_data(test_data)[:, 0]
-            else:
-                inp_test = self.pack_data(test_data)[:, :-1]
-            size_test_data = len(inp_test)
-            assert step_ahead <= size_test_data
-            
-            with torch.no_grad(), gpytorch.settings.fast_pred_var():
-                test_x = torch.from_numpy(inp_test).float()
-                test_x = (test_x - self.mean_x)/self.std_x
-                observed_pred = self.likelihood(self.model(test_x.float()))
+        inp_test = self.pack_data(
+            test_data, is_label=self.hyperparam["is_past_label"]
+        )
+        if self.hyperparam["is_time_only"]:
+            inp_test = inp_test[:, 0]
+        else:
+            inp_test = inp_test[:, :-1]
 
-                pred_mean = observed_pred.mean.numpy().tolist()
-                lower, upper = observed_pred.confidence_region()
-                pred_lower = lower.numpy().tolist()
-                pred_upper = upper.numpy().tolist()
-            
-            return pred_mean, pred_lower, pred_upper
+        size_test_data = len(inp_test)
+        assert step_ahead <= size_test_data
+        
+        with torch.no_grad(), gpytorch.settings.fast_pred_var():
+            test_x = torch.from_numpy(inp_test).float()
+            test_x = self.normalize_data(test_x, is_train=False)
+            pred = self.likelihood(self.model(test_x.float()))
+
+            pred_mean = pred.mean.numpy().tolist()
+            lower, upper = pred.confidence_region()
+            pred_lower = lower.numpy().tolist()
+            pred_upper = upper.numpy().tolist()
+        
+        return pred_mean, pred_lower, pred_upper
     
     def save(self, path):
         torch.save(self.model.state_dict(), path + ".pth")

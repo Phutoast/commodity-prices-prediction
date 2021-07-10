@@ -2,6 +2,8 @@ import datetime
 import pandas as pd
 import numpy as np
 
+from utils.data_structure import TrainingPoint
+
 def parse_series_time(dates, first_day):
     """
     Given the time from panda dataframe, we turn it to time lengths and label
@@ -142,3 +144,33 @@ def cal_lag_return(output, length_lag):
         lag_return = output
 
     return lag_return
+
+def replace_dataset(list_train_data):
+    """
+    When we call for the using_first in multi-task setting, 
+        we will have to replace the dataset with the current 
+        input data (but difference output).
+    
+    Args:
+        list_train_data: A list of data for each task
+    
+    Return:
+        all_train_data: Modified training data
+    """
+    all_train_data = [] 
+    for i in range(len(list_train_data)):
+        if i == 0:
+            all_label_out = [
+                (a, b, c) for a, b, c, _ in list_train_data[i]
+            ] 
+            current_train_data = list_train_data[i]
+        else:
+            current_train_data = [
+                TrainingPoint(a, b, c, d) for (_, _, _, d), (a, b, c)
+                in zip(list_train_data[i], all_label_out)
+            ] 
+        
+        all_train_data.append(current_train_data)
+    
+    return all_train_data
+

@@ -105,8 +105,8 @@ def transpose_list(list_mat):
     return result
     
 
-def walk_forward(all_data, exp_setting, multi_model_class, loss, size_train, 
-            size_test, train_offset, return_lag, convert_date,
+def walk_forward(all_data, task_setting, multi_model_class, loss, size_train, 
+            size_test, train_offset, return_lag, convert_date, using_first,
             is_train_pad=True, is_test_pad=False, intv_loss=None):
     """
     Performing walk forward testing (k-fold like) of the models
@@ -179,14 +179,6 @@ def walk_forward(all_data, exp_setting, multi_model_class, loss, size_train,
 
     fold_list_task = transpose_list(task_list_all)
     
-    # print(fold_list_task[0][0].label_inp)
-    # print(fold_list_task[0][1].label_inp)
-
-    # print(len(fold_list_task))
-    # print(len(fold_list_task[0]))
-
-    # assert False
-
     fold_result_list = []
     for i, all_task_data in enumerate(fold_list_task):
         print("At fold", i+1, "/", len(fold_list_task))
@@ -204,12 +196,13 @@ def walk_forward(all_data, exp_setting, multi_model_class, loss, size_train,
 
         for j, (X_train, y_train, X_test, y_test) in enumerate(all_task_data):
             _, _, convert_date, algo_class = all_data[j]
-            model_hyperparam, _ = algo_class
+            model_hyperparam, model_class = algo_class
+            model_hyperparam["using_first"] = using_first
 
             len_inp = model_hyperparam["len_inp"]
             len_out = model_hyperparam["len_out"]
 
-            _, return_lag, skip, _ = exp_setting[j]
+            _, return_lag, skip, _ = task_setting[j]
 
             train_dataset = prepare_dataset(
                 X_train, None, y_train, 
@@ -218,7 +211,7 @@ def walk_forward(all_data, exp_setting, multi_model_class, loss, size_train,
             )
 
             train_dataset_list.append(train_dataset)
-            algo_hyper_class_list.append(algo_class)
+            algo_hyper_class_list.append((model_hyperparam, model_class))
         
             test_dataset = prepare_dataset(
                 X_test, None, y_test, len_inp, 
@@ -246,7 +239,8 @@ def walk_forward(all_data, exp_setting, multi_model_class, loss, size_train,
 
         model = multi_model_class(
             train_dataset_list, 
-            algo_hyper_class_list
+            algo_hyper_class_list,
+            using_first
         )
         model.train()
         all_task_pred = model.predict(

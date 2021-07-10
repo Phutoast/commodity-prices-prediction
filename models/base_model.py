@@ -21,9 +21,9 @@ class BaseModel(object):
         """
         Training the data given the training parameters.
         """
-        pass
+        raise NotImplementedError()
      
-    def pack_data(self, dataset, is_full_AR=False):
+    def pack_data(self, dataset, is_full_AR=False, is_label=True):
         """
         Given the training data, pack all the data 
             into the single numpy array where the last column is the target
@@ -33,6 +33,8 @@ class BaseModel(object):
         
         Args:
             dataset: Training dataset.  
+            is_full_AR: We consider the case where the time isn't used.
+            is_label: Are we going to use label as the training set too ?
         
         Return:
             full_numpy: The full training data in numpy format.
@@ -69,7 +71,10 @@ class BaseModel(object):
             third = all_float(data_point.data_out, "C")
             forth = all_float(data_point.label_out, "F")
             if not is_full_AR:
-                return np.concatenate([first, second, third, forth])
+                if is_label:
+                    return np.concatenate([first, second, third, forth])
+                else:
+                    return np.concatenate([first, third, forth])
             else:
                 full_data = []
                 if len(first) != 0 or len(second) != 0:
@@ -107,6 +112,7 @@ class BaseModel(object):
         Returns: 
             Tuple of list of mean, upperbound and lower bound, which will be used for paching data
         """
+        raise NotImplementedError()
      
     def predict(self, test_data, step_ahead, all_date, ci=0.9):
         """
@@ -141,6 +147,7 @@ class BaseModel(object):
         Args:
             path: Path where the model is going to be saved (not including the extensions)
         """
+        raise NotImplementedError()
     
     def load(self, path):
         """
@@ -149,6 +156,7 @@ class BaseModel(object):
         Args:
             path: Path where the model is saved (not including the extensions)
         """
+        raise NotImplementedError()
     
     def build_model(self):
         """
@@ -158,3 +166,4 @@ class BaseModel(object):
         Return:
             model: Preliminary model
         """
+        raise NotImplementedError()
