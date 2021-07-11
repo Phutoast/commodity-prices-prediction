@@ -82,6 +82,7 @@ class IndependentMultiModel(object):
             list_test_data = replace_dataset(list_test_data)
 
         return [
+            # WE have to follow the first one, so we will ignore the actual dataset.
             self.models[i].predict(
                 list_test_data[i], list_step_ahead[i], list_all_date[i], ci=ci
             )

@@ -36,38 +36,38 @@ def main():
         "using_first": True
     }
     
-    # exp_setting = {
-    #     "task": {
-    #         "sub_model": ["GP-Multi-Task", "GP-Multi-Task"],
-    #         "dataset": [
-    #             DatasetTaskDesc(
-    #                 inp_metal_list=["aluminium"],
-    #                 use_feature=["Date"],
-    #                 out_feature="aluminium.price",
-    #                 return_lag=(22, lambda x: np.log(x)),
-    #                 skip=9
-    #             ),
-    #             DatasetTaskDesc(
-    #                 inp_metal_list=["copper"],
-    #                 use_feature=["Date"],
-    #                 out_feature="copper.price",
-    #                 return_lag=(22, lambda x: np.log(x)),
-    #                 skip=9
-    #             ),
-    #         ],
-    #         # Only used for plot all_algo_lag
-    #         "display_pred": [100, 100]
-    #     }, "algo": GPMultiTask, 
-    #     "using_first": True
-    # }
+    exp_setting = {
+        "task": {
+            "sub_model": ["GP-Multi-Task", "GP-Multi-Task"],
+            "dataset": [
+                DatasetTaskDesc(
+                    inp_metal_list=["aluminium"],
+                    use_feature=["Date"],
+                    use_feat_tran_lag=None,
+                    out_feature="aluminium.Price",
+                    out_feat_tran_lag=(22, 9, lambda x: x),
+                ),
+                DatasetTaskDesc(
+                    inp_metal_list=["aluminium"],
+                    use_feature=["Date"],
+                    use_feat_tran_lag=None,
+                    out_feature="aluminium.Price",
+                    out_feat_tran_lag=(22, 100, lambda x: x),
+                ),
+            ],
+            # Only used for plot all_algo_lag
+            "len_pred_show": [100, 100]
+        }, "algo": GPMultiTask, 
+        "using_first": True
+    }
 
     if test_type == "f":
         example_plot_all_algo_lag(
-            exp_setting_2, is_save=True, is_load=False,
+            exp_setting, is_save=True, is_load=False,
             # load_path="GP-Multi"
         )
     elif test_type == "w":
-        example_plot_walk_forward(exp_setting_2, "Multi-GP",
+        example_plot_walk_forward(exp_setting, "Multi-GP",
             is_save=True, is_load=False,
             load_path="Multi-GP"
         )

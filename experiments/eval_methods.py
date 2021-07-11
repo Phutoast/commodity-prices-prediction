@@ -106,7 +106,7 @@ def transpose_list(list_mat):
     
 
 def walk_forward(all_data, task_setting, multi_model_class, loss, size_train, 
-            size_test, train_offset, return_lag, convert_date, using_first,
+            size_test, train_offset, return_lag_list, convert_date, using_first,
             is_train_pad=True, is_test_pad=False, intv_loss=None):
     """
     Performing walk forward testing (k-fold like) of the models
@@ -160,7 +160,7 @@ def walk_forward(all_data, task_setting, multi_model_class, loss, size_train,
     """
 
     task_list_all = []
-    for X, y, convert_date, algo_class in all_data:
+    for X, y, _, algo_class in all_data:
         model_hyperparam, model_class = algo_class
 
         len_inp = model_hyperparam["len_inp"]
@@ -171,7 +171,7 @@ def walk_forward(all_data, task_setting, multi_model_class, loss, size_train,
         first_day = X["Date"][0]
         fold = prepare_dataset(X, first_day, y, size_train, 
                     len_out=size_test, convert_date=True, 
-                    offset=size_test, return_lag=return_lag, 
+                    offset=size_test, return_lag=0, 
                     is_padding=False) 
         task_list_all.append(fold)
     
@@ -202,7 +202,7 @@ def walk_forward(all_data, task_setting, multi_model_class, loss, size_train,
             len_inp = model_hyperparam["len_inp"]
             len_out = model_hyperparam["len_out"]
 
-            _, _, return_lag, skip, _ = task_setting[j]
+            return_lag, skip, _ = task_setting["dataset"][j]["out_feat_tran_lag"]
 
             train_dataset = prepare_dataset(
                 X_train, None, y_train, 
@@ -223,8 +223,24 @@ def walk_forward(all_data, task_setting, multi_model_class, loss, size_train,
             )
 
             pred_dataset_list.append(test_dataset)
-            date_pred_list.append(all_date_pred)
-            len_pred_list.append(len(all_date_pred))
+
+            if not using_first:
+                len_pred_list.append(len(all_date_pred))
+                date_pred_list.append(all_date_pred)
+            else:
+                if j == 0:
+                    basis_time_step = [convert_date.reverse(d) for d in all_date_pred]
+                
+                    len_pred_list.append(len(all_date_pred))
+                    date_pred_list.append(all_date_pred)
+                else:
+                    all_date_pred = [convert_date(d) for d in basis_time_step]
+                    
+                    len_pred_list.append(len(all_date_pred))
+                    date_pred_list.append(all_date_pred)
+
+            # date_pred_list.append(all_date_pred)
+            # len_pred_list.append(len(all_date_pred))
         
             true_date = X_test["Date"].map(convert_date).to_list()
             true_price = y_test["Output"].to_list() 
@@ -262,6 +278,7 @@ def walk_forward(all_data, task_setting, multi_model_class, loss, size_train,
                 len_inp, len_out, 
                 return_lag, loss, intv_loss
             )
+
             result_fold = FoldWalkForewardResult(
                 pred=pred, missing_data=miss_data, interval_loss=interval_loss, model=model
             )
@@ -279,6 +296,7 @@ def cal_walk_forward_result(pred, true_date, true_price, len_inp, len_out, retur
     pred["true_mean"] = pred["x"].map(
         dict(zip(true_date_pred, true_data_pred))
     )
+
     pred["time_step_error"] = loss(pred["true_mean"], pred["mean"])
 
     # Sometimes the method uses the test data to do the prediction 

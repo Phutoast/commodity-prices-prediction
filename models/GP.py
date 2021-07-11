@@ -68,12 +68,13 @@ class IndependentGP(BaseTrainModel):
         inp_test = self.pack_data(
             test_data, is_label=self.hyperparam["is_past_label"]
         )
+
         if self.hyperparam["is_time_only"]:
             inp_test = inp_test[:, 0]
         else:
             inp_test = inp_test[:, :-1]
 
-        size_test_data = len(inp_test)
+        size_test_data = inp_test.shape[0]
         assert step_ahead <= size_test_data
         
         with torch.no_grad(), gpytorch.settings.fast_pred_var():

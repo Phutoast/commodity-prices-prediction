@@ -8,6 +8,8 @@ from utils.data_preprocessing import load_transform_data, parse_series_time
 from utils.data_structure import DisplayPrediction
 from utils.data_visualization import visualize_time_series, visualize_walk_forward, show_result_fold, pack_result_data
 from utils.others import create_folder, save_fold_data, load_fold_data, create_name
+from utils.data_structure import DatasetTaskDesc
+from utils.data_preprocessing import load_dataset_from_desc
 
 from experiments.algo_dict import algorithms_dic
 from experiments.eval_methods import prepare_dataset, walk_forward
@@ -15,20 +17,58 @@ from experiments.calculation import PerformanceMetric
 
 from models.ind_multi_model import IndependentMultiModel
 
-def get_data_example(return_lag, skip, metal_type): 
+class SkipLookUp(object):
+    def __init__(self, skip, all_date):
+        self.skip = skip
+        self.all_date = all_date
+    
+    def __getitem__(self, date):
+        if date not in self.all_date:
+            raise KeyError("Date Not Found", date)
+        
+        return self.skip + date
+    
+    def __call__(self, date):
+        return self[date]
+    
+    def reverse(self, date):
+        if date < self.skip:
+            raise ValueError("Can't Go Back to Negative Time")
+        else:
+            return date - self.skip
+
+
+def get_data_example_test(return_lag, skip, metal_type): 
     total_dataset = 1000
 
-    features, log_prices = load_transform_data(metal_type, return_lag, skip) 
+    features, log_prices = load_transform_data(metal_type, return_lag, 9) 
     log_prices = log_prices[["Price"]]
     log_prices.columns = ["Output"]
+
+    # features = features[["Date", "FeatureFamily.TECHNICAL"]]
+    features = features[["Date"]]
+
+    # print(features)
+    print(log_prices)
+        
+    simple_desc = DatasetTaskDesc(
+        inp_metal_list=["aluminium"],
+        use_feature=["Date"],
+        use_feat_tran_lag=None,
+        out_feature="aluminium.Price",
+        out_feat_tran_lag=(22, 9, lambda x: x),
+    )
+    feature_2, target_2 = load_dataset_from_desc(simple_desc)
+
+    print("--------------")
+    # print(feature_2)
+    print(target_2[["Output"]])
 
     features = features.head(total_dataset)
     log_prices = log_prices.head(total_dataset)
     len_data = len(features)
 
     first_day = features["Date"].iloc[0]
-    # features = features[["Date", "FeatureFamily.TECHNICAL"]]
-    features = features[["Date"]]
 
     def pred_date_conversion():
         """
@@ -43,12 +83,33 @@ def get_data_example(return_lag, skip, metal_type):
         true_date, _ = parse_series_time(
             features_no_skip["Date"].to_list(), first_day) 
          
-        return dict(zip(inp_date_data, true_date))
+        return dict(zip(inp_date_data, true_date)) 
      
     return features, log_prices, first_day, len_data, pred_date_conversion()
 
-def create_task(len_inp, len_out, return_lag, len_pred_show, skip, metal_type):
-    features, log_prices, first_day, len_data, convert_date = get_data_example(return_lag, skip, metal_type)
+def get_data_example(dataset_desc): 
+    total_dataset = 1000
+    features, log_prices = load_dataset_from_desc(dataset_desc)
+    log_prices = log_prices[["Output"]]
+
+    features = features.head(total_dataset)
+    log_prices = log_prices.head(total_dataset)
+    len_data = len(features)
+
+    first_day = features["Date"].iloc[0]
+
+    convert_obj = SkipLookUp(
+        skip=dataset_desc["out_feat_tran_lag"][1],
+        all_date=parse_series_time(
+            features["Date"].to_list(), 
+            first_day
+        )[0]
+    )
+    return features, log_prices, first_day, len_data, convert_obj 
+
+def create_task(len_inp, len_out, len_pred_show, dataset_desc):
+    return_lag = dataset_desc["out_feat_tran_lag"][0]
+    features, log_prices, first_day, len_data, convert_date = get_data_example(dataset_desc)
     splitted_data = prepare_dataset(
         features, first_day, log_prices, 
         len_inp=len_data-len_pred_show, len_out=len_pred_show, return_lag=0, 
@@ -67,7 +128,7 @@ def create_task(len_inp, len_out, return_lag, len_pred_show, skip, metal_type):
     )
     return (features_train, log_prices_train, feature_test, log_prices_test), (train_dataset, pred_dataset), convert_date
 
-def prepare_task(task, len_inp, return_lag, skip, plot_gap):
+def prepare_task(task, len_inp, return_lag, plot_gap):
     _, _, feature_test, log_prices_test = task[0]
     train_dataset, pred_dataset = task[1]
     convert_date = task[2]
@@ -87,12 +148,13 @@ def prepare_task(task, len_inp, return_lag, skip, plot_gap):
     
     return all_date_pred, true_date, true_price, missing_data, convert_date
 
-def gen_prepare_task(len_inp, len_out, return_lag, len_pred_show, skip, plot_gap, metal_type):
+def gen_prepare_task(
+    len_inp, len_out, len_pred_show, plot_gap, dataset_desc):
+    return_lag = dataset_desc["out_feat_tran_lag"][0]
     task = create_task(
-        len_inp, len_out, 
-        return_lag, len_pred_show, skip, metal_type
+        len_inp, len_out, len_pred_show, dataset_desc
     )
-    helper = prepare_task(task, len_inp, return_lag, skip, plot_gap)
+    helper = prepare_task(task, len_inp, return_lag, plot_gap)
     return (task, helper)
 
 def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=False, load_path=None):
@@ -108,8 +170,17 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
     full_feature_list = []
     log_prices_train_list = []
     missing_data_list = []
+
+    plot_all_algo = [
+        exp_setting["task"]["sub_model"],
+        exp_setting["task"]["dataset"],
+        exp_setting["task"]["len_pred_show"]
+    ]
+    num_task = len(plot_all_algo[0])
+    assert all(num_task == len(a) for a in plot_all_algo)
+    plot_all_algo_iter = zip(*plot_all_algo)
     
-    for i, (algo_name, metal_type, return_lag, skip, len_pred_show) in enumerate(exp_setting["task"]):
+    for i, (algo_name, dataset, len_pred_show) in enumerate(plot_all_algo_iter):
         hyperparam, algo_class = algorithms_dic[algo_name]
         len_inp = hyperparam["len_inp"]
         len_out = hyperparam["len_out"]
@@ -120,14 +191,16 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
         task_helper = gen_prepare_task(
             len_inp=len_inp, 
             len_out=len_out,
-            return_lag=return_lag, len_pred_show=len_pred_show, 
-            skip=skip, plot_gap=plot_gap, metal_type=metal_type
+            len_pred_show=len_pred_show, 
+            plot_gap=plot_gap, 
+            dataset_desc=dataset
         )
         task, helper = task_helper
 
         features_train, log_prices_train, _, _ = task[0]
         train_dataset, pred_dataset = task[1]
         all_date_pred, true_date, true_price, missing_data, convert_date = helper 
+        return_lag = dataset["out_feat_tran_lag"][0]
 
         # Used For Training
         train_dataset_list.append(train_dataset)
@@ -135,8 +208,21 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
         
         # Used For Prediction
         pred_dataset_list.append(pred_dataset)
-        len_pred_list.append(len(all_date_pred))
-        date_pred_list.append(all_date_pred)
+
+        if not exp_setting["using_first"]:
+            len_pred_list.append(len(all_date_pred))
+            date_pred_list.append(all_date_pred)
+        else:
+            if i == 0:
+                basis_time_step = [convert_date.reverse(d) for d in all_date_pred]
+            
+                len_pred_list.append(len(all_date_pred))
+                date_pred_list.append(all_date_pred)
+            else:
+                all_date_pred = [convert_date(d) for d in basis_time_step]
+                
+                len_pred_list.append(len(all_date_pred))
+                date_pred_list.append(all_date_pred)
 
         # Used For Display
         true_pred_list.append(DisplayPrediction(
@@ -177,10 +263,10 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
         ci=0.9
     )
 
-    fig, axes = plt.subplots(nrows=len(exp_setting["task"]), figsize=(15, 6))
-    for i in range(len(exp_setting["task"])):
+    fig, axes = plt.subplots(nrows=num_task, figsize=(15, 6))
+    for i in range(num_task):
         model_pred = DisplayPrediction(
-            pred[i], name=exp_setting["task"][i][0], color="p", is_bridge=False
+            pred[i], name=exp_setting["task"]["sub_model"][i], color="p", is_bridge=False
         )
 
         fig, ax1 = visualize_time_series(
@@ -195,13 +281,22 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
 def example_plot_walk_forward(exp_setting, model_name, load_path, is_save=False, is_load=True):
 
     all_data = []
-    for i, (algo_name, metal_type, return_lag, skip, _) in enumerate(exp_setting["task"]): 
-        features, log_prices, _, _, convert_date = get_data_example(
-            return_lag, skip, metal_type=metal_type
-        ) 
+    return_lag_list = []
+    
+    plot_all_algo = [
+        exp_setting["task"]["dataset"],
+        exp_setting["task"]["sub_model"],
+    ]
+    num_task = len(plot_all_algo[0])
+    assert all(num_task == len(a) for a in plot_all_algo)
+    plot_all_algo_iter = zip(*plot_all_algo)
+
+    for dataset_desc, algo_name in plot_all_algo_iter:
+        features, log_prices, _, _, convert_date = get_data_example(dataset_desc) 
         all_data.append(
             (features, log_prices, convert_date, algorithms_dic[algo_name])
         )
+        return_lag_list.append(dataset_desc["out_feat_tran_lag"][0])
  
     metric = PerformanceMetric()
 
@@ -211,7 +306,7 @@ def example_plot_walk_forward(exp_setting, model_name, load_path, is_save=False,
         metric.square_error, 
         size_train=300, size_test=200, 
         train_offset=1, 
-        return_lag=return_lag, 
+        return_lag_list=return_lag_list, 
         convert_date=convert_date,
         using_first=exp_setting["using_first"],
         is_train_pad=True, 
@@ -242,5 +337,5 @@ def example_plot_walk_forward(exp_setting, model_name, load_path, is_save=False,
         fig.savefig(f"img/walk_forward_task_{model_name}_task_{task_number}")
     
     show_result_fold(fold_result, exp_setting)
-    # plt.show()
+    plt.show()
 

@@ -254,9 +254,12 @@ def show_result_fold(fold_results, exp_setting):
             all_error_ind += result.pred["time_step_error"].to_list() 
             all_error_intv += [loss for _, _, loss in result.interval_loss]
         
-        task_prop = exp_setting["task"][i]
+        task_setting = exp_setting["task"]
+        task_prop = task_setting["dataset"][i]["out_feat_tran_lag"]
+        metal = "+".join(task_setting["dataset"][i]["inp_metal_list"])
+
         table.append([
-            f"Task {i+1} (Metal={task_prop[1]}, Lag={task_prop[2]}, Step ahead={task_prop[3]})", 
+            f"Task {i+1} (Metal={metal}, Lag={task_prop[0]}, Step ahead={task_prop[1]})", 
             f"{round(np.median(all_error_ind), 7)}", 
             f"{round(np.median(all_error_intv), 7)}"
             # f"{round(np.mean(all_error_ind), 7)} ± {round(np.std(all_error_ind), 7)}", 
