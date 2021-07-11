@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import pandas as pd
 import numpy as np
 
@@ -16,7 +16,7 @@ def parse_series_time(dates, first_day):
         label: Label used for displaying the data
     """
     
-    parse_date = lambda d : datetime.datetime.strptime(d, '%Y-%m-%d')
+    parse_date = lambda d : datetime.strptime(d, '%Y-%m-%d')
     first_day = parse_date(first_day)
     time_step, label = [], []
 
@@ -66,7 +66,13 @@ def load_metal_data(metal_type):
      
     return pd.merge(feature, price, on="Date")
 
-def transform_full_data(full_data, is_drop_nan=False):
+def transform_full_data(
+        full_data, 
+        is_drop_nan=False,
+        feature_name="Price",
+        trans_column=lambda x: np.log(x), 
+        use_only_last=False
+    ):
     """
     Given the concatenated data, we transform 
         and clean the data with splitting the feature and price.
@@ -82,11 +88,26 @@ def transform_full_data(full_data, is_drop_nan=False):
 
     if is_drop_nan:
         full_data = full_data.dropna()
-    
-    full_data["Price"] = np.log(full_data["Price"])
-    return full_data.iloc[:, :-1], full_data.iloc[:, [0,-1]]
 
-def load_transform_data(metal_type, return_lag, skip=0, is_drop_nan=False):
+    full_data[feature_name] = trans_column(full_data[feature_name])
+
+    all_col = list(full_data.columns)
+    index_feat = all_col.index(feature_name)
+    if not use_only_last:
+        rest_of_col = list(range(len(all_col)))
+        rest_of_col.remove(index_feat)
+
+        return full_data.iloc[:, rest_of_col], full_data.iloc[:, [0, index_feat]]
+    else:
+        return full_data.iloc[:, [0]], full_data.iloc[:, [0, index_feat]]
+
+def load_transform_data(
+        metal_type, return_lag, 
+        skip=0, is_drop_nan=False,
+        feature_name="Price",
+        trans_column=lambda x: np.log(x),
+        use_only_last=False
+    ):
     """
     Loading and Transform the data in one function 
         to get the dataset and label. We will assume log-price. 
@@ -100,10 +121,19 @@ def load_transform_data(metal_type, return_lag, skip=0, is_drop_nan=False):
         y: (log)-Price over time.
     """
     data_all = load_metal_data(metal_type)
-    X, y = transform_full_data(data_all, is_drop_nan=is_drop_nan)
-    y = cal_lag_return(y, return_lag)
-    X, y = X[:len(X)-return_lag], y[:len(y)-return_lag]
-    return X[:len(X)-skip], y[skip:]
+    X, y = transform_full_data(
+        data_all, is_drop_nan=is_drop_nan, 
+        feature_name=feature_name, trans_column=trans_column,
+        use_only_last=use_only_last
+    )
+    y = cal_lag_return(y, return_lag, feature_name)
+    if not use_only_last:
+        X, y = X[:len(X)-return_lag], y[:len(y)-return_lag]
+        return X[:len(X)-skip], y[skip:]
+    else:
+        X, y = X[:len(X)-return_lag], y[:len(y)-return_lag]
+        return X[:len(X)-skip], y[skip:]
+
 
 def df_to_numpy(data, label):
     """
@@ -121,7 +151,7 @@ def df_to_numpy(data, label):
     label = label.to_numpy()
     return data, label
 
-def cal_lag_return(output, length_lag):
+def cal_lag_return(output, length_lag, feature_name="Price"):
     """
     Calculate the lagged return for the data
 
@@ -135,11 +165,11 @@ def cal_lag_return(output, length_lag):
     """
     if length_lag != 0:
         length_data = len(output)
-        first = output["Price"][:length_data-length_lag].to_numpy()
-        second = output.tail(length_data-length_lag)["Price"].to_numpy()
+        first = output[feature_name][:length_data-length_lag].to_numpy()
+        second = output.tail(length_data-length_lag)[feature_name].to_numpy()
         diff = np.pad(second-first, (0, length_lag), 'constant', constant_values=np.nan)
         lag_return = output.copy()
-        lag_return["Price"] = diff
+        lag_return[feature_name] = diff
     else:
         lag_return = output
 
@@ -174,3 +204,129 @@ def replace_dataset(list_train_data):
     
     return all_train_data
 
+def load_dataset_from_desc(dataset_desc):
+
+    # We assume under the same date 
+    # (because skipping and return_log doesn't make sense)
+    default_trans = (0, 0, lambda x: x)
+    base_name = "FeatureFamily."
+
+    def get_loc_feat(feat_name):
+        if feat_name != "Date":
+            parse_out_feat = feat_name.split(".")
+            out_metal_ind = inp_metal_list.index(parse_out_feat[0])
+            feature_name = parse_out_feat[1]
+
+            if feature_name == "Price":
+                return (out_metal_ind, feature_name)
+            else:
+                return (out_metal_ind, base_name+feature_name)
+        else:
+            return (None, "Date")
+    
+    def get_final_feat_name(loc, name):
+        if name == "Date":
+            return "Out_Date"
+        
+        if name == "Price":
+            return inp_metal_list[loc] + ".Price"
+        
+        return inp_metal_list[loc] + "." + name.split(".")[1]
+    
+    def load_data_all(dataset_index, feature_name, return_trans):
+        if return_trans is None:
+            return_trans = default_trans
+        
+        return_lag, skip, transform = return_trans
+        if feature_name == "Price":
+            transform = lambda x: np.log(x)
+
+        # We will use the Date of the first dataset here.
+        if dataset_index is None:
+            assert feature_name == "Date"
+            dataset_index = 0
+            transform = lambda x: x
+
+        date, column = load_transform_data(
+            inp_metal_list[dataset_index], 
+            return_lag=return_lag,
+            skip=skip,
+            is_drop_nan=is_drop_nan,
+            feature_name=feature_name,
+            trans_column=transform,
+            use_only_last=True
+        )
+
+        column.columns = ["Date", get_final_feat_name(
+            dataset_index, feature_name
+        )]
+
+        return date, column
+
+    inp_metal_list = dataset_desc["inp_metal_list"]
+    use_feat = dataset_desc["feature"]
+    use_feat_tran_lag = dataset_desc["inp_feat_tran_lag"]
+    out_feat = dataset_desc["out_feature"]
+    is_drop_nan = dataset_desc["is_drop_nan"]
+    
+    list_loc_use_feat = [get_loc_feat(feat) for feat in use_feat]
+    out_dataset_index, out_feature_name = get_loc_feat(out_feat)
+    out_return_trans = dataset_desc["out_feat_tran_lag"]
+
+    # Getting the Out Data
+    out_date, out_column = load_data_all(
+        out_dataset_index, 
+        out_feature_name, 
+        out_return_trans
+    )
+
+    # Finding the most common dates
+    all_dates = set(out_date["Date"])
+    all_inp_col = []
+
+    for return_trans, (data_index, feat_name) in zip(use_feat_tran_lag, list_loc_use_feat):
+        inp_date, inp_column = load_data_all(
+            data_index, 
+            feat_name, 
+            return_trans
+        )
+        all_dates = all_dates & set(inp_date["Date"])
+        all_inp_col.append((inp_date, inp_column))
+    
+    all_dates = sorted(
+        list(all_dates), 
+        key=lambda x: datetime.timestamp(datetime.strptime(x, '%Y-%m-%d'))
+    )
+
+    data_frame = {}
+
+    def extract_data(date, col):
+        feat_name = col.columns[1]
+        all_indices_use = [
+            date["Date"].to_list().index(d) 
+            for d in all_dates
+        ]
+        data = col[feat_name].to_numpy()[all_indices_use]
+        assert feat_name != "Date"
+
+        if feat_name == "Out_Date":
+            feat_name = "Date"
+        
+        return {feat_name:data}
+
+    for date, col in all_inp_col: 
+        data_frame.update(extract_data(date, col))
+    
+    inp_data_frame = pd.DataFrame(data_frame)
+
+    out_dict = {"Date": inp_data_frame["Date"]}
+    out_dict.update(
+        extract_data(out_date, out_column)
+    )
+
+    out_df = pd.DataFrame(out_dict)
+    out_columns = out_df.columns
+    assert out_columns[0] == "Date" and len(out_columns) == 2
+    out_df.columns = ["Date", "Output"]
+
+    return inp_data_frame, out_df

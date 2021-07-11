@@ -202,7 +202,7 @@ def walk_forward(all_data, task_setting, multi_model_class, loss, size_train,
             len_inp = model_hyperparam["len_inp"]
             len_out = model_hyperparam["len_out"]
 
-            _, return_lag, skip, _ = task_setting[j]
+            _, _, return_lag, skip, _ = task_setting[j]
 
             train_dataset = prepare_dataset(
                 X_train, None, y_train, 
@@ -227,7 +227,7 @@ def walk_forward(all_data, task_setting, multi_model_class, loss, size_train,
             len_pred_list.append(len(all_date_pred))
         
             true_date = X_test["Date"].map(convert_date).to_list()
-            true_price = y_test["Price"].to_list() 
+            true_price = y_test["Output"].to_list() 
 
             missing_x = true_date[:len_inp+return_lag]
             missing_y = true_price[:len_inp+return_lag] 

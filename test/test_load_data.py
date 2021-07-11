@@ -6,13 +6,13 @@ from pandas._testing import assert_frame_equal
 
 import unittest
 from unittest.mock import patch
-from test.test_utils import generate_fake_data, fake_price_data, fake_first_day
+from test.test_utils import generate_fake_data, fake_price_data, fake_first_day, fake_feature_data
 
 class LoadingDataLag(unittest.TestCase): 
 
     def setUp(self):
         self.len_inp, self.len_out, self.lag_num, self.skip = 3, 2, 6, 5
-        self.the_data = generate_fake_data()
+        self.the_data = generate_fake_data("metal1")
         self.the_data["Price"] = np.log(self.the_data["Price"].to_numpy())
         self.the_data["Date_str"] = self.the_data["Date"]
         self.the_data["Date"] = range(26)
@@ -22,7 +22,7 @@ class LoadingDataLag(unittest.TestCase):
         for data in all_true_data:
             data_temp = []
             for d in data:
-                data = d[["Date", "Feature1", "Feature2"]]
+                data = d[["Date", "FeatureFamily.Feature1", "FeatureFamily.Feature2"]]
                 label = d[["Date_str", "Price"]].rename(columns={"Date_str": "Date"})
                 data_temp.append(data)
                 data_temp.append(label)
@@ -35,36 +35,37 @@ class LoadingDataLag(unittest.TestCase):
             inp_data = self.the_data.iloc[inp_data_ind]
             out_data = self.the_data.iloc[out_data_ind]
 
-            data_inp = inp_data.copy()[["Date", "Feature1", "Feature2"]]
+            data_inp = inp_data.copy()[["Date", "FeatureFamily.Feature1", "FeatureFamily.Feature2"]]
             label_inp = inp_data.copy()[["Date_str", "Price"]].rename(columns={"Date_str": "Date"})
             label_inp["Price"] = log_prices["Price"].iloc[inp_data_ind]
 
-            data_out = out_data.copy()[["Date", "Feature1", "Feature2"]]
+            data_out = out_data.copy()[["Date", "FeatureFamily.Feature1", "FeatureFamily.Feature2"]]
             label_out = out_data.copy()[["Date_str", "Price"]].rename(columns={"Date_str": "Date"})
             label_out["Price"] = log_prices["Price"].iloc[out_data_ind]
             points.append(TrainingPoint(data_inp, label_inp, data_out, label_out))
 
         return points
 
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_simple_load_data_no_lag(self, mock):
         feature, log_prices = load_transform_data(None, 0)
-        self.assertTrue(all(name in feature.columns for name in ["Date", "Feature1", "Feature2"]))
+        self.assertTrue(all(name in feature.columns for name in ["Date", "FeatureFamily.Feature1", "FeatureFamily.Feature2"]))
         self.assertTrue(all(name in log_prices.columns for name in ["Date", "Price"]))
         self.assertEqual(log_prices["Price"].to_list(), fake_price_data)
 
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
-    def test_lag_load_data(self, mock):
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
+    def test_lag_load_data_lag(self, mock):
         feature, log_prices = load_transform_data(None, self.lag_num)
         feature_no_lag, _ = load_transform_data(None, 0)
         true_data = np.array(fake_price_data, dtype=np.float32)
         expected_out = []
         for i in range(len(true_data)-self.lag_num):
             expected_out.append(true_data[i+self.lag_num] - true_data[i])
+        self.assertEqual(list(log_prices.columns), ["Date", "Price"])
         self.assertEqual(log_prices["Price"].to_list(), expected_out)
         assert_frame_equal(feature_no_lag.head(len(feature_no_lag)-self.lag_num), feature)
     
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_simple_load_data_skip(self, mock):
         feature, log_prices = load_transform_data(None, 0, skip=self.skip)
         feature_no_lag, _ = load_transform_data(None, 0)
@@ -73,9 +74,9 @@ class LoadingDataLag(unittest.TestCase):
         for i in range(len(true_data)-self.skip):
             expected_out.append(true_data[i+self.skip]) 
         self.assertEqual(log_prices["Price"].to_list(), expected_out)
-        assert_frame_equal(feature_no_lag.head(len(feature_no_lag)-self.skip), feature)
+        assert_frame_equal(feature_no_lag.head(len(feature_no_lag)-self.skip), feature) 
     
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_simple_load_data_skip_lag(self, mock):
         feature, log_prices = load_transform_data(None, self.lag_num, skip=self.skip)
         feature_no_lag, _ = load_transform_data(None, 0)
@@ -89,8 +90,63 @@ class LoadingDataLag(unittest.TestCase):
         self.assertEqual(log_prices["Price"].to_list(), expected_out)
         assert_frame_equal(feature_no_lag.head(len(feature_no_lag)-self.skip-self.lag_num), feature)
     
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
+    def test_simple_load_data_not_price_no_transform(self, mock):
+        feature, output = load_transform_data(
+            None, 0, 
+            feature_name="FeatureFamily.Feature2", 
+            trans_column=lambda x: x
+        )
+        revert_data = lambda x: (np.square(x)-2)/1
 
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+        self.assertTrue(all(name in feature.columns for name in ["Date", "Price", "FeatureFamily.Feature1"]))
+        self.assertTrue(all(name in output.columns for name in ["Date", "FeatureFamily.Feature2"]))
+        self.assertTrue(np.allclose(
+            revert_data(output["FeatureFamily.Feature2"]).to_numpy(), 
+            np.array(fake_feature_data)
+        ))
+    
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
+    def test_simple_load_data_not_price_transform(self, mock):
+        feature, output = load_transform_data(
+            None, 0, 
+            feature_name="FeatureFamily.Feature2", 
+            trans_column=lambda x: (np.square(x)-2)/1
+        )
+        self.assertTrue(all(name in feature.columns for name in ["Date", "Price", "FeatureFamily.Feature1"]))
+        self.assertTrue(all(name in output.columns for name in ["Date", "FeatureFamily.Feature2"]))
+        self.assertTrue(np.allclose(
+            output["FeatureFamily.Feature2"].to_numpy(), 
+            np.array(fake_feature_data)
+        ))
+    
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
+    def test_simple_load_data_not_price_lag_tranform(self, mock):
+        feature, output = load_transform_data(
+            None, self.lag_num, 
+            feature_name="FeatureFamily.Feature2", 
+            trans_column=lambda x: (np.square(x)-2)/1
+        )
+        feature_no_lag, _ = load_transform_data(
+            None, 0, 
+            feature_name="FeatureFamily.Feature2", 
+            trans_column=lambda x: (np.square(x)-2)/1
+        )
+        self.assertTrue(all(name in feature.columns for name in ["Date", "Price", "FeatureFamily.Feature1"]))
+        self.assertTrue(all(name in output.columns for name in ["Date", "FeatureFamily.Feature2"]))
+        expected_out = []
+        for i in range(len(fake_feature_data)-self.lag_num):
+            expected_out.append(fake_feature_data[i+self.lag_num] - fake_feature_data[i])
+        
+        self.assertEqual(list(output.columns), ["Date", "FeatureFamily.Feature2"])
+        self.assertTrue(np.allclose(
+            output["FeatureFamily.Feature2"].to_numpy(), 
+            np.array(expected_out)
+        ))
+        assert_frame_equal(feature_no_lag.head(len(feature_no_lag)-self.lag_num), feature)
+
+        
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_no_lag_split_partion_no_pad(self, mock):
         feature, log_prices = load_transform_data(None, 0)
         data_points  = prepare_dataset(
@@ -119,7 +175,7 @@ class LoadingDataLag(unittest.TestCase):
         self.assertEqual(data_points[1], points[1])
         self.assertEqual(data_points[-1], points[2])
 
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_no_lag_split_offset_less(self, mock):
         feature, log_prices = load_transform_data(None, 0)
         data_points  = prepare_dataset(
@@ -148,7 +204,7 @@ class LoadingDataLag(unittest.TestCase):
         self.assertEqual(data_points[1], points[1])
         self.assertEqual(data_points[-1], points[2])
     
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_no_lag_split_partion_pad(self, mock):
         feature, log_prices = load_transform_data(None, 0)
         data_points  = prepare_dataset(
@@ -179,7 +235,7 @@ class LoadingDataLag(unittest.TestCase):
         self.assertEqual(data_points[-2], points[2])
         self.assertEqual(data_points[-1], points[3])
 
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_no_lag_split_offset_less_pad(self, mock):
         feature, log_prices = load_transform_data(None, 0)
         data_points  = prepare_dataset(
@@ -210,7 +266,7 @@ class LoadingDataLag(unittest.TestCase):
         self.assertEqual(data_points[-2], points[2])
         self.assertEqual(data_points[-1], points[3])
 
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_no_lag_split_offset_more(self, mock):
         feature, log_prices = load_transform_data(None, 0)
         data_points  = prepare_dataset(
@@ -239,7 +295,7 @@ class LoadingDataLag(unittest.TestCase):
         self.assertEqual(data_points[1], points[1])
         self.assertEqual(data_points[-1], points[2])
 
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_no_lag_split_offset_more_pad(self, mock):
         feature, log_prices = load_transform_data(None, 0)
         data_points  = prepare_dataset(
@@ -270,7 +326,7 @@ class LoadingDataLag(unittest.TestCase):
         self.assertEqual(data_points[-2], points[2])
         self.assertEqual(data_points[-1], points[3])
 
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_lag_split_partition_all_no_pad_1(self, mock):
         feature, log_prices = load_transform_data(None, self.lag_num)
         data_points = prepare_dataset(
@@ -296,7 +352,7 @@ class LoadingDataLag(unittest.TestCase):
         self.assertEqual(len(data_points), 1)
         self.assertEqual(data_points[0], points[0])
 
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_lag_split_partition_all_no_pad_2(self, mock):
         self.lag_num = 4
         feature, log_prices = load_transform_data(None, self.lag_num)
@@ -325,7 +381,7 @@ class LoadingDataLag(unittest.TestCase):
         self.assertEqual(data_points[0], points[0])
         self.assertEqual(data_points[1], points[1])
     
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_lag_split_partition_all_pad_1(self, mock):
         feature, log_prices = load_transform_data(None, self.lag_num)
         data_points = prepare_dataset(
@@ -353,7 +409,7 @@ class LoadingDataLag(unittest.TestCase):
         self.assertEqual(data_points[0], points[0])
         self.assertEqual(data_points[1], points[1])
     
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_lag_split_partition_all_pad_2(self, mock):
         self.lag_num = 4
         feature, log_prices = load_transform_data(None, self.lag_num)
@@ -385,7 +441,7 @@ class LoadingDataLag(unittest.TestCase):
         self.assertEqual(data_points[1], points[1])
         self.assertEqual(data_points[2], points[2])
     
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_lag_split_offset_no_pad_1(self, mock):
         feature, log_prices = load_transform_data(None, self.lag_num)
         data_points = prepare_dataset(
@@ -415,7 +471,7 @@ class LoadingDataLag(unittest.TestCase):
         self.assertEqual(data_points[1], points[1])
         self.assertEqual(data_points[-1], points[-1])
     
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_lag_split_offset_pad_1(self, mock):
         feature, log_prices = load_transform_data(None, self.lag_num)
         data_points = prepare_dataset(
@@ -447,7 +503,7 @@ class LoadingDataLag(unittest.TestCase):
         self.assertEqual(data_points[-2], points[2])
         self.assertEqual(data_points[-1], points[3])
     
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_lag_split_offset_no_pad_2(self, mock):
         self.lag_num = 4
         feature, log_prices = load_transform_data(None, self.lag_num)
@@ -476,7 +532,7 @@ class LoadingDataLag(unittest.TestCase):
         self.assertEqual(data_points[0], points[0])
         self.assertEqual(data_points[1], points[1])
     
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_lag_split_offset_pad_2(self, mock):
         self.lag_num = 4
         feature, log_prices = load_transform_data(None, self.lag_num)
@@ -507,7 +563,7 @@ class LoadingDataLag(unittest.TestCase):
         self.assertEqual(data_points[1], points[1])
         self.assertEqual(data_points[2], points[2])
     
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_convert_date(self, mock):
         self.lag_num = 0
         feature, log_prices = load_transform_data(None, self.lag_num)
@@ -527,7 +583,7 @@ class LoadingDataLag(unittest.TestCase):
         self.assertTrue(all(data_points[i].label_inp["Date"].equals(data_points[i].data_inp["Date"]) 
             for i in range(len(data_points))))
     
-    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data())
+    @patch("utils.data_preprocessing.load_metal_data", return_value=generate_fake_data("metal1"))
     def test_num_dataset(self, mock):
         feature, log_prices = load_transform_data(None, 0)
         data_points  = prepare_dataset(

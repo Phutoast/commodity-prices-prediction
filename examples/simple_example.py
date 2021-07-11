@@ -2,10 +2,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import itertools
+import torch
 
 from utils.data_preprocessing import load_transform_data, parse_series_time
-from utils.data_structure import DisplayPrediction, pack_result_data
-from utils.data_visualization import visualize_time_series, visualize_walk_forward, show_result_fold
+from utils.data_structure import DisplayPrediction
+from utils.data_visualization import visualize_time_series, visualize_walk_forward, show_result_fold, pack_result_data
 from utils.others import create_folder, save_fold_data, load_fold_data, create_name
 
 from experiments.algo_dict import algorithms_dic
@@ -14,12 +15,12 @@ from experiments.calculation import PerformanceMetric
 
 from models.ind_multi_model import IndependentMultiModel
 
-def get_data_example(return_lag, skip):
-    metal_type = "aluminium"
+def get_data_example(return_lag, skip, metal_type): 
     total_dataset = 1000
 
     features, log_prices = load_transform_data(metal_type, return_lag, skip) 
     log_prices = log_prices[["Price"]]
+    log_prices.columns = ["Output"]
 
     features = features.head(total_dataset)
     log_prices = log_prices.head(total_dataset)
@@ -46,8 +47,8 @@ def get_data_example(return_lag, skip):
      
     return features, log_prices, first_day, len_data, pred_date_conversion()
 
-def create_task(len_inp, len_out, return_lag, len_pred_show, skip):
-    features, log_prices, first_day, len_data, convert_date = get_data_example(return_lag, skip)
+def create_task(len_inp, len_out, return_lag, len_pred_show, skip, metal_type):
+    features, log_prices, first_day, len_data, convert_date = get_data_example(return_lag, skip, metal_type)
     splitted_data = prepare_dataset(
         features, first_day, log_prices, 
         len_inp=len_data-len_pred_show, len_out=len_pred_show, return_lag=0, 
@@ -75,7 +76,7 @@ def prepare_task(task, len_inp, return_lag, skip, plot_gap):
         [point.data_out["Date"].map(convert_date).to_list() for point in pred_dataset]
     ))
     true_date = feature_test["Date"].map(convert_date).to_list()
-    true_price = log_prices_test["Price"].to_list() 
+    true_price = log_prices_test["Output"].to_list() 
     
     if plot_gap:
         missing_x = true_date[:len_inp+return_lag]
@@ -86,10 +87,10 @@ def prepare_task(task, len_inp, return_lag, skip, plot_gap):
     
     return all_date_pred, true_date, true_price, missing_data, convert_date
 
-def gen_prepare_task(len_inp, len_out, return_lag, len_pred_show, skip, plot_gap):
+def gen_prepare_task(len_inp, len_out, return_lag, len_pred_show, skip, plot_gap, metal_type):
     task = create_task(
         len_inp, len_out, 
-        return_lag, len_pred_show, skip
+        return_lag, len_pred_show, skip, metal_type
     )
     helper = prepare_task(task, len_inp, return_lag, skip, plot_gap)
     return (task, helper)
@@ -108,7 +109,7 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
     log_prices_train_list = []
     missing_data_list = []
     
-    for i, (algo_name, return_lag, skip, len_pred_show) in enumerate(exp_setting["task"]):
+    for i, (algo_name, metal_type, return_lag, skip, len_pred_show) in enumerate(exp_setting["task"]):
         hyperparam, algo_class = algorithms_dic[algo_name]
         len_inp = hyperparam["len_inp"]
         len_out = hyperparam["len_out"]
@@ -120,7 +121,7 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
             len_inp=len_inp, 
             len_out=len_out,
             return_lag=return_lag, len_pred_show=len_pred_show, 
-            skip=skip, plot_gap=plot_gap
+            skip=skip, plot_gap=plot_gap, metal_type=metal_type
         )
         task, helper = task_helper
 
@@ -194,9 +195,9 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
 def example_plot_walk_forward(exp_setting, model_name, load_path, is_save=False, is_load=True):
 
     all_data = []
-    for i, (algo_name, return_lag, skip, _) in enumerate(exp_setting["task"]): 
+    for i, (algo_name, metal_type, return_lag, skip, _) in enumerate(exp_setting["task"]): 
         features, log_prices, _, _, convert_date = get_data_example(
-            return_lag, skip
+            return_lag, skip, metal_type=metal_type
         ) 
         all_data.append(
             (features, log_prices, convert_date, algorithms_dic[algo_name])

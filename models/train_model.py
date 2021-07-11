@@ -3,7 +3,7 @@ import gpytorch
 import torch
 
 from models.base_model import BaseModel
-from utils.data_structure import pack_result_data
+from utils import data_visualization
 
 class BaseTrainModel(BaseModel):
     """
@@ -118,7 +118,7 @@ class BaseTrainMultiTask(BaseTrainModel):
 
         pred_list = []
         for i in range(self.num_task):
-            pred_list.append(pack_result_data(
+            pred_list.append(data_visualization.pack_result_data(
                 all_mean[:, i].tolist(), 
                 all_lower[:, i].tolist(), 
                 all_upper[:, i].tolist(),  

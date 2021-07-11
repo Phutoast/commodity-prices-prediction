@@ -3,6 +3,7 @@ from tabulate import tabulate
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 from collections import defaultdict
+import pandas as pd
 
 from utils.data_preprocessing import parse_series_time
 from scipy.interpolate import make_interp_spline
@@ -46,7 +47,7 @@ def visualize_time_series(fig_ax, data, inp_color, missing_data, lag_color,
     is_missing = len(missing_x) != 0
 
     convert_date = lambda x: x["Date"].to_list()
-    convert_price = lambda x: x["Price"].to_list()
+    convert_price = lambda x: x["Output"].to_list()
 
     x_train = convert_date(x_train)
     y_train = convert_price(y_train)
@@ -131,7 +132,7 @@ def plot_area(axs, x, y, miss, start_ind, end_ind, lag_color):
 def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_dict, lag_color="o", pred_color="p", below_err="g", title="Walk Forward Validation Loss Visualization"):
 
     convert_date = lambda x: x["Date"].to_list()
-    convert_price = lambda x: x["Price"].to_list()
+    convert_price = lambda x: x["Output"].to_list()
     first_day = full_data_x["Date"][0] 
 
     x, _ = parse_series_time(convert_date(full_data_x), first_day)
@@ -255,13 +256,34 @@ def show_result_fold(fold_results, exp_setting):
         
         task_prop = exp_setting["task"][i]
         table.append([
-            f"Task {i+1} (Lag={task_prop[1]}, Step ahead={task_prop[2]})", 
-            f"{round(np.mean(all_error_ind), 7)} ± {round(np.std(all_error_ind), 7)}", 
-            f"{round(np.mean(all_error_intv), 7)} ± {round(np.std(all_error_intv), 7)}"
-            ])
+            f"Task {i+1} (Metal={task_prop[1]}, Lag={task_prop[2]}, Step ahead={task_prop[3]})", 
+            f"{round(np.median(all_error_ind), 7)}", 
+            f"{round(np.median(all_error_intv), 7)}"
+            # f"{round(np.mean(all_error_ind), 7)} ± {round(np.std(all_error_ind), 7)}", 
+            # f"{round(np.mean(all_error_intv), 7)} ± {round(np.std(all_error_intv), 7)}"
+        ])
 
     print(tabulate(table, headers=header, tablefmt="grid"))
 
+def pack_result_data(mean, upper, lower, x):
+    """
+    Given the numpy/list data, pack the result into panda dataframe
+        Ready for display/save 
+    
+    Args:
+        mean: Mean prediction of the predictor
+        upper: Upper Confidence Bound
+        lower: Lower Confidence Bound
+        x: x-axis that is used to display (should contains the data)
+    
+    Return:
+        packed_data: Data ready to display
+    """
+    if len(upper) == 0 and len(lower) == 0:
+        upper = mean
+        lower = mean
+    d = {"mean": mean, "upper": upper, "lower": lower, "x": x}
+    return pd.DataFrame(data=d)
     
 
     

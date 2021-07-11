@@ -45,58 +45,44 @@ class Hyperparameters(dict):
     def __repr__(self):
         return f"{type(self).__name__}({super().__repr__()})"
 
-def pack_result_data(mean, upper, lower, x):
+class DatasetTaskDesc(dict):
     """
-    Given the numpy/list data, pack the result into panda dataframe
-        Ready for display/save 
+    Way to describe the construction of the multi-task dataset
     
     Args:
-        mean: Mean prediction of the predictor
-        upper: Upper Confidence Bound
-        lower: Lower Confidence Bound
-        x: x-axis that is used to display (should contains the data)
-    
-    Return:
-        packed_data: Data ready to display
+        inp_metal_list: The metal data we are going to use to perform the prediction.
+        feature: The feature (from the inp_metal) we are going to used to perform the prediction.
+        out_feature: The feature we want to predict
+        kwargs: other model specific hyperparameters (e.g hidden-layer size). 
     """
-    if len(upper) == 0 and len(lower) == 0:
-        upper = mean
-        lower = mean
-    d = {"mean": mean, "upper": upper, "lower": lower, "x": x}
-    return pd.DataFrame(data=d)
+    def __init__(self, inp_metal_list, 
+        use_feature, use_feat_tran_lag, out_feature, 
+        out_feat_tran_lag, is_drop_nan=False, **kwargs): 
 
-# class FeatureDataset(object):
-#     """
-#     Transforming TrainingPoint object 
-#         into a list corresponding to user-specified label. 
+        self["inp_metal_list"] = inp_metal_list
+        self["out_feature"] = out_feature
+        self["out_feat_tran_lag"] = out_feat_tran_lag
+        self["is_drop_nan"] = is_drop_nan
 
-#     Args:
-#         data_feat: List of feature name that 
-#             we want to include in the input of the model.
-#         label_feat_data: List of feature name that 
-#             we want to include in the label of the input of the model. 
-#         label_feat_pred: List of feature name that 
-#             we want to include as the predion of the model. 
-#     """
-#     def __init__(self, data_feat=None, label_feat=None):
+        if all("Date" not in col_name for col_name in use_feature):
+            raise ValueError("Date has to be included in use_feature (but can be removed later)")
+        
+        if out_feature in use_feature:
+            raise ValueError("Duplication between the output column and Feature")
+        
+        if isinstance(use_feat_tran_lag, list):
+            if len(use_feat_tran_lag) != len(use_feature):
+                raise ValueError("If defining use_feat_tran_lag to be a list, the length of it should be the same as use_feature")
+        elif use_feat_tran_lag is None:
+            use_feat_tran_lag = [None] * len(use_feature)
+        else:
+            raise TypeError("Wrong Type For use_feat_tran_lag")
 
-#         self.data_feat = data_feat
-#         self.label_feat = label_feat
+
+        
+        self["feature"] = use_feature
+        self["inp_feat_tran_lag"] = use_feat_tran_lag
+        self.update(kwargs)
     
-#     def __call__(self, data_point):
-#         """
-#         Transform the data_point into a list based 
-#             on the label passed in __init__ so that 
-#             we can add them to numpy array. 
-#             The data will be returned in the following format. 
-
-#             [data_feat] + [label_feat] + [data_feat] + []
-        
-#         Args:
-#             data_point: Data from dataset stored in TrainingPoint format.
-        
-#         Return:
-#             data_list: Computed data format that is ready 
-#                 to be stored in number array
-#             total_length: Total length of the data_list
-#         """
+    def __repr__(self):
+        return f"{type(self).__name__}({super().__repr__()})"
