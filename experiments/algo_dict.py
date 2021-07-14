@@ -42,11 +42,11 @@ algorithms_dic = {
         len_inp=10, 
         len_out=1, 
         lr=0.1,
-        optim_iter=50,
+        optim_iter=100,
         is_time_only=False,
         is_date=False, 
         is_past_label=True,
-        kernel="Composite_2"
+        kernel="Composite_1"
     ), IndependentGP],
     "GP-Multi-Task": [Hyperparameters(
         len_inp=10, 
@@ -56,7 +56,7 @@ algorithms_dic = {
         is_time_only=False,
         is_date=False, 
         is_past_label=True,
-        kernel="Composite_2"
+        kernel="Composite_1"
     ), None],
 }
 

@@ -5,6 +5,9 @@ import torch
 from models.base_model import BaseModel
 from utils import data_visualization
 
+from experiments import algo_dict
+import copy
+
 class BaseTrainModel(BaseModel):
     """
     Simple Gaussian Process Model that takes date 
@@ -44,6 +47,12 @@ class BaseTrainModel(BaseModel):
         
         return (data - self.mean_x)/self.std_x
     
+    def cal_train_loss(self):
+        output = self.model(self.train_x)
+        loss = -self.loss_obj(output, self.train_y)
+        return output, loss
+
+    
     def train(self):
         self.train_x, self.train_y = self.prepare_data()
         self.model = self.build_training_model()
@@ -52,16 +61,19 @@ class BaseTrainModel(BaseModel):
         num_iter = self.hyperparam["optim_iter"]
         for i in range(num_iter):
             self.optimizer.zero_grad()
-            output = self.model(self.train_x)
-            loss = -self.loss_obj(output, self.train_y)
+            output, loss = self.cal_train_loss()
 
             if self.hyperparam["is_verbose"]:
                 if i%10 == 0:
                     print(f"Loss {i}/{num_iter}", loss)
+
             loss.backward()
             self.optimizer.step()
         
         self.after_training()
+    
+    def load_kernel(self, kernel_name):
+        return copy.deepcopy(algo_dict.kernel_name[kernel_name])
     
     def predict_step_ahead(self, test_data, step_ahead, ci=0.9):
         """
@@ -98,8 +110,6 @@ class BaseTrainMultiTask(BaseTrainModel):
             together in one matrix by getting the input to be 
             the first one. This implies that the first dataset present, will be the "basis" of the data.
         """
-        assert self.using_first
-
         data_list, label_list = [], []
         for train_data in list_train_data:
             packed_data = self.pack_data(
@@ -108,8 +118,17 @@ class BaseTrainMultiTask(BaseTrainModel):
             )
             data_list.append(packed_data[:, :-1])
             label_list.append(packed_data[:, [-1]])
-        
-        return data_list[0], np.concatenate(label_list, axis=1)
+
+        if self.using_first: 
+            return data_list[0], np.concatenate(label_list, axis=1)
+        else:
+            train_ind = [
+                np.ones(shape=(data_list[i].shape[0], 1), dtype=np.float32) * i
+                for i in range(self.num_task)
+            ] 
+            all_train_data = np.concatenate(data_list, axis=0)
+            all_train_ind = np.concatenate(train_ind, axis=0)
+            return (all_train_data, all_train_ind), np.concatenate(label_list, axis=0).flatten()
     
     def predict(self, list_test_data, list_step_ahead, list_all_date, ci=0.9):
         all_mean, all_lower, all_upper = self.predict_step_ahead(

@@ -5,26 +5,28 @@ import json
 import torch
 import gpytorch
 from models.train_model import BaseTrainMultiTask
-from models.GP_model import MultioutputGP
-from models.GP import IndependentGP
+from models.GP_model import MultiTaskGPIndexModel
 
 from experiments import algo_dict
 from utils import others
 
-class GPMultiTask(BaseTrainMultiTask):
+import copy
+
+class GPMultiTaskIndex(BaseTrainMultiTask):
     def __init__(self, list_train_data, list_config, using_first):
         super().__init__(list_train_data, list_config, using_first)
-        self.likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
-            num_tasks=self.num_task
-        )
+        self.likelihood = gpytorch.likelihoods.GaussianLikelihood()
         self.list_config_json = {
             "list_config": list_config, "using_first": using_first
         }
+
+        assert not using_first
     
     def prepare_data(self):
-        all_data, self.train_y = self.pack_data_merge(
+        (all_data, train_ind), self.train_y = self.pack_data_merge(
             self.train_data, self.hyperparam["is_past_label"]
         )
+
         self.train_y = torch.from_numpy(self.train_y).float()
 
         if self.hyperparam["is_time_only"]:
@@ -33,12 +35,13 @@ class GPMultiTask(BaseTrainMultiTask):
             self.train_x = torch.from_numpy(all_data[:, :-1]).float()
         
         self.train_x = self.normalize_data(self.train_x, is_train=True)
+        self.train_ind = torch.from_numpy(train_ind).float()
         return self.train_x, self.train_y
  
     def build_training_model(self):
-        kernel = algo_dict.kernel_name[self.hyperparam["kernel"]]
-        self.model = MultioutputGP(
-            self.train_x, self.train_y, self.likelihood, kernel, self.num_task
+        kernel = self.load_kernel(self.hyperparam["kernel"])
+        self.model = MultiTaskGPIndexModel(
+            (self.train_x, self.train_ind), self.train_y, self.likelihood, kernel, self.num_task
         )
         return self.model
     
@@ -55,28 +58,21 @@ class GPMultiTask(BaseTrainMultiTask):
         )
 
         return self.optimizer, self.loss_obj
+    
+    def cal_train_loss(self):
+        output = self.model(self.train_x, self.train_ind)
+        loss = -self.loss_obj(output, self.train_y)
+        return output, loss
 
     def after_training(self):
         self.model.eval()
         self.likelihood.eval()
 
     def predict_step_ahead(self, list_test_data, list_step_ahead, ci=0.9):
-        """
-        Predict multiple independent multi-model data
-
-        Args:
-            list_test_data: All testing for each models
-            list_step_ahead: All number step a head 
-                for each model
-            list_all_date: All the date used along side of prediction
-        
-        Returns:
-            list_prediction: List of all prediction for each models
-        """
         self.model.eval()
-        self.likelihood.eval()
+        self.likelihood.eval() 
         
-        all_data, _ = self.pack_data_merge(
+        (all_data, test_ind), _ = self.pack_data_merge(
             list_test_data, self.hyperparam["is_past_label"]
         )
         if self.hyperparam["is_time_only"]:
@@ -87,20 +83,32 @@ class GPMultiTask(BaseTrainMultiTask):
         
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
             test_x = torch.from_numpy(all_data).float()
+            test_ind = torch.from_numpy(test_ind).float()
             test_x = self.normalize_data(test_x, is_train=False)
 
-            pred = self.likelihood(self.model(test_x.float()))
+            pred = self.likelihood(self.model(test_x, test_ind))
             pred_mean = pred.mean.numpy()
             lower, upper = pred.confidence_region()
             pred_lower = lower.numpy()
             pred_upper = upper.numpy()
-
-        return pred_mean, pred_lower, pred_upper
+        
+        list_mean, list_lower, list_upper = [], [], [] 
+        for i in range(self.num_task):
+            index_task = (test_ind == i).nonzero(as_tuple=True)[0]
+            list_mean.append(np.reshape(pred_mean[index_task], (-1, 1)))
+            list_lower.append(np.reshape(pred_lower[index_task], (-1, 1)))
+            list_upper.append(np.reshape(pred_upper[index_task], (-1, 1)))
+        
+        return (
+            np.concatenate(list_mean, axis=1), 
+            np.concatenate(list_lower, axis=1), 
+            np.concatenate(list_upper, axis=1)
+        )
 
 
     def save(self, base_path):
         others.create_folder(base_path)
-        path = base_path + "/multi_GP/"
+        path = base_path + "/multi_index_GP/"
         others.create_folder(path)
         path += "model"
 
@@ -109,6 +117,7 @@ class GPMultiTask(BaseTrainMultiTask):
         torch.save(self.train_y, path + "_y.pt")
         torch.save(self.mean_x, path + "_mean_x.pt")
         torch.save(self.std_x, path + "_std_x.pt")
+        torch.save(self.train_ind, path + "_train_ind.pt")
         
         with open(f"{base_path}/config.json", 'w', encoding="utf-8") as f:
             json.dump(
@@ -122,7 +131,7 @@ class GPMultiTask(BaseTrainMultiTask):
         list_config = data["list_config"]
         num_task = len(list_config)
         
-        path = base_path + "/multi_GP/"
+        path = base_path + "/multi_index_GP/"
         path += "model"
 
         state_dict = torch.load(path + ".pth")
@@ -130,10 +139,11 @@ class GPMultiTask(BaseTrainMultiTask):
         self.train_y = torch.load(path + "_y.pt")
         self.mean_x = torch.load(path + "_mean_x.pt")
         self.std_x = torch.load(path + "_std_x.pt")
+        self.train_ind = torch.load(path + "_train_ind.pt")
         
-        self.model = MultioutputGP(
-            self.train_x, self.train_y, self.likelihood, 
-            algo_dict.kernel_name[list_config[0][0]["kernel"]], num_task
+        self.model = MultiTaskGPIndexModel(
+            (self.train_x, self.train_ind), self.train_y, self.likelihood, 
+            self.load_kernel(list_config[0][0]["kernel"]), num_task
         )
 
         self.model.load_state_dict(state_dict)

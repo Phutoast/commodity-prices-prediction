@@ -7,6 +7,7 @@ from models.GP_model import OneDimensionGP
 from models.train_model import BaseTrainModel
 
 from experiments import algo_dict
+import copy
  
 class IndependentGP(BaseTrainModel):
     """
@@ -33,7 +34,7 @@ class IndependentGP(BaseTrainModel):
         return self.train_x, self.train_y
     
     def build_training_model(self):
-        kernel = algo_dict.kernel_name[self.hyperparam["kernel"]]
+        kernel = self.load_kernel(self.hyperparam["kernel"])
         self.model = OneDimensionGP(
             self.train_x, self.train_y, self.likelihood, kernel
         )
@@ -106,7 +107,7 @@ class IndependentGP(BaseTrainModel):
         self.model = OneDimensionGP(
             self.train_x, self.train_y, 
             self.likelihood, 
-            algo_dict.kernel_name[self.hyperparam["kernel"]]
+            self.load_kernel(self.hyperparam["kernel"])
         )
 
         self.model.load_state_dict(state_dict)
