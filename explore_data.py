@@ -8,6 +8,8 @@ from collections import Counter
 from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data
 from utils.data_structure import DatasetTaskDesc
 
+from sklearn.decomposition import PCA
+
 metal_to_color = {"copper": "#D81B60", "aluminium": "#512DA8"}
 
 def plot_frequency_features():
@@ -45,8 +47,31 @@ def plot_frequency_features():
     
     fig.savefig(f"img/data_vis/freq_feat.pdf")
 
+def plot_feature_PCA_overtime():
+    metal = "copper"
+    data = load_metal_data(metal)
+    print(data.columns.to_list())
+    assert False
+    data = data.dropna()
+    data = data.loc[:, data.columns != "Price"]
+    data = data.loc[:, data.columns != "Date"].to_numpy()
+
+    pca = PCA(n_components=3)
+    reduced_data = pca.fit_transform(data)
+
+    fig = plt.figure()
+    ax = plt.axes(projection='3d')
+
+    x, y, z = reduced_data[:100, :].T
+    ax.scatter3D(x[0], y[0], z[0], c="#1a1a1a", s=20.0)
+    ax.scatter3D(x, y, z, c="#1a1a1a", s=1.0)
+    ax.plot(x,y,z, color="#5a08bf")
+    plt.show()
+
+    # print(reduced_data)
+
 def main():
-    plot_frequency_features()
+    plot_feature_PCA_overtime()
 
 
 if __name__ == '__main__':

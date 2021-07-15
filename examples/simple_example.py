@@ -37,56 +37,6 @@ class SkipLookUp(object):
         else:
             return date - self.skip
 
-
-def get_data_example_test(return_lag, skip, metal_type): 
-    total_dataset = 1000
-
-    features, log_prices = load_transform_data(metal_type, return_lag, 9) 
-    log_prices = log_prices[["Price"]]
-    log_prices.columns = ["Output"]
-
-    # features = features[["Date", "FeatureFamily.TECHNICAL"]]
-    features = features[["Date"]]
-
-    # print(features)
-    print(log_prices)
-        
-    simple_desc = DatasetTaskDesc(
-        inp_metal_list=["aluminium"],
-        use_feature=["Date"],
-        use_feat_tran_lag=None,
-        out_feature="aluminium.Price",
-        out_feat_tran_lag=(22, 9, lambda x: x),
-    )
-    feature_2, target_2 = load_dataset_from_desc(simple_desc)
-
-    print("--------------")
-    # print(feature_2)
-    print(target_2[["Output"]])
-
-    features = features.head(total_dataset)
-    log_prices = log_prices.head(total_dataset)
-    len_data = len(features)
-
-    first_day = features["Date"].iloc[0]
-
-    def pred_date_conversion():
-        """
-        The given a skip, the date of the prediction of the model has to 
-            be added forward to match the real time
-        """
-        features_no_skip, _ = load_transform_data(metal_type, return_lag, 0) 
-        features_no_skip = features_no_skip.head(total_dataset+skip).tail(total_dataset)
-
-        inp_date_data, _ = parse_series_time(
-            features["Date"].to_list(), first_day) 
-        true_date, _ = parse_series_time(
-            features_no_skip["Date"].to_list(), first_day) 
-         
-        return dict(zip(inp_date_data, true_date)) 
-     
-    return features, log_prices, first_day, len_data, pred_date_conversion()
-
 def get_data_example(dataset_desc): 
     total_dataset = 1000
     features, log_prices = load_dataset_from_desc(dataset_desc)
