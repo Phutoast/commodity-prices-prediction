@@ -14,7 +14,7 @@ from models.GP_multi_index import GPMultiTaskIndex
 from utils.data_structure import DatasetTaskDesc
 
 import warnings
-warnings.filterwarnings("ignore")
+# warnings.filterwarnings("ignore")
 
 np.random.seed(48)
 random.seed(48)
@@ -106,7 +106,7 @@ def main():
 
     if test_type == "f":
         example_plot_all_algo_lag(
-            exp_setting3, is_save=True, is_load=False,
+            exp_setting1, is_save=True, is_load=False,
             load_path="GP-Multi"
             # load_path="07-14-21-19-38-29-GP-Multi"
         )

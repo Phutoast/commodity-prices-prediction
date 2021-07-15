@@ -60,12 +60,13 @@ class DatasetTaskDesc(dict):
     """
     def __init__(self, inp_metal_list, 
         use_feature, use_feat_tran_lag, out_feature, 
-        out_feat_tran_lag, is_drop_nan=False, **kwargs): 
+        out_feat_tran_lag, is_drop_nan=False, len_dataset=1000, **kwargs): 
 
         self["inp_metal_list"] = inp_metal_list
         self["out_feature"] = out_feature
         self["out_feat_tran_lag"] = out_feat_tran_lag
         self["is_drop_nan"] = is_drop_nan
+        self["len_dataset"] = len_dataset
 
         if all("Date" not in col_name for col_name in use_feature):
             raise ValueError("Date has to be included in use_feature (but can be removed later)")
@@ -80,8 +81,6 @@ class DatasetTaskDesc(dict):
             use_feat_tran_lag = [None] * len(use_feature)
         else:
             raise TypeError("Wrong Type For use_feat_tran_lag")
-
-
         
         self["feature"] = use_feature
         self["inp_feat_tran_lag"] = use_feat_tran_lag

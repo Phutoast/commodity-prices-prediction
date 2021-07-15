@@ -38,12 +38,15 @@ class SkipLookUp(object):
             return date - self.skip
 
 def get_data_example(dataset_desc): 
-    total_dataset = 1000
     features, log_prices = load_dataset_from_desc(dataset_desc)
     log_prices = log_prices[["Output"]]
 
-    features = features.head(total_dataset)
-    log_prices = log_prices.head(total_dataset)
+    # This can be integrated later.....
+    total_dataset = dataset_desc["len_dataset"]
+
+    if total_dataset != -1:
+        features = features.head(total_dataset)
+        log_prices = log_prices.head(total_dataset)
     len_data = len(features)
 
     first_day = features["Date"].iloc[0]

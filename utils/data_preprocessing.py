@@ -1,6 +1,7 @@
 from datetime import datetime
 import pandas as pd
 import numpy as np
+import warnings
 
 from utils.data_structure import TrainingPoint
 
@@ -68,9 +69,8 @@ def load_metal_data(metal_type):
 
 def transform_full_data(
         full_data, 
-        is_drop_nan=False,
         feature_name="Price",
-        trans_column=lambda x: np.log(x), 
+        trans_column=lambda x: np.log(x),
         use_only_last=False
     ):
     """
@@ -79,16 +79,11 @@ def transform_full_data(
 
     Args:
         full_data: Concatenated data 
-        is_drop_nan: Remover any row that contains NaN in it.
 
     Returns:
         x: Feature over time. 
         y: (log)-Price over time.
     """
-
-    if is_drop_nan:
-        full_data = full_data.dropna()
-
     full_data[feature_name] = trans_column(full_data[feature_name])
 
     all_col = list(full_data.columns)
@@ -103,7 +98,7 @@ def transform_full_data(
 
 def load_transform_data(
         metal_type, return_lag, 
-        skip=0, is_drop_nan=False,
+        skip=0,
         feature_name="Price",
         trans_column=lambda x: np.log(x),
         use_only_last=False
@@ -114,7 +109,6 @@ def load_transform_data(
     
     Args:
         metal_type: Type of metal (aka type of data)
-        is_drop_nan: Remove any row that contains NaN in it.
     
     Returns:
         X: Feature over time. 
@@ -122,8 +116,7 @@ def load_transform_data(
     """
     data_all = load_metal_data(metal_type)
     X, y = transform_full_data(
-        data_all, is_drop_nan=is_drop_nan, 
-        feature_name=feature_name, trans_column=trans_column,
+        data_all, feature_name=feature_name, trans_column=trans_column,
         use_only_last=use_only_last
     )
     y = cal_lag_return(y, return_lag, feature_name)
@@ -251,7 +244,6 @@ def load_dataset_from_desc(dataset_desc):
             inp_metal_list[dataset_index], 
             return_lag=return_lag,
             skip=skip,
-            is_drop_nan=is_drop_nan,
             feature_name=feature_name,
             trans_column=transform,
             use_only_last=True
@@ -267,7 +259,6 @@ def load_dataset_from_desc(dataset_desc):
     use_feat = dataset_desc["feature"]
     use_feat_tran_lag = dataset_desc["inp_feat_tran_lag"]
     out_feat = dataset_desc["out_feature"]
-    is_drop_nan = dataset_desc["is_drop_nan"]
     
     list_loc_use_feat = [get_loc_feat(feat) for feat in use_feat]
     out_dataset_index, out_feature_name = get_loc_feat(out_feat)
@@ -317,16 +308,27 @@ def load_dataset_from_desc(dataset_desc):
     for date, col in all_inp_col: 
         data_frame.update(extract_data(date, col))
     
-    inp_data_frame = pd.DataFrame(data_frame)
+    input_col_name = list(data_frame.keys())
+    
+    data_frame.update({"Date-Out": data_frame["Date"]})
 
-    out_dict = {"Date": inp_data_frame["Date"]}
-    out_dict.update(
-        extract_data(out_date, out_column)
+    output_feature = extract_data(out_date, out_column)
+    list_feature_name = list(output_feature.keys())
+    assert len(list_feature_name) == 1
+    output_col_name = ["Date-Out", list_feature_name[0]]
+    data_frame.update(
+        output_feature
     )
-
-    out_df = pd.DataFrame(out_dict)
+ 
+    all_data_frame = pd.DataFrame(data_frame)
+    if dataset_desc["is_drop_nan"]:
+        if all_data_frame[list_feature_name[0]].isnull().values.any():
+            warnings.warn(UserWarning("There is a NaN in the output, we can still drop it but the time series may be irregular."))
+        all_data_frame = all_data_frame.dropna()
+    
+    out_df = all_data_frame[output_col_name]
     out_columns = out_df.columns
-    assert out_columns[0] == "Date" and len(out_columns) == 2
+    assert out_columns[0] == "Date-Out" and len(out_columns) == 2
     out_df.columns = ["Date", "Output"]
 
-    return inp_data_frame, out_df
+    return all_data_frame[input_col_name], out_df

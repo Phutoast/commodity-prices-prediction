@@ -5,9 +5,10 @@ from utils.data_structure import DatasetTaskDesc
 
 import unittest
 from unittest.mock import patch
-from test.test_utils import generate_fake_data, fake_price_data, fake_first_day
+from test.test_utils import generate_fake_data, fake_price_data, fake_first_day, get_loc_non_nan
 from pandas.testing import assert_frame_equal, assert_series_equal
 
+import pytest
 
 class ConstructMergeDataset(unittest.TestCase): 
     """
@@ -170,7 +171,7 @@ class ConstructMergeDataset(unittest.TestCase):
         "utils.data_preprocessing.load_metal_data", 
         new=generate_fake_data
     )
-    def test_load_data_diff_out(self):
+    def test_load_data_diff_out_1(self):
         pred_feature_out = ["Date"]
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1"],
@@ -193,6 +194,9 @@ class ConstructMergeDataset(unittest.TestCase):
         
         real_out = real_data[["FeatureFamily.Feature2"]]
         real_out.columns = ["Output"]
+
+        print(target[["Output"]])
+        print(real_out)
 
         assert_frame_equal(target[["Output"]], real_out)
     
@@ -1334,3 +1338,342 @@ class ConstructMergeDataset(unittest.TestCase):
             np.log(real_out["Output"]).to_numpy()
         )
     
+    @patch(
+        "utils.data_preprocessing.load_metal_data", 
+        new=lambda x: generate_fake_data(x, is_nan=True)
+    )
+    def test_load_data_drop_nan_normal(self):
+        # Only remove the data when feature are not avaliable. 
+        pred_feature_out = ["Date", "metal1.Feature1"]
+        simple_desc = DatasetTaskDesc(
+            inp_metal_list=["metal1"],
+            use_feature=pred_feature_out,
+            use_feat_tran_lag=[None, None],
+            out_feature="metal1.Price",
+            out_feat_tran_lag=(0, 0, lambda x: x),
+            is_drop_nan=True
+        )
+        feature, target = load_dataset_from_desc(simple_desc)
+
+        real_data = generate_fake_data("metal1")
+        loc_non_nan = get_loc_non_nan(1, [1])
+
+        self.assertEqual(list(feature.columns), pred_feature_out)
+        real_feature = [
+            (real_data["Date"].loc[loc_non_nan], feature["Date"]),
+            (real_data["FeatureFamily.Feature1"].loc[loc_non_nan], feature["metal1.Feature1"])
+        ] 
+        self.assertTrue(all(
+            real.equals(our_out) for real, our_out in real_feature
+        ))
+        
+        real_out = real_data[["Price"]].loc[loc_non_nan]
+        real_out.columns = ["Output"]
+        assert_frame_equal(target[["Output"]], np.log(real_out))
+    
+    @patch(
+        "utils.data_preprocessing.load_metal_data", 
+        new=lambda x: generate_fake_data(x, is_nan=True)
+    )
+    def test_load_data_drop_nan_normal_block_both_feature(self):
+        # Only remove the data when feature are not avaliable. 
+        pred_feature_out = ["Date", "metal1.Feature1"]
+        simple_desc = DatasetTaskDesc(
+            inp_metal_list=["metal1"],
+            use_feature=pred_feature_out,
+            use_feat_tran_lag=[None, None],
+            out_feature="metal1.Feature2",
+            out_feat_tran_lag=(0, 0, lambda x: x),
+            is_drop_nan=True
+        )
+        with pytest.warns(UserWarning, match="There is a NaN in the output, we can still drop it but the time series may be irregular."):
+            feature, target = load_dataset_from_desc(simple_desc)
+
+        real_data = generate_fake_data("metal1")
+        loc_non_nan = get_loc_non_nan(1, [1, 2])
+
+        self.assertEqual(list(feature.columns), pred_feature_out)
+        real_feature = [
+            (real_data["Date"].loc[loc_non_nan], feature["Date"]),
+            (real_data["FeatureFamily.Feature1"].loc[loc_non_nan], feature["metal1.Feature1"])
+        ] 
+        self.assertTrue(all(
+            real.equals(our_out) for real, our_out in real_feature
+        ))
+        
+        real_out = real_data[["FeatureFamily.Feature2"]].loc[loc_non_nan]
+        real_out.columns = ["Output"]
+        assert_frame_equal(target[["Output"]], real_out)
+    
+    @patch(
+        "utils.data_preprocessing.load_metal_data", 
+        new=lambda x: generate_fake_data(x, is_nan=True)
+    )
+    def test_load_data_drop_nan_retain_trans_lag(self):
+        pred_feature_out = ["Date", "metal1.Feature1"]
+        simple_desc = DatasetTaskDesc(
+            inp_metal_list=["metal1"],
+            use_feature=pred_feature_out,
+            use_feat_tran_lag=None,
+            out_feature="metal1.Price",
+            out_feat_tran_lag=(5, 0, lambda x: x),
+            is_drop_nan=True
+        )
+        feature, target = load_dataset_from_desc(simple_desc)
+
+        real_data = generate_fake_data("metal1")
+        total_len_data = len(real_data)
+        loc_non_nan = get_loc_non_nan(1, [1])
+        exp_len_data = total_len_data-5
+        loc_non_nan = list(filter(lambda x: x < exp_len_data, loc_non_nan))
+
+        self.assertEqual(len(feature), len(target), exp_len_data)
+        self.assertEqual(list(feature.columns), pred_feature_out)
+        real_feature = [
+            (real_data["Date"].iloc[loc_non_nan], feature["Date"]),
+            (real_data["FeatureFamily.Feature1"].iloc[loc_non_nan], feature["metal1.Feature1"])
+        ] 
+
+        self.assertTrue(all(
+            real.equals(our_out) for real, our_out in real_feature
+        ))
+        
+        real_out = real_data[["Price"]]
+        real_out.columns = ["Output"]
+
+        fake_data = real_out["Output"].to_list()
+
+        # We transform the data FIRST before we do anything more.
+        expected_out = []
+        for i in range(len(fake_data)-5):
+            expected_out.append(np.log(fake_data[i+5]) - np.log(fake_data[i]))
+        
+        expected_out = np.array(expected_out)[loc_non_nan]
+        
+        real_out = real_out.iloc[loc_non_nan]
+        real_out["Output"] = expected_out
+        
+        assert_frame_equal(target[["Output"]], real_out)
+    
+    @patch(
+        "utils.data_preprocessing.load_metal_data", 
+        new=lambda x: generate_fake_data(x, is_nan=True)
+    )
+    def test_load_data_drop_nan_retain_trans_skip(self):
+        pred_feature_out = ["Date", "metal1.Feature1"]
+        simple_desc = DatasetTaskDesc(
+            inp_metal_list=["metal1"],
+            use_feature=pred_feature_out,
+            use_feat_tran_lag=None,
+            out_feature="metal1.Price",
+            out_feat_tran_lag=(0, 5, lambda x: x),
+            is_drop_nan=True
+        )
+        feature, target = load_dataset_from_desc(simple_desc)
+
+        real_data = generate_fake_data("metal1")
+        total_len_data = len(real_data)
+        loc_non_nan = get_loc_non_nan(1, [1])
+        exp_len_data = total_len_data-5
+        loc_non_nan = list(filter(lambda x: x < exp_len_data, loc_non_nan))
+
+        self.assertEqual(len(feature), len(target), exp_len_data)
+        self.assertEqual(list(feature.columns), pred_feature_out)
+        real_feature = [
+            (real_data["Date"].iloc[loc_non_nan], feature["Date"]),
+            (real_data["FeatureFamily.Feature1"].iloc[loc_non_nan], feature["metal1.Feature1"])
+        ] 
+
+        self.assertTrue(all(
+            real.equals(our_out) for real, our_out in real_feature
+        ))
+        
+        real_out = real_data[["Price"]]
+        real_out.columns = ["Output"]
+
+        fake_data = real_out["Output"].to_list()
+
+        # We transform the data FIRST before we do anything more.
+        expected_out = []
+        for i in range(len(fake_data)-5):
+            expected_out.append(np.log(fake_data[i+5]))
+        
+        expected_out = np.array(expected_out)[loc_non_nan]
+        
+        real_out = real_out.iloc[loc_non_nan]
+        real_out["Output"] = expected_out
+        
+        assert_frame_equal(target[["Output"]], real_out)
+    
+    @patch(
+        "utils.data_preprocessing.load_metal_data", 
+        new=lambda x: generate_fake_data(x, is_nan=True)
+    )
+    def test_load_data_drop_nan_retain_trans_skip(self):
+        pred_feature_out = ["Date", "metal1.Feature1"]
+        simple_desc = DatasetTaskDesc(
+            inp_metal_list=["metal1"],
+            use_feature=pred_feature_out,
+            use_feat_tran_lag=None,
+            out_feature="metal1.Price",
+            out_feat_tran_lag=(0, 5, lambda x: x),
+            is_drop_nan=True
+        )
+        feature, target = load_dataset_from_desc(simple_desc)
+
+        real_data = generate_fake_data("metal1")
+        total_len_data = len(real_data)
+        loc_non_nan = get_loc_non_nan(1, [1])
+        exp_len_data = total_len_data-5
+        loc_non_nan = list(filter(lambda x: x < exp_len_data, loc_non_nan))
+
+        self.assertEqual(len(feature), len(target), exp_len_data)
+        self.assertEqual(list(feature.columns), pred_feature_out)
+        real_feature = [
+            (real_data["Date"].iloc[loc_non_nan], feature["Date"]),
+            (real_data["FeatureFamily.Feature1"].iloc[loc_non_nan], feature["metal1.Feature1"])
+        ] 
+
+        self.assertTrue(all(
+            real.equals(our_out) for real, our_out in real_feature
+        ))
+        
+        real_out = real_data[["Price"]]
+        real_out.columns = ["Output"]
+
+        fake_data = real_out["Output"].to_list()
+
+        # We transform the data FIRST before we do anything more.
+        expected_out = []
+        for i in range(len(fake_data)-5):
+            expected_out.append(np.log(fake_data[i+5]))
+        
+        expected_out = np.array(expected_out)[loc_non_nan]
+        
+        real_out = real_out.iloc[loc_non_nan]
+        real_out["Output"] = expected_out
+        
+        assert_frame_equal(target[["Output"]], real_out)
+
+    @patch(
+        "utils.data_preprocessing.load_metal_data", 
+        new=lambda x: generate_fake_data(x, is_nan=True)
+    )
+    def test_load_data_drop_nan_lag_output_Nan(self):
+        pred_feature_out = ["Date", "metal1.Feature1"]
+        simple_desc = DatasetTaskDesc(
+            inp_metal_list=["metal1"],
+            use_feature=pred_feature_out,
+            use_feat_tran_lag=None,
+            out_feature="metal1.Feature2",
+            out_feat_tran_lag=(5, 0, lambda x: x),
+            is_drop_nan=True
+        )
+        with pytest.warns(UserWarning, match="There is a NaN in the output, we can still drop it but the time series may be irregular."):
+            feature, target = load_dataset_from_desc(simple_desc)
+
+        real_data = generate_fake_data("metal1")
+        total_len_data = len(real_data)
+        exp_len_data = total_len_data-5
+        
+        loc_non_nan_1 = get_loc_non_nan(1, [1])
+        loc_non_nan_1 = list(filter(lambda x: x < exp_len_data, loc_non_nan_1))
+
+        loc_non_nan_2 = get_loc_non_nan(1, [2])
+        loc_nan_2 = [i for i in range(total_len_data) if i not in loc_non_nan_2]
+        
+        real_out = real_data[["FeatureFamily.Feature2"]]
+        real_out.columns = ["Output"]
+
+        fake_data = real_out["Output"].to_numpy()
+        fake_data[loc_nan_2] = np.nan
+
+        # We transform the data FIRST before we do anything more.
+        expected_out = []
+        for i in range(len(fake_data)-5):
+            expected_out.append(fake_data[i+5]-fake_data[i])
+        
+        loc_not_nan_2 = np.nonzero(~np.isnan(expected_out))[0]
+        all_loc_not_nan = sorted(
+            list(set(loc_not_nan_2).intersection(set(loc_non_nan_1)))
+        )
+
+        # -------------------------------------------
+
+        self.assertEqual(len(feature), len(target), exp_len_data)
+        self.assertEqual(list(feature.columns), pred_feature_out)
+        real_feature = [
+            (real_data["Date"].iloc[all_loc_not_nan], feature["Date"]),
+            (real_data["FeatureFamily.Feature1"].iloc[all_loc_not_nan], feature["metal1.Feature1"])
+        ] 
+
+        self.assertTrue(all(
+            real.equals(our_out) for real, our_out in real_feature
+        ))
+         
+        real_out = real_out.iloc[all_loc_not_nan]
+        real_out["Output"] = np.array(expected_out)[all_loc_not_nan]
+        
+        assert_frame_equal(target[["Output"]], real_out)
+
+    @patch(
+        "utils.data_preprocessing.load_metal_data", 
+        new=lambda x: generate_fake_data(x, is_nan=True)
+    )
+    def test_load_data_drop_nan_lag_other_out_nan_out(self):
+        pred_feature_out = ["Date", "metal1.Feature1", "metal2.Feature3"]
+        simple_desc = DatasetTaskDesc(
+            inp_metal_list=["metal1", "metal2"],
+            use_feature=pred_feature_out,
+            use_feat_tran_lag=None,
+            out_feature="metal1.Feature2",
+            out_feat_tran_lag=(5, 0, lambda x: x),
+            is_drop_nan=True
+        )
+
+        with pytest.warns(UserWarning, match="There is a NaN in the output, we can still drop it but the time series may be irregular."):
+            feature, target = load_dataset_from_desc(simple_desc)
+
+        real_data = generate_fake_data("metal1")
+        total_len_data = len(real_data)
+        exp_len_data = total_len_data-5
+        
+        loc_non_nan_1 = get_loc_non_nan(1, [1, 3])
+        loc_non_nan_1 = list(filter(lambda x: x < exp_len_data, loc_non_nan_1))
+
+        loc_non_nan_2 = get_loc_non_nan(1, [2])
+        loc_nan_2 = [i for i in range(total_len_data) if i not in loc_non_nan_2]
+        
+        real_out = real_data[["FeatureFamily.Feature2"]]
+        real_out.columns = ["Output"]
+
+        fake_data = real_out["Output"].to_numpy()
+        fake_data[loc_nan_2] = np.nan
+
+        # We transform the data FIRST before we do anything more.
+        expected_out = []
+        for i in range(len(fake_data)-5):
+            expected_out.append(fake_data[i+5]-fake_data[i])
+        
+        loc_not_nan_2 = np.nonzero(~np.isnan(expected_out))[0]
+        all_loc_not_nan = sorted(
+            list(set(loc_not_nan_2).intersection(set(loc_non_nan_1)))
+        )
+
+        # -------------------------------------------
+
+        self.assertEqual(len(feature), len(target), exp_len_data)
+        self.assertEqual(list(feature.columns), pred_feature_out)
+        real_feature = [
+            (real_data["Date"].iloc[all_loc_not_nan], feature["Date"]),
+            (real_data["FeatureFamily.Feature1"].iloc[all_loc_not_nan], feature["metal1.Feature1"])
+        ] 
+
+        self.assertTrue(all(
+            real.equals(our_out) for real, our_out in real_feature
+        ))
+         
+        real_out = real_out.iloc[all_loc_not_nan]
+        real_out["Output"] = np.array(expected_out)[all_loc_not_nan]
+        
+        assert_frame_equal(target[["Output"]], real_out) 
