@@ -17,6 +17,8 @@ class IndependentGP(BaseTrainModel):
     def __init__(self, train_data, model_hyperparam):
         super().__init__(train_data, model_hyperparam)
         self.likelihood = gpytorch.likelihoods.GaussianLikelihood()
+        if self.hyperparam["is_gpu"]:
+            self.likelihood = self.likelihood.cuda()
     
     def prepare_data(self):
         all_prices = self.pack_data(
@@ -29,6 +31,10 @@ class IndependentGP(BaseTrainModel):
         else:
             self.train_x = torch.from_numpy(all_prices[:, :-1]).float()
             self.train_y = torch.from_numpy(all_prices[:, -1]).float()
+        
+        if self.hyperparam["is_gpu"]:
+            self.train_x = self.train_x.cuda()
+            self.train_y = self.train_y.cuda()
         
         self.train_x = self.normalize_data(self.train_x, is_train=True)
         return self.train_x, self.train_y
@@ -80,13 +86,14 @@ class IndependentGP(BaseTrainModel):
         
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
             test_x = torch.from_numpy(inp_test).float()
+            if self.hyperparam["is_gpu"]:
+                test_x = test_x.cuda()
             test_x = self.normalize_data(test_x, is_train=False)
             pred = self.likelihood(self.model(test_x.float()))
-
-            pred_mean = pred.mean.numpy().tolist()
+            pred_mean = pred.mean.detach().cpu().numpy().tolist()
             lower, upper = pred.confidence_region()
-            pred_lower = lower.numpy().tolist()
-            pred_upper = upper.numpy().tolist()
+            pred_lower = lower.detach().cpu().numpy().tolist()
+            pred_upper = upper.detach().cpu().numpy().tolist()
         
         return pred_mean, pred_lower, pred_upper
     
@@ -109,5 +116,8 @@ class IndependentGP(BaseTrainModel):
             self.likelihood, 
             self.load_kernel(self.hyperparam["kernel"])
         )
+
+        if self.hyperparam["is_gpu"]:
+            self.model.cuda()
 
         self.model.load_state_dict(state_dict)

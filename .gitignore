@@ -131,7 +131,6 @@ dmypy.json
 data/
 archive/
 *.csv
-*.txt
 
 *.zip
 save/

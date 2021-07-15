@@ -1,0 +1,1 @@
+cat upload/active_folder.txt | zip -r@ upload.zip

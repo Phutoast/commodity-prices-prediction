@@ -58,6 +58,17 @@ algorithms_dic = {
         is_past_label=True,
         kernel="Composite_1"
     ), None],
+    "GP-Special-GPU": [Hyperparameters(
+        len_inp=10, 
+        len_out=1, 
+        lr=0.1,
+        optim_iter=100,
+        is_time_only=False,
+        is_date=False, 
+        is_past_label=True,
+        kernel="Composite_1",
+        is_gpu=True
+    ), IndependentGP],
 }
 
 class_name = {

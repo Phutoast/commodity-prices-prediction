@@ -20,6 +20,9 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
             "list_config": list_config, "using_first": using_first
         }
 
+        if self.hyperparam["is_gpu"]:
+            self.likelihood = self.likelihood.cuda()
+
         assert not using_first
     
     def prepare_data(self):
@@ -34,8 +37,14 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
         else:
             self.train_x = torch.from_numpy(all_data[:, :-1]).float()
         
-        self.train_x = self.normalize_data(self.train_x, is_train=True)
         self.train_ind = torch.from_numpy(train_ind).float()
+        
+        if self.hyperparam["is_gpu"]:
+            self.train_x = self.train_x.cuda()
+            self.train_y = self.train_y.cuda()
+            self.train_ind = self.train_ind.cuda()
+        
+        self.train_x = self.normalize_data(self.train_x, is_train=True)
         return self.train_x, self.train_y
  
     def build_training_model(self):
@@ -84,13 +93,17 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
             test_x = torch.from_numpy(all_data).float()
             test_ind = torch.from_numpy(test_ind).float()
+            if self.hyperparam["is_gpu"]:
+                test_x = test_x.cuda()
+                test_ind = test_ind.cuda()
             test_x = self.normalize_data(test_x, is_train=False)
 
             pred = self.likelihood(self.model(test_x, test_ind))
-            pred_mean = pred.mean.numpy()
+            pred_mean = pred.mean.detach().cpu().numpy()
             lower, upper = pred.confidence_region()
-            pred_lower = lower.numpy()
-            pred_upper = upper.numpy()
+            pred_lower = lower.detach().cpu().numpy()
+            pred_upper = upper.detach().cpu().numpy()
+            test_ind = test_ind.detach().cpu()
         
         list_mean, list_lower, list_upper = [], [], [] 
         for i in range(self.num_task):
@@ -145,6 +158,9 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
             (self.train_x, self.train_ind), self.train_y, self.likelihood, 
             self.load_kernel(list_config[0][0]["kernel"]), num_task
         )
+        
+        if list_config[0][0]["is_gpu"]:
+            self.model.cuda()
 
         self.model.load_state_dict(state_dict)
  

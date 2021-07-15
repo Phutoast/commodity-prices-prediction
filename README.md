@@ -13,3 +13,9 @@ python -m pytest
 For example, we have:
 ![alt text](img/walk_forward.png)
 
+One may be interested in training the GP within google colabs, we have provided a simple way to zip the necessary files/folder
+
+```sh
+sh upload/zip_folders.sh
+```
+where we can upload to the colabs, extract the file and then perform the training.

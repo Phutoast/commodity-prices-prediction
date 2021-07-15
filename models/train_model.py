@@ -44,6 +44,10 @@ class BaseTrainModel(BaseModel):
         if is_train:
             self.mean_x = torch.mean(data, axis=0)
             self.std_x = torch.std(data, axis=0)
+          
+        if self.hyperparam["is_gpu"]:
+            self.mean_x = self.mean_x.cuda()
+            self.std_x = self.std_x.cuda()
         
         return (data - self.mean_x)/self.std_x
     
@@ -56,6 +60,10 @@ class BaseTrainModel(BaseModel):
     def train(self):
         self.train_x, self.train_y = self.prepare_data()
         self.model = self.build_training_model()
+
+        if self.hyperparam["is_gpu"]:
+            self.model = self.model.cuda()
+
         self.optimizer, self.loss_obj = self.build_optimizer_loss()
 
         num_iter = self.hyperparam["optim_iter"]
