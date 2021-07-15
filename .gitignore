@@ -133,4 +133,5 @@ archive/
 *.csv
 *.txt
 
+*.zip
 save/
