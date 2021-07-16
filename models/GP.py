@@ -64,7 +64,7 @@ class IndependentGP(BaseTrainModel):
         self.model.eval()
         self.likelihood.eval()
     
-    def predict_step_ahead(self, test_data, step_ahead, ci=0.9):
+    def predict_step_ahead(self, test_data, step_ahead, all_date, ci=0.9):
         """
         Args: (See superclass)
         Returns: (See superclass)
@@ -84,6 +84,7 @@ class IndependentGP(BaseTrainModel):
         size_test_data = inp_test.shape[0]
         assert step_ahead <= size_test_data
         
+        date_size = len(all_date)
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
             test_x = torch.from_numpy(inp_test).float()
             if self.hyperparam["is_gpu"]:
@@ -94,8 +95,8 @@ class IndependentGP(BaseTrainModel):
             lower, upper = pred.confidence_region()
             pred_lower = lower.detach().cpu().numpy().tolist()
             pred_upper = upper.detach().cpu().numpy().tolist()
-        
-        return pred_mean, pred_lower, pred_upper
+ 
+        return pred_mean, pred_lower, pred_upper, all_date[date_size-step_ahead:]
     
     def save(self, path):
         torch.save(self.model.state_dict(), path + ".pth")

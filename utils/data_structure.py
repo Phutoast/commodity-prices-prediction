@@ -80,7 +80,7 @@ class DatasetTaskDesc(dict):
             raise ValueError("Date has to be included in use_feature (but can be removed later)")
         
         if out_feature in use_feature:
-            raise ValueError("Duplication between the output column and Feature")
+            warnings.warn(UserWarning("Duplication between the output column and Feature"))
         
         if isinstance(use_feat_tran_lag, list):
             if len(use_feat_tran_lag) != len(use_feature):

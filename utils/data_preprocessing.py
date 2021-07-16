@@ -204,32 +204,56 @@ def load_dataset_from_desc(dataset_desc):
     default_trans = (0, 0, lambda x: x)
     base_name = "FeatureFamily."
 
+    def find_version(list_parse):
+        if len(list_parse) != 1:
+            assert len(list_parse) == 2
+            feature_version = list_parse[-1]
+            ver = f"-{feature_version}"
+        else:
+            ver = ""
+        return ver
+
+
     def get_loc_feat(feat_name):
         if feat_name != "Date":
             parse_out_feat = feat_name.split(".")
             out_metal_ind = inp_metal_list.index(parse_out_feat[0])
-            feature_name = parse_out_feat[1]
+
+            feature_parse = parse_out_feat[1].split("-")
+            feature_name = feature_parse[0]
+
+            ver = find_version(feature_parse)
 
             if feature_name == "Price":
-                return (out_metal_ind, feature_name)
+                return (out_metal_ind, feature_name+ver)
             else:
-                return (out_metal_ind, base_name+feature_name)
+                return (out_metal_ind, base_name+feature_name+ver)
         else:
             return (None, "Date")
     
     def get_final_feat_name(loc, name):
+
+        name_list = name.split("-")
+        name = name_list[0]
+
+        ver = find_version(name_list)
+
         if name == "Date":
             return "Out_Date"
         
         if name == "Price":
-            return inp_metal_list[loc] + ".Price"
-        
-        return inp_metal_list[loc] + "." + name.split(".")[1]
+            return inp_metal_list[loc] + ".Price" + ver
+         
+        return inp_metal_list[loc] + "." + name.split(".")[1] + ver
     
     def load_data_all(dataset_index, feature_name, return_trans):
         if return_trans is None:
             return_trans = default_trans
         
+        full_feature_name = feature_name
+        # A trick is that if there is no separators, then we doesn't change anything
+        feature_name = feature_name.split("-")[0]
+
         return_lag, skip, transform = return_trans
         if feature_name == "Price":
             transform = lambda x: np.log(x)
@@ -250,16 +274,16 @@ def load_dataset_from_desc(dataset_desc):
         )
 
         column.columns = ["Date", get_final_feat_name(
-            dataset_index, feature_name
+            dataset_index, full_feature_name
         )]
 
         return date, column
-
+    
     inp_metal_list = dataset_desc["inp_metal_list"]
     use_feat = dataset_desc["feature"]
     use_feat_tran_lag = dataset_desc["inp_feat_tran_lag"]
     out_feat = dataset_desc["out_feature"]
-    
+
     list_loc_use_feat = [get_loc_feat(feat) for feat in use_feat]
     out_dataset_index, out_feature_name = get_loc_feat(out_feat)
     out_return_trans = dataset_desc["out_feat_tran_lag"]
@@ -315,14 +339,15 @@ def load_dataset_from_desc(dataset_desc):
     output_feature = extract_data(out_date, out_column)
     list_feature_name = list(output_feature.keys())
     assert len(list_feature_name) == 1
-    output_col_name = ["Date-Out", list_feature_name[0]]
+    output_col_name = ["Date-Out", "Output"]
+    output_feature = {"Output": output_feature[list_feature_name[0]]}
     data_frame.update(
         output_feature
     )
  
     all_data_frame = pd.DataFrame(data_frame)
     if dataset_desc["is_drop_nan"]:
-        if all_data_frame[list_feature_name[0]].isnull().values.any():
+        if all_data_frame["Output"].isnull().values.any():
             warnings.warn(UserWarning("There is a NaN in the output, we can still drop it but the time series may be irregular."))
         all_data_frame = all_data_frame.dropna()
     

@@ -234,9 +234,9 @@ def walk_forward(all_data, task_setting, multi_model_class, loss, size_train,
                     len_pred_list.append(len(all_date_pred))
                     date_pred_list.append(all_date_pred)
                 else:
+                    len_pred_list.append(len(all_date_pred))
                     all_date_pred = [convert_date(d) for d in basis_time_step]
                     
-                    len_pred_list.append(len(all_date_pred))
                     date_pred_list.append(all_date_pred)
 
             # date_pred_list.append(all_date_pred)

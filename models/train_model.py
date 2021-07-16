@@ -83,7 +83,7 @@ class BaseTrainModel(BaseModel):
     def load_kernel(self, kernel_name):
         return copy.deepcopy(algo_dict.kernel_name[kernel_name])
     
-    def predict_step_ahead(self, test_data, step_ahead, ci=0.9):
+    def predict_step_ahead(self, test_data, step_ahead, all_date, ci=0.9):
         """
         Args: (See superclass)
         Returns: (See superclass)
@@ -111,7 +111,10 @@ class BaseTrainMultiTask(BaseTrainModel):
         hyperparam = list_config[0][0]
         super().__init__(list_train_data, hyperparam)
     
-    def pack_data_merge(self, list_train_data, include_label):
+    def merge_all_data(self, data_list, label_list):
+        raise NotImplementedError()
+    
+    def pack_data_merge(self, list_train_data, include_label, using_first=False):
         """
         In the case where the input is the same, 
             but have difference output, we will pack the data 
@@ -119,37 +122,45 @@ class BaseTrainMultiTask(BaseTrainModel):
             the first one. This implies that the first dataset present, will be the "basis" of the data.
         """
         data_list, label_list = [], []
+        expected_data_len = np.inf
         for train_data in list_train_data:
             packed_data = self.pack_data(
                 train_data, 
                 is_label=include_label
             )
-            data_list.append(packed_data[:, :-1])
+
+            dataset = packed_data[:, :-1]
+            len_data = dataset.shape[0]
+
+            if expected_data_len > len_data:
+                expected_data_len = len_data
+
+            data_list.append(dataset)
             label_list.append(packed_data[:, [-1]])
 
-        if self.using_first: 
+        if using_first: 
+            # Using using_first have to reduce the number of dataset, 
+            # this is seen as ineffective use of dataset aka. it is the model fault 
+            # not able to use all the avaliable data
+            
+            label_list = [l[:expected_data_len] for l in label_list]
+            data_list = [d[:expected_data_len] for d in data_list]
             return data_list[0], np.concatenate(label_list, axis=1)
         else:
-            train_ind = [
-                np.ones(shape=(data_list[i].shape[0], 1), dtype=np.float32) * i
-                for i in range(self.num_task)
-            ] 
-            all_train_data = np.concatenate(data_list, axis=0)
-            all_train_ind = np.concatenate(train_ind, axis=0)
-            return (all_train_data, all_train_ind), np.concatenate(label_list, axis=0).flatten()
+            return self.merge_all_data(data_list, label_list)
     
     def predict(self, list_test_data, list_step_ahead, list_all_date, ci=0.9):
-        all_mean, all_lower, all_upper = self.predict_step_ahead(
-            list_test_data, list_step_ahead
+        all_mean, all_lower, all_upper, all_date = self.predict_step_ahead(
+            list_test_data, list_step_ahead, list_all_date
         )
 
         pred_list = []
         for i in range(self.num_task):
             pred_list.append(data_visualization.pack_result_data(
-                all_mean[:, i].tolist(), 
-                all_lower[:, i].tolist(), 
-                all_upper[:, i].tolist(),  
-                list_all_date[i]
+                all_mean[i].tolist(), 
+                all_lower[i].tolist(), 
+                all_upper[i].tolist(),  
+                all_date[i]
             ))
 
         return pred_list

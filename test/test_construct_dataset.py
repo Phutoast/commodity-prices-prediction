@@ -43,7 +43,7 @@ class ConstructMergeDataset(unittest.TestCase):
         new=generate_fake_data
     )
     def test_data_leak(self): 
-        with self.assertRaises(ValueError) as context:
+        with pytest.warns(UserWarning, match="Duplication between the output column and Feature"):
             simple_desc = DatasetTaskDesc(
                 inp_metal_list=["metal1"],
                 use_feature=["Date", "metal1.Feature1"],
@@ -51,10 +51,6 @@ class ConstructMergeDataset(unittest.TestCase):
                 out_feature="metal1.Feature1",
                 out_feat_tran_lag=(0, 0, lambda x: np.log(x)),
             )
-        
-        self.assertTrue(
-            "Duplication between the output column and Feature" in str(context.exception)
-        )
     
     @patch(
         "utils.data_preprocessing.load_metal_data", 
@@ -64,7 +60,7 @@ class ConstructMergeDataset(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             simple_desc = DatasetTaskDesc(
                 inp_metal_list=["metal1"],
-                use_feature=["Date", "metal1.Feature1"],
+                use_feature=["Date", "metal1.Feature1-1"],
                 use_feat_tran_lag=[None],
                 out_feature="metal1.Feature2",
                 out_feat_tran_lag=(0, 0, lambda x: np.log(x)),
@@ -1677,3 +1673,274 @@ class ConstructMergeDataset(unittest.TestCase):
         real_out["Output"] = np.array(expected_out)[all_loc_not_nan]
         
         assert_frame_equal(target[["Output"]], real_out) 
+    
+    @patch(
+        "utils.data_preprocessing.load_metal_data", 
+        new=generate_fake_data
+    )
+    def test_load_data_price_same_feature_name_no_lag(self):
+        pred_feature_out = ["Date", "metal1.Price"]
+        with pytest.warns(UserWarning, match="Duplication between the output column and Feature"):
+            simple_desc = DatasetTaskDesc(
+                inp_metal_list=["metal1"],
+                use_feature=pred_feature_out,
+                use_feat_tran_lag=None,
+                out_feature="metal1.Price",
+                out_feat_tran_lag=None,
+            )
+        feature, target = load_dataset_from_desc(simple_desc)
+        real_data = generate_fake_data("metal1")
+
+        self.assertEqual(list(feature.columns), ["Date", "metal1.Price"])
+        real_feature = [
+            (real_data["Date"], feature["Date"]),
+            (np.log(real_data["Price"]), feature["metal1.Price"]),
+        ] 
+        self.assertTrue(all(
+            real.equals(our_out) for real, our_out in real_feature
+        ))
+        
+        real_out = real_data[["Price"]]
+        real_out.columns = ["Output"]
+        
+        # Note That we setout that all price should at least be log
+        assert_frame_equal(target[["Output"]], np.log(real_out))
+    
+    @patch(
+        "utils.data_preprocessing.load_metal_data", 
+        new=generate_fake_data
+    )
+    def test_load_data_price_same_feature_name_lag(self):
+        pred_feature_out = ["Date", "metal1.Price"]
+        with pytest.warns(UserWarning, match="Duplication between the output column and Feature"):
+            simple_desc = DatasetTaskDesc(
+                inp_metal_list=["metal1"],
+                use_feature=pred_feature_out,
+                use_feat_tran_lag=[None, (5, 0, lambda x: x)],
+                out_feature="metal1.Price",
+                out_feat_tran_lag=None,
+            )
+        feature, target = load_dataset_from_desc(simple_desc)
+        real_data = generate_fake_data("metal1")
+        total_len_data = len(real_data)
+        exp_len_data = total_len_data-5
+
+        self.assertEqual(len(feature), len(target), exp_len_data)
+        self.assertEqual(list(feature.columns), ["Date", "metal1.Price"])
+
+        fake_data = real_data["Price"].to_list()
+        expected_out = []
+        for i in range(len(fake_data)-5):
+            expected_out.append(np.log(fake_data[i+5]) - np.log(fake_data[i]))
+
+        real_feature = [
+            (real_data["Date"][:exp_len_data].to_list(), feature["Date"].to_list()),
+            (expected_out, feature["metal1.Price"].to_list()),
+        ] 
+        self.assertTrue(all(
+            real == our_out for real, our_out in real_feature
+        ))
+        
+        real_out = real_data[["Price"]][:exp_len_data]
+        real_out.columns = ["Output"]
+        
+        # Note That we setout that all price should at least be log
+        assert_frame_equal(target[["Output"]], np.log(real_out))
+    
+    @patch(
+        "utils.data_preprocessing.load_metal_data", 
+        new=generate_fake_data
+    )
+    def test_load_data_price_same_feature_version_marked(self):
+        pred_feature_out = ["Date", "metal1.Price-1"]
+        simple_desc = DatasetTaskDesc(
+            inp_metal_list=["metal1"],
+            use_feature=pred_feature_out,
+            use_feat_tran_lag=None,
+            out_feature="metal1.Price",
+            out_feat_tran_lag=None,
+        )
+        feature, target = load_dataset_from_desc(simple_desc)
+        real_data = generate_fake_data("metal1")
+
+        self.assertEqual(list(feature.columns), ["Date", "metal1.Price-1"])
+        real_feature = [
+            (real_data["Date"], feature["Date"]),
+            (np.log(real_data["Price"]), feature["metal1.Price-1"]),
+        ] 
+        self.assertTrue(all(
+            real.equals(our_out) for real, our_out in real_feature
+        ))
+        
+        real_out = real_data[["Price"]]
+        real_out.columns = ["Output"]
+        
+        # Note That we setout that all price should at least be log
+        assert_frame_equal(target[["Output"]], np.log(real_out))
+    
+    @patch(
+        "utils.data_preprocessing.load_metal_data", 
+        new=generate_fake_data
+    )
+    def test_load_data_price_same_feature_multiple_name_same_val(self):
+        pred_feature_out = ["Date", "metal1.Price-1", "metal1.Price-2"]
+        simple_desc = DatasetTaskDesc(
+            inp_metal_list=["metal1"],
+            use_feature=pred_feature_out,
+            use_feat_tran_lag=None,
+            out_feature="metal1.Price",
+            out_feat_tran_lag=None,
+        )
+        feature, target = load_dataset_from_desc(simple_desc)
+        real_data = generate_fake_data("metal1")
+
+        self.assertEqual(list(feature.columns), pred_feature_out)
+        real_feature = [
+            (real_data["Date"], feature["Date"]),
+            (np.log(real_data["Price"]), feature["metal1.Price-1"]),
+            (np.log(real_data["Price"]), feature["metal1.Price-2"]),
+        ] 
+        self.assertTrue(all(
+            real.equals(our_out) for real, our_out in real_feature
+        ))
+        
+        real_out = real_data[["Price"]]
+        real_out.columns = ["Output"]
+        
+        # Note That we setout that all price should at least be log
+        assert_frame_equal(target[["Output"]], np.log(real_out))
+    
+    @patch(
+        "utils.data_preprocessing.load_metal_data", 
+        new=generate_fake_data
+    )
+    def test_load_data_price_same_feature_lag_one_version(self):
+        pred_feature_out = ["Date", "metal1.Price-1", "metal1.Price-2"]
+        simple_desc = DatasetTaskDesc(
+            inp_metal_list=["metal1"],
+            use_feature=pred_feature_out,
+            use_feat_tran_lag=[None, (5, 0, lambda x: x), None],
+            out_feature="metal1.Price",
+            out_feat_tran_lag=None,
+        )
+        feature, target = load_dataset_from_desc(simple_desc)
+        real_data = generate_fake_data("metal1")
+        total_len_data = len(real_data)
+        exp_len_data = total_len_data-5
+
+        fake_data = real_data["Price"].to_list()
+        expected_out = []
+        for i in range(len(fake_data)-5):
+            expected_out.append(np.log(fake_data[i+5]) - np.log(fake_data[i]))
+
+        self.assertEqual(len(feature), len(target), exp_len_data)
+        self.assertEqual(list(feature.columns), pred_feature_out)
+        real_feature = [
+            (real_data["Date"][:exp_len_data].to_list(), feature["Date"].to_list()),
+            (expected_out, feature["metal1.Price-1"].to_list()),
+            (np.log(real_data["Price"])[:exp_len_data].to_list(), feature["metal1.Price-2"].to_list()),
+        ] 
+        self.assertTrue(all(
+            real == our_out for real, our_out in real_feature
+        ))
+        
+        real_out = real_data[["Price"]][:exp_len_data]
+        real_out.columns = ["Output"]
+        
+        # Note That we setout that all price should at least be log
+        assert_frame_equal(target[["Output"]], np.log(real_out))
+    
+    @patch(
+        "utils.data_preprocessing.load_metal_data", 
+        new=generate_fake_data
+    )
+    def test_load_data_price_same_feature_more_than_1_lag(self):
+        pred_feature_out = ["Date", "metal1.Price-1", "metal1.Price-2"]
+        simple_desc = DatasetTaskDesc(
+            inp_metal_list=["metal1"],
+            use_feature=pred_feature_out,
+            use_feat_tran_lag=[None, (5, 0, lambda x: x), (3, 0, lambda x: x)],
+            out_feature="metal1.Price",
+            out_feat_tran_lag=None,
+        )
+        feature, target = load_dataset_from_desc(simple_desc)
+        real_data = generate_fake_data("metal1")
+        total_len_data = len(real_data)
+        exp_len_data = total_len_data-5
+
+        fake_data = real_data["Price"].to_list()
+        expected_out = []
+        for i in range(len(fake_data)-5):
+            expected_out.append(np.log(fake_data[i+5]) - np.log(fake_data[i]))
+        
+        expected_out_2 = []
+        for i in range(len(fake_data)-3):
+            expected_out_2.append(np.log(fake_data[i+3]) - np.log(fake_data[i]))
+
+        self.assertEqual(len(feature), len(target), exp_len_data)
+        self.assertEqual(list(feature.columns), pred_feature_out)
+        real_feature = [
+            (real_data["Date"][:exp_len_data].to_list(), feature["Date"].to_list()),
+            (expected_out, feature["metal1.Price-1"].to_list()),
+            (expected_out_2[:exp_len_data], feature["metal1.Price-2"].to_list()),
+        ] 
+
+        self.assertTrue(all(
+            real == our_out for real, our_out in real_feature
+        ))
+        
+        real_out = real_data[["Price"]][:exp_len_data]
+        real_out.columns = ["Output"]
+        
+        # Note That we setout that all price should at least be log
+        assert_frame_equal(target[["Output"]], np.log(real_out))
+    
+    @patch(
+        "utils.data_preprocessing.load_metal_data", 
+        new=generate_fake_data
+    )
+    def test_load_data_price_same_feature_all_lag_output_too(self):
+        pred_feature_out = ["Date", "metal1.Price-1", "metal1.Price-2"]
+        simple_desc = DatasetTaskDesc(
+            inp_metal_list=["metal1"],
+            use_feature=pred_feature_out,
+            use_feat_tran_lag=[None, (5, 0, lambda x: x), (3, 0, lambda x: x)],
+            out_feature="metal1.Price",
+            out_feat_tran_lag=(1, 0, lambda x: x),
+        )
+        feature, target = load_dataset_from_desc(simple_desc)
+        real_data = generate_fake_data("metal1")
+        total_len_data = len(real_data)
+        exp_len_data = total_len_data-5
+
+        fake_data = real_data["Price"].to_list()
+        expected_out = []
+        for i in range(len(fake_data)-5):
+            expected_out.append(np.log(fake_data[i+5]) - np.log(fake_data[i]))
+        
+        expected_out_2 = []
+        for i in range(len(fake_data)-3):
+            expected_out_2.append(np.log(fake_data[i+3]) - np.log(fake_data[i]))
+        
+        expected_out_3 = []
+        for i in range(len(fake_data)-1):
+            expected_out_3.append(np.log(fake_data[i+1]) - np.log(fake_data[i]))
+
+        self.assertEqual(len(feature), len(target), exp_len_data)
+        self.assertEqual(list(feature.columns), pred_feature_out)
+        real_feature = [
+            (real_data["Date"][:exp_len_data].to_list(), feature["Date"].to_list()),
+            (expected_out, feature["metal1.Price-1"].to_list()),
+            (expected_out_2[:exp_len_data], feature["metal1.Price-2"].to_list()),
+        ] 
+
+        self.assertTrue(all(
+            real == our_out for real, our_out in real_feature
+        ))
+        
+        real_out = real_data[["Price"]][:exp_len_data]
+        real_out.columns = ["Output"]
+        real_out["Output"] = expected_out_3[:exp_len_data]
+        
+        # Note That we setout that all price should at least be log
+        assert_frame_equal(target[["Output"]], real_out)

@@ -69,6 +69,7 @@ def create_task(len_inp, len_out, len_pred_show, dataset_desc):
         convert_date=True, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=False
     )     
     features_train, log_prices_train, feature_test, log_prices_test = splitted_data[0]
+    print(feature_test.head(25))
     train_dataset = prepare_dataset(
         features_train, first_day, log_prices_train, 
         len_inp=len_inp, len_out=len_out, return_lag=return_lag, 
@@ -172,9 +173,9 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
                 len_pred_list.append(len(all_date_pred))
                 date_pred_list.append(all_date_pred)
             else:
+                len_pred_list.append(len(all_date_pred))
                 all_date_pred = [convert_date(d) for d in basis_time_step]
                 
-                len_pred_list.append(len(all_date_pred))
                 date_pred_list.append(all_date_pred)
 
         # Used For Display
@@ -290,5 +291,5 @@ def example_plot_walk_forward(exp_setting, model_name, load_path, is_save=False,
         fig.savefig(f"img/walk_forward_task_{model_name}_task_{task_number}")
     
     show_result_fold(fold_result, exp_setting)
-    plt.show()
+    # plt.show()
 

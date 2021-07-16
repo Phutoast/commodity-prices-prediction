@@ -29,7 +29,7 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
     
     def prepare_data(self):
         all_data, self.train_y = self.pack_data_merge(
-            self.train_data, self.hyperparam["is_past_label"]
+            self.train_data, self.hyperparam["is_past_label"], self.using_first
         )
         self.train_y = torch.from_numpy(self.train_y).float()
 
@@ -69,8 +69,11 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
     def after_training(self):
         self.model.eval()
         self.likelihood.eval()
+    
+    def merge_all_data(self, data_list, label_list):
+        return data_list, label_list
 
-    def predict_step_ahead(self, list_test_data, list_step_ahead, ci=0.9):
+    def predict_step_ahead(self, list_test_data, list_step_ahead, list_all_date, ci=0.9):
         """
         Predict multiple independent multi-model data
 
@@ -86,14 +89,20 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
         self.model.eval()
         self.likelihood.eval()
         
-        all_data, _ = self.pack_data_merge(
-            list_test_data, self.hyperparam["is_past_label"]
+        all_data_list, _ = self.pack_data_merge(
+            list_test_data, self.hyperparam["is_past_label"], using_first=False
         )
+        all_data = all_data_list[0]
+
         if self.hyperparam["is_time_only"]:
             all_data = all_data[:, 0]
         else:
             all_data = all_data[:, :-1]
-        assert all(step_ahead <= all_data.shape[0] for step_ahead in list_step_ahead)
+        
+        # Make sure that the first one is the biggest
+        max_size = all_data_list[0].shape[0]
+        assert max(d.shape[0] for d in all_data_list) == max_size
+        assert all(step_ahead <= data.shape[0] for step_ahead, data in zip(list_step_ahead, all_data_list))
 
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
             test_x = torch.from_numpy(all_data).float()
@@ -106,7 +115,20 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
             pred_lower = lower.detach().cpu().numpy()
             pred_upper = upper.detach().cpu().numpy()
 
-        return pred_mean, pred_lower, pred_upper
+        list_pred_mean = []        
+        list_pred_lower = []
+        list_pred_upper = []
+        all_date = []
+
+        for i in range(self.num_task):
+            expect_size_data = all_data_list[i].shape[0]
+            advance_index = max_size - expect_size_data
+            list_pred_mean.append(pred_mean[advance_index:, i])
+            list_pred_lower.append(pred_lower[advance_index:, i])
+            list_pred_upper.append(pred_upper[advance_index:, i])
+            all_date.append(list_all_date[i][advance_index:])
+
+        return list_pred_mean, list_pred_lower, list_pred_upper, all_date
 
 
     def save(self, base_path):

@@ -25,6 +25,15 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
 
         assert not using_first
     
+    def merge_all_data(self, data_list, label_list):
+        train_ind = [
+            np.ones(shape=(data_list[i].shape[0], 1), dtype=np.float32) * i
+            for i in range(self.num_task)
+        ] 
+        all_train_data = np.concatenate(data_list, axis=0)
+        all_train_ind = np.concatenate(train_ind, axis=0)
+        return (all_train_data, all_train_ind), np.concatenate(label_list, axis=0).flatten()
+     
     def prepare_data(self):
         (all_data, train_ind), self.train_y = self.pack_data_merge(
             self.train_data, self.hyperparam["is_past_label"]
@@ -77,7 +86,7 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
         self.model.eval()
         self.likelihood.eval()
 
-    def predict_step_ahead(self, list_test_data, list_step_ahead, ci=0.9):
+    def predict_step_ahead(self, list_test_data, list_step_ahead, list_all_date, ci=0.9):
         self.model.eval()
         self.likelihood.eval() 
         
@@ -108,15 +117,11 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
         list_mean, list_lower, list_upper = [], [], [] 
         for i in range(self.num_task):
             index_task = (test_ind == i).nonzero(as_tuple=True)[0]
-            list_mean.append(np.reshape(pred_mean[index_task], (-1, 1)))
-            list_lower.append(np.reshape(pred_lower[index_task], (-1, 1)))
-            list_upper.append(np.reshape(pred_upper[index_task], (-1, 1)))
+            list_mean.append(np.reshape(pred_mean[index_task], (-1)))
+            list_lower.append(np.reshape(pred_lower[index_task], (-1)))
+            list_upper.append(np.reshape(pred_upper[index_task], (-1)))
         
-        return (
-            np.concatenate(list_mean, axis=1), 
-            np.concatenate(list_lower, axis=1), 
-            np.concatenate(list_upper, axis=1)
-        )
+        return list_mean, list_lower, list_upper, list_all_date
 
 
     def save(self, base_path):

@@ -122,7 +122,7 @@ class FullARModel(BaseModel):
         self.upper_rollout += upper
         self.lower_rollout += lower
 
-    def predict_step_ahead(self, test_data, step_ahead, ci=0.9):
+    def predict_step_ahead(self, test_data, step_ahead, all_date, ci=0.9):
         self.initialize()
         span_per_round = self.hyperparam["len_out"]
         assert span_per_round <= step_ahead
@@ -138,7 +138,7 @@ class FullARModel(BaseModel):
             mean, upper, lower = self.predict_fix_step(span_per_round, ci)
             self.add_results(mean, upper, lower)
 
-            # Constantly adding the data
+            # Constantly adding the data 
             self.append_all_data(data[i])
             
         if num_left > 0:
@@ -147,4 +147,7 @@ class FullARModel(BaseModel):
             mean, upper, lower = self.predict_fix_step(num_left, ci)
             self.add_results(mean, upper, lower)
         
-        return self.pred_rollout, self.upper_rollout, self.lower_rollout
+        len_date = len(all_date)
+        pred_len = num_iter*span_per_round
+
+        return self.pred_rollout, self.upper_rollout, self.lower_rollout, all_date[len_date-pred_len:]

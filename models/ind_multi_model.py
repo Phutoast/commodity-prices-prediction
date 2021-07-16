@@ -80,7 +80,7 @@ class IndependentMultiModel(object):
         
         if self.using_first:
             list_test_data = replace_dataset(list_test_data)
-
+        
         return [
             # WE have to follow the first one, so we will ignore the actual dataset.
             self.models[i].predict(

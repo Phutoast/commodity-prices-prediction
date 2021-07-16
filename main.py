@@ -12,6 +12,7 @@ from models.GP_multi_out import GPMultiTaskMultiOut
 from models.GP_multi_index import GPMultiTaskIndex
 
 from utils.data_structure import DatasetTaskDesc
+from experiments import algo_dict
 
 import warnings
 # warnings.filterwarnings("ignore")
@@ -34,18 +35,18 @@ def main():
             "sub_model": ["GP-Multi-Task", "GP-Multi-Task"],
             "dataset": [
                 DatasetTaskDesc(
-                    inp_metal_list=["aluminium", "copper"],
-                    use_feature=["Date", "copper.Price"],
-                    use_feat_tran_lag=[None, (22, 1, lambda x: x)],
-                    out_feature="aluminium.Price",
-                    out_feat_tran_lag=(22, 1, lambda x: x),
-                ),
-                DatasetTaskDesc(
-                    inp_metal_list=["aluminium", "copper"],
+                    inp_metal_list=["aluminium"],
                     use_feature=["Date"],
                     use_feat_tran_lag=None,
-                    out_feature="copper.Price",
-                    out_feat_tran_lag=(22, 1, lambda x: x),
+                    out_feature="aluminium.Price",
+                    out_feat_tran_lag=(22, 0, lambda x: x),
+                ),
+                DatasetTaskDesc(
+                    inp_metal_list=["aluminium"],
+                    use_feature=["Date"],
+                    use_feat_tran_lag=None,
+                    out_feature="aluminium.Price",
+                    out_feat_tran_lag=(44, 0, lambda x: x),
                 ),
             ],
             # Only used for plot all_algo_lag
@@ -63,20 +64,20 @@ def main():
                     use_feature=["Date"],
                     use_feat_tran_lag=None,
                     out_feature="aluminium.Price",
-                    out_feat_tran_lag=(22, 1, lambda x: x),
+                    out_feat_tran_lag=(22, 0, lambda x: x),
                 ),
                 DatasetTaskDesc(
-                    inp_metal_list=["copper"],
+                    inp_metal_list=["aluminium"],
                     use_feature=["Date"],
                     use_feat_tran_lag=None,
-                    out_feature="copper.Price",
-                    out_feat_tran_lag=(22, 1, lambda x: x),
+                    out_feature="aluminium.Price",
+                    out_feat_tran_lag=(44, 0, lambda x: x),
                 ),
             ],
             # Only used for plot all_algo_lag
             "len_pred_show": [100, 100]
         }, "algo": IndependentMultiModel, 
-        "using_first": False
+        "using_first": True
     }
     
     exp_setting3 = {
@@ -88,14 +89,14 @@ def main():
                     use_feature=["Date"],
                     use_feat_tran_lag=None,
                     out_feature="aluminium.Price",
-                    out_feat_tran_lag=(22, 1, lambda x: x),
+                    out_feat_tran_lag=(22, 0, lambda x: x),
                 ),
                 DatasetTaskDesc(
-                    inp_metal_list=["copper"],
+                    inp_metal_list=["aluminium"],
                     use_feature=["Date"],
                     use_feat_tran_lag=None,
-                    out_feature="copper.Price",
-                    out_feat_tran_lag=(22, 1, lambda x: x),
+                    out_feature="aluminium.Price",
+                    out_feat_tran_lag=(44, 0, lambda x: x),
                 ),
             ],
             # Only used for plot all_algo_lag
@@ -103,21 +104,62 @@ def main():
         }, "algo": GPMultiTaskIndex, 
         "using_first": False
     }
+    
+    exp_setting4 = {
+        "task": {
+            "sub_model": ["Mean", "Mean"],
+            "dataset": [
+                DatasetTaskDesc(
+                    inp_metal_list=["aluminium"],
+                    use_feature=["Date"],
+                    use_feat_tran_lag=None,
+                    out_feature="aluminium.Price",
+                    out_feat_tran_lag=(22, 0, lambda x: x),
+                ),
+                DatasetTaskDesc(
+                    inp_metal_list=["aluminium"],
+                    use_feature=["Date"],
+                    use_feat_tran_lag=None,
+                    out_feature="aluminium.Price",
+                    out_feat_tran_lag=(44, 0, lambda x: x),
+                ),
+            ],
+            # Only used for plot all_algo_lag
+            "len_pred_show": [100, 100]
+        }, "algo": IndependentMultiModel, 
+        # There is a problem with the display when not using first of the data.....
+        "using_first": False
+    }
 
     if test_type == "f":
         example_plot_all_algo_lag(
-            exp_setting1, is_save=True, is_load=False,
+            exp_setting4, is_save=True, is_load=False,
             load_path="GP-Multi"
             # load_path="07-14-21-19-38-29-GP-Multi"
         )
     elif test_type == "w":
+        
+        for (_, v) in algo_dict.algorithms_dic.items():
+            v[0]["is_verbose"] = False
+        print("Multi-Task Out")
         example_plot_walk_forward(exp_setting1, "Multi-GP",
             is_save=True, is_load=False,
             load_path="Multi-GP"
         )
-        example_plot_walk_forward(exp_setting2, "Independent-GP",
+        print("Independent GP")
+        example_plot_walk_forward(exp_setting2, "Multi-GP",
             is_save=True, is_load=False,
-            load_path="Independent-GP"
+            load_path="Multi-GP"
+        )
+        print("Multi-Task Index")
+        example_plot_walk_forward(exp_setting3, "Multi-GP",
+            is_save=True, is_load=False,
+            load_path="Multi-GP"
+        )
+        print("Mean")
+        example_plot_walk_forward(exp_setting4, "Multi-GP",
+            is_save=True, is_load=False,
+            load_path="Multi-GP"
         )
 
 

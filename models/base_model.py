@@ -100,7 +100,7 @@ class BaseModel(object):
         out_data = np.vstack(all_prices)
         return out_data
     
-    def predict_step_ahead(self, test_data, step_ahead, ci=0.9):
+    def predict_step_ahead(self, test_data, step_ahead, all_date, ci=0.9):
         """
         Wrapping by predict method
 
@@ -133,7 +133,9 @@ class BaseModel(object):
                 lower bound of the prediction and the data necessary to the plotting
         """
         step_ahead = self.hyperparam["len_out"] if step_ahead == -1 else step_ahead
-        pred_rollout, upper_rollout, lower_rollout = self.predict_step_ahead(test_data, step_ahead, ci=0.9)
+        pred_rollout, upper_rollout, lower_rollout, all_date = self.predict_step_ahead(
+            test_data, step_ahead, all_date, ci=0.9
+        )
 
         return data_visualization.pack_result_data(
             pred_rollout, upper_rollout, 
