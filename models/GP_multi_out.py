@@ -7,6 +7,7 @@ import gpytorch
 from models.train_model import BaseTrainMultiTask
 from models.GP_model import MultioutputGP
 from models.GP import IndependentGP
+from utils.data_structure import Hyperparameters
 
 from experiments import algo_dict
 from utils import others
@@ -157,19 +158,23 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
         
         path = base_path + "/multi_GP/"
         path += "model"
-
-        state_dict = torch.load(path + ".pth")
-        self.train_x = torch.load(path + "_x.pt")
-        self.train_y = torch.load(path + "_y.pt")
-        self.mean_x = torch.load(path + "_mean_x.pt")
-        self.std_x = torch.load(path + "_std_x.pt")
+        
+        all_ext = [".pth", "_x.pt", "_y.pt", "_mean_x.pt", "_std_x.pt"]
+        all_data = []
+        if self.hyperparam["is_gpu"]:
+            all_data = [torch.load(path + ext, map_location="cuda:0") for ext in all_ext]
+        else:
+            all_data = [torch.load(path + ext, map_location=torch.device('cpu')) for ext in all_ext]
+        
+        (state_dict, self.train_x, self.train_y, 
+            self.mean_x, self.std_x) = all_data
         
         self.model = MultioutputGP(
             self.train_x, self.train_y, self.likelihood, 
             self.load_kernel(list_config[0][0]["kernel"]), num_task
         )
         
-        if list_config[0][0]["is_gpu"]:
+        if self.hyperparam["is_gpu"]:
             self.model.cuda()
 
         self.model.load_state_dict(state_dict)
@@ -182,8 +187,12 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
         using_first = data["using_first"]
         list_config = data["list_config"]
         num_task = len(list_config)
+        
+        all_list_config = []
+        for (dict_config, type_model) in list_config:
+            all_list_config.append([Hyperparameters(**dict_config), type_model])
 
-        model = cls([[]]*num_task, list_config, using_first)
+        model = cls([[]]*num_task, all_list_config, using_first)
         model.load(path)
         return model
     

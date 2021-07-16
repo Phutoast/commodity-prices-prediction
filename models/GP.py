@@ -106,11 +106,16 @@ class IndependentGP(BaseTrainModel):
         torch.save(self.std_x, path + "_std_x.pt")
     
     def load(self, path):
-        state_dict = torch.load(path + ".pth")
-        self.train_x = torch.load(path + "_x.pt")
-        self.train_y = torch.load(path + "_y.pt")
-        self.mean_x = torch.load(path + "_mean_x.pt")
-        self.std_x = torch.load(path + "_std_x.pt")
+        
+        all_ext = [".pth", "_x.pt", "_y.pt", "_mean_x.pt", "_std_x.pt"]
+        all_data = []
+        if self.hyperparam["is_gpu"]:
+            all_data = [torch.load(path + ext, map_location="cuda:0") for ext in all_ext]
+        else:
+            all_data = [torch.load(path + ext, map_location=torch.device('cpu')) for ext in all_ext]
+        
+        (state_dict, self.train_x, self.train_y, 
+            self.mean_x, self.std_x) = all_data
 
         self.model = OneDimensionGP(
             self.train_x, self.train_y, 

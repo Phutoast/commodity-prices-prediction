@@ -133,7 +133,7 @@ def main():
 
     if test_type == "f":
         example_plot_all_algo_lag(
-            exp_setting4, is_save=True, is_load=False,
+            exp_setting1, is_save=True, is_load=False,
             load_path="GP-Multi"
             # load_path="07-14-21-19-38-29-GP-Multi"
         )
@@ -141,27 +141,43 @@ def main():
         
         for (_, v) in algo_dict.algorithms_dic.items():
             v[0]["is_verbose"] = False
-        print("Multi-Task Out")
-        example_plot_walk_forward(exp_setting1, "Multi-GP",
-            is_save=True, is_load=False,
-            load_path="Multi-GP"
+        
+        # print("Multi-Task Out")
+        # example_plot_walk_forward(exp_setting1, "Multi-GP-Out",
+        #     is_save=True, is_load=False,
+        #     load_path="Multi-GP"
+        # )
+        # print("Independent GP")
+        # example_plot_walk_forward(exp_setting2, "Ind-GP",
+        #     is_save=True, is_load=False,
+        #     load_path="Multi-GP"
+        # )
+        # print("Multi-Task Index")
+        # example_plot_walk_forward(exp_setting3, "Multi-GP-Index",
+        #     is_save=True, is_load=False,
+        #     load_path="Multi-GP"
+        # )
+        # print("Mean")
+        # example_plot_walk_forward(exp_setting4, "Mean",
+        #     is_save=True, is_load=False,
+        #     load_path="Multi-GP"
+        # )
+        example_plot_walk_forward(
+            exp_setting3, "Multi-GP-Index", is_save=False, is_load=True, is_show=False,
+            # load_path="GP-Ind"
+            load_path="07-16-21-22-46-23-Multi-GP-Index"
         )
-        print("Independent GP")
-        example_plot_walk_forward(exp_setting2, "Multi-GP",
-            is_save=True, is_load=False,
-            load_path="Multi-GP"
+        example_plot_walk_forward(
+            exp_setting2, "Ind-GP", is_save=False, is_load=True, is_show=False,
+            # load_path="GP-Ind"
+            load_path="07-16-21-22-46-04-Ind-GP"
         )
-        print("Multi-Task Index")
-        example_plot_walk_forward(exp_setting3, "Multi-GP",
-            is_save=True, is_load=False,
-            load_path="Multi-GP"
+        example_plot_walk_forward(
+            exp_setting1, "Multi-GP-Out", is_save=False, is_load=True, is_show=False,
+            # load_path="GP-Ind"
+            load_path="07-16-21-22-45-34-Multi-GP-Out"
         )
-        print("Mean")
-        example_plot_walk_forward(exp_setting4, "Multi-GP",
-            is_save=True, is_load=False,
-            load_path="Multi-GP"
-        )
-
+    
 
 if __name__ == '__main__':
     main()

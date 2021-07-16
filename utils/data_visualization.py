@@ -248,6 +248,9 @@ def show_result_fold(fold_results, exp_setting):
     header = ["", "All Error", "Interval Error"]
     table = []
 
+    all_mean_error = []
+    all_std_error = []
+
     for i, fold_result in enumerate(fold_results):
         all_error_ind, all_error_intv = [], []
         for result in fold_result:
@@ -258,15 +261,22 @@ def show_result_fold(fold_results, exp_setting):
         task_prop = task_setting["dataset"][i]["out_feat_tran_lag"]
         metal = "+".join(task_setting["dataset"][i]["inp_metal_list"])
 
+        mean_error = np.mean(all_error_ind)
+        std_error = np.std(all_error_ind)/np.sqrt(len(all_error_ind))
+
+        all_mean_error.append(mean_error)
+        all_std_error.append(std_error)
+
         table.append([
             f"Task {i+1} (Metal={metal}, Lag={task_prop[0]}, Step ahead={task_prop[1]})", 
-            f"{round(np.median(all_error_ind), 7)}", 
-            f"{round(np.median(all_error_intv), 7)}"
-            # f"{round(np.mean(all_error_ind), 7)} ± {round(np.std(all_error_ind), 7)}", 
-            # f"{round(np.mean(all_error_intv), 7)} ± {round(np.std(all_error_intv), 7)}"
+            # f"{round(np.median(all_error_ind), 7)}", 
+            # f"{round(np.median(all_error_intv), 7)}"
+            f"{round(mean_error, 7)} ± {round(std_error, 7)}", 
+            f"{round(np.mean(all_error_intv), 7)} ± {round(np.std(all_error_intv)/np.sqrt(len(all_error_intv)), 7)}"
         ])
 
     print(tabulate(table, headers=header, tablefmt="grid"))
+    return all_mean_error, all_std_error
 
 def pack_result_data(mean, upper, lower, x):
     """

@@ -7,6 +7,7 @@ from utils import others
 from models.base_model import BaseModel
 from experiments.algo_dict import class_name
 from utils.data_preprocessing import replace_dataset
+from utils.data_structure import Hyperparameters
 
 class IndependentMultiModel(object):
     """
@@ -143,7 +144,7 @@ class IndependentMultiModel(object):
         # Constructing list config
         list_config = []
         for hyper, name in zip(data["hyperparam"], data["model_class"]):
-            list_config.append((hyper, class_name[name]))
+            list_config.append((Hyperparameters(**hyper), class_name[name]))
         
         model = cls(
             [[]] * num_model, 

@@ -69,7 +69,6 @@ def create_task(len_inp, len_out, len_pred_show, dataset_desc):
         convert_date=True, offset=-1, is_show_progress=False, num_dataset=-1, is_padding=False
     )     
     features_train, log_prices_train, feature_test, log_prices_test = splitted_data[0]
-    print(feature_test.head(25))
     train_dataset = prepare_dataset(
         features_train, first_day, log_prices_train, 
         len_inp=len_inp, len_out=len_out, return_lag=return_lag, 
@@ -232,7 +231,8 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
     fig.tight_layout()        
     plt.show()
 
-def example_plot_walk_forward(exp_setting, model_name, load_path, is_save=False, is_load=True):
+def example_plot_walk_forward(exp_setting, model_name, load_path, 
+    size_train=300, size_test=200, is_save=False, is_load=True, is_show=True):
 
     all_data = []
     return_lag_list = []
@@ -258,7 +258,7 @@ def example_plot_walk_forward(exp_setting, model_name, load_path, is_save=False,
         all_data, exp_setting["task"],  
         exp_setting["algo"],
         metric.square_error, 
-        size_train=300, size_test=200, 
+        size_train=size_train, size_test=size_test, 
         train_offset=1, 
         return_lag_list=return_lag_list, 
         convert_date=convert_date,
@@ -281,15 +281,16 @@ def example_plot_walk_forward(exp_setting, model_name, load_path, is_save=False,
     else:
         fold_result = run_fold()
 
-    for task_number in range(len(all_data)):
-        test_features, test_log_prices, test_convert_date, _ = all_data[task_number]
-        fig, ax = visualize_walk_forward(
-            test_features, test_log_prices, fold_result[task_number], test_convert_date,
-            lag_color="o", pred_color="b", below_err="r",
-            title=f"Task {task_number+1}"
-        )
-        fig.savefig(f"img/walk_forward_task_{model_name}_task_{task_number}")
+    if is_show:
+        for task_number in range(len(all_data)):
+            test_features, test_log_prices, test_convert_date, _ = all_data[task_number]
+            fig, ax = visualize_walk_forward(
+                test_features, test_log_prices, fold_result[task_number], test_convert_date,
+                lag_color="o", pred_color="b", below_err="r",
+                title=f"Task {task_number+1}"
+            )
+            fig.savefig(f"img/walk_forward_task_{model_name}_task_{task_number}")
+        plt.show()
     
-    show_result_fold(fold_result, exp_setting)
-    # plt.show()
+    return show_result_fold(fold_result, exp_setting)
 
