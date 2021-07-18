@@ -12,6 +12,10 @@ from utils.data_structure import Hyperparameters
 from experiments import algo_dict
 from utils import others
 
+import matplotlib.pyplot as plt
+import pandas as pd
+from utils import data_visualization
+
 import copy
 
 class GPMultiTaskMultiOut(BaseTrainMultiTask):
@@ -74,7 +78,7 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
     def merge_all_data(self, data_list, label_list):
         return data_list, label_list
 
-    def predict_step_ahead(self, list_test_data, list_step_ahead, list_all_date, ci=0.9):
+    def predict_step_ahead(self, list_test_data, list_step_ahead, list_all_date, ci=0.9, is_sample=False):
         """
         Predict multiple independent multi-model data
 
@@ -110,26 +114,65 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
             if self.hyperparam["is_gpu"]:
                 test_x = test_x.cuda()
             test_x = self.normalize_data(test_x, is_train=False)
-            pred = self.likelihood(self.model(test_x))
-            pred_mean = pred.mean.detach().cpu().numpy()
-            lower, upper = pred.confidence_region()
-            pred_lower = lower.detach().cpu().numpy()
-            pred_upper = upper.detach().cpu().numpy()
 
-        list_pred_mean = []        
-        list_pred_lower = []
-        list_pred_upper = []
-        all_date = []
+            if not is_sample:
+                pred = self.likelihood(self.model(test_x))
+                pred_mean = pred.mean.detach().cpu().numpy()
+                lower, upper = pred.confidence_region()
+                pred_lower = lower.detach().cpu().numpy()
+                pred_upper = upper.detach().cpu().numpy()
+            else:
+                rv = self.model(test_x)
+                rv = rv.sample(sample_shape=torch.Size([1000])).numpy()
 
-        for i in range(self.num_task):
-            expect_size_data = all_data_list[i].shape[0]
-            advance_index = max_size - expect_size_data
-            list_pred_mean.append(pred_mean[advance_index:, i])
-            list_pred_lower.append(pred_lower[advance_index:, i])
-            list_pred_upper.append(pred_upper[advance_index:, i])
-            all_date.append(list_all_date[i][advance_index:])
+        if not is_sample:
+            list_pred_mean = []        
+            list_pred_lower = []
+            list_pred_upper = []
+            all_date = []
 
-        return list_pred_mean, list_pred_lower, list_pred_upper, all_date
+            for i in range(self.num_task):
+                expect_size_data = all_data_list[i].shape[0]
+                advance_index = max_size - expect_size_data
+                list_pred_mean.append(pred_mean[advance_index:, i])
+                list_pred_lower.append(pred_lower[advance_index:, i])
+                list_pred_upper.append(pred_upper[advance_index:, i])
+                all_date.append(list_all_date[i][advance_index:])
+
+            return list_pred_mean, list_pred_lower, list_pred_upper, all_date
+        else:
+            list_sample = []
+            all_date = []
+            for i in range(self.num_task):
+                expect_size_data = all_data_list[i].shape[0]
+                advance_index = max_size - expect_size_data
+                list_sample.append(rv[:, :, i][:, advance_index:])
+                all_date.append(list_all_date[i][advance_index:])
+
+            return list(zip(list_sample, all_date))
+
+                # --------------------------------------------------------
+                
+                # pred = self.likelihood(self.model(test_x))
+                # pred_mean = pred.mean.detach().cpu().numpy()[advance_index:, i]
+                # lower, upper = pred.confidence_region()
+                # pred_lower = lower.detach().cpu().numpy()[advance_index:, i]
+                # pred_upper = upper.detach().cpu().numpy()[advance_index:, i]
+                
+                # fig, ax = plt.subplots(figsize=(6, 6))
+                # data = {
+                #     "mean": pred_mean,
+                #     "upper": pred_upper,
+                #     "lower": pred_lower,
+                #     "x": list(range(len(pred_mean)))
+                # }
+
+                # df = pd.DataFrame(data)
+                # data_visualization.plot_bound(ax, df, "#0062b8", "ABC")
+                # for j in range(10):
+                #     ax.plot(rv[:, :, i][j, advance_index:], alpha=0.5, color="#0062b8")
+                # plt.show()
+                # assert False
 
 
     def save(self, base_path):

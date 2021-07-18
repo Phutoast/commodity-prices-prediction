@@ -87,7 +87,7 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
         self.model.eval()
         self.likelihood.eval()
 
-    def predict_step_ahead(self, list_test_data, list_step_ahead, list_all_date, ci=0.9):
+    def predict_step_ahead(self, list_test_data, list_step_ahead, list_all_date, ci=0.9, is_sample=False):
         self.model.eval()
         self.likelihood.eval() 
         
@@ -108,21 +108,37 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
                 test_ind = test_ind.cuda()
             test_x = self.normalize_data(test_x, is_train=False)
 
-            pred = self.likelihood(self.model(test_x, test_ind))
-            pred_mean = pred.mean.detach().cpu().numpy()
-            lower, upper = pred.confidence_region()
-            pred_lower = lower.detach().cpu().numpy()
-            pred_upper = upper.detach().cpu().numpy()
-            test_ind = test_ind.detach().cpu()
+            if not is_sample:
+                pred = self.likelihood(self.model(test_x, test_ind))
+                pred_mean = pred.mean.detach().cpu().numpy()
+                lower, upper = pred.confidence_region()
+                pred_lower = lower.detach().cpu().numpy()
+                pred_upper = upper.detach().cpu().numpy()
+                test_ind = test_ind.detach().cpu()
+            else:
+                rv = self.model(test_x, test_ind)
+                rv = rv.sample(sample_shape=torch.Size([1000])).numpy()
         
-        list_mean, list_lower, list_upper = [], [], [] 
-        for i in range(self.num_task):
-            index_task = (test_ind == i).nonzero(as_tuple=True)[0]
-            list_mean.append(np.reshape(pred_mean[index_task], (-1)))
-            list_lower.append(np.reshape(pred_lower[index_task], (-1)))
-            list_upper.append(np.reshape(pred_upper[index_task], (-1)))
-        
-        return list_mean, list_lower, list_upper, list_all_date
+        if not is_sample:
+            list_mean, list_lower, list_upper = [], [], [] 
+            for i in range(self.num_task):
+                index_task = (test_ind == i).nonzero(as_tuple=True)[0]
+                list_mean.append(np.reshape(pred_mean[index_task], (-1)))
+                list_lower.append(np.reshape(pred_lower[index_task], (-1)))
+                list_upper.append(np.reshape(pred_upper[index_task], (-1)))
+            
+            return list_mean, list_lower, list_upper, list_all_date
+        else:
+            list_sample = []
+            for i in range(self.num_task):
+                index_task = (test_ind == i).nonzero(as_tuple=True)[0]
+                list_sample.append(rv[:, index_task])
+
+            assert all(
+                list_sample[i].shape[1] == len(list_all_date[i])
+                for i in range(self.num_task)
+            )
+            return list(zip(list_sample, list_all_date))
 
 
     def save(self, base_path):

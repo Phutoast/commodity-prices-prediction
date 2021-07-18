@@ -8,6 +8,10 @@ from models.train_model import BaseTrainModel
 
 from experiments import algo_dict
 import copy
+
+import matplotlib.pyplot as plt
+import pandas as pd
+from utils import data_visualization
  
 class IndependentGP(BaseTrainModel):
     """
@@ -64,7 +68,7 @@ class IndependentGP(BaseTrainModel):
         self.model.eval()
         self.likelihood.eval()
     
-    def predict_step_ahead(self, test_data, step_ahead, all_date, ci=0.9):
+    def predict_step_ahead(self, test_data, step_ahead, all_date, ci=0.9, is_sample=False):
         """
         Args: (See superclass)
         Returns: (See superclass)
@@ -90,14 +94,20 @@ class IndependentGP(BaseTrainModel):
             if self.hyperparam["is_gpu"]:
                 test_x = test_x.cuda()
             test_x = self.normalize_data(test_x, is_train=False)
-            pred = self.likelihood(self.model(test_x.float()))
-            pred_mean = pred.mean.detach().cpu().numpy().tolist()
-            lower, upper = pred.confidence_region()
-            pred_lower = lower.detach().cpu().numpy().tolist()
-            pred_upper = upper.detach().cpu().numpy().tolist()
+
+            if not is_sample:
+                pred = self.likelihood(self.model(test_x.float()))
+                pred_mean = pred.mean.detach().cpu().numpy().tolist()
+                lower, upper = pred.confidence_region()
+                pred_lower = lower.detach().cpu().numpy().tolist()
+                pred_upper = upper.detach().cpu().numpy().tolist()
+                return pred_mean, pred_lower, pred_upper, all_date[date_size-step_ahead:]
+            else:
+                rv = self.model(test_x.float())
+                rv = rv.sample(sample_shape=torch.Size([1000])).numpy()
+                return rv, all_date[date_size-step_ahead:]
  
-        return pred_mean, pred_lower, pred_upper, all_date[date_size-step_ahead:]
-    
+ 
     def save(self, path):
         torch.save(self.model.state_dict(), path + ".pth")
         torch.save(self.train_x, path + "_x.pt")

@@ -40,12 +40,15 @@ class Hyperparameters(dict):
         is_date: Include date into the training ?
         kwargs: other model specific hyperparameters (e.g hidden-layer size). 
     """
-    def __init__(self, len_inp, len_out, is_date, is_verbose=True, is_gpu=False, **kwargs): 
+    def __init__(self, len_inp, len_out, is_date, 
+        is_verbose=True, is_gpu=False, sample_size=1000, **kwargs): 
+
         self["len_inp"] = len_inp
         self["len_out"] = len_out
         self["is_date"] = is_date
         self["is_verbose"] = is_verbose
         self["is_gpu"] = is_gpu
+        self["sample_size"] = sample_size
 
         if not torch.cuda.is_available() and is_gpu:
             warnings.warn(UserWarning("No CUDA available all used for dogecoin mining, fallback to use CPU."))

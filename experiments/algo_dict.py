@@ -10,25 +10,42 @@ algorithms_dic = {
     # The ind span pred should be the same as len_out
     "ARIMA": [Hyperparameters(
         len_inp=0, 
+        len_out=1, 
+        is_date=False, 
+        order=(2, 0, 5), 
+        is_full_pred=True
+    ), ARIMAModel],
+    "Mean-Cheat": [Hyperparameters(
+        len_inp=0, 
+        len_out=1, 
+        is_date=False, 
+        dist="Gaussian",
+        is_verbose=False,
+        is_full_pred=True
+    ), IIDDataModel],
+    "ARIMA-Cheat": [Hyperparameters(
+        len_inp=0, 
         len_out=10, 
         is_date=False, 
-        order=(10, 2, 5), 
+        order=(2, 1, 5), 
+        is_full_pred=False
     ), ARIMAModel],
     "Mean": [Hyperparameters(
         len_inp=0, 
         len_out=10, 
         is_date=False, 
         dist="Gaussian",
-        is_verbose=False
+        is_verbose=False,
+        is_full_pred=False
     ), IIDDataModel],
     "GP": [Hyperparameters(
         len_inp=10, 
         len_out=1, 
         lr=0.1,
-        optim_iter=1,
+        optim_iter=100,
         is_time_only=False,
         is_date=False, 
-        is_past_label=False,
+        is_past_label=True,
         kernel="Composite_2",
     ), IndependentGP],
     "GP-Test": [Hyperparameters(
@@ -45,7 +62,8 @@ algorithms_dic = {
         len_inp=10, 
         len_out=1, 
         lr=0.1,
-        optim_iter=400,
+        # This will be scaled by the number of tasks
+        optim_iter=200,
         is_time_only=False,
         is_date=False, 
         is_past_label=True,

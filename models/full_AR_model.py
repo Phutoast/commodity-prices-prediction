@@ -17,12 +17,15 @@ class FullARModel(BaseModel):
     def __init__(self, train_data, model_hyperparam):
         super().__init__(train_data, model_hyperparam)
         self.initialize()
+        if self.hyperparam["is_full_pred"]:
+            assert self.hyperparam["len_inp"] + self.hyperparam["len_out"] == 1
     
     def initialize(self):
         """
         Reset all the data for a new prediction.
         """
         self.pred_rollout, self.upper_rollout, self.lower_rollout = [], [], []
+        self.sample = []
     
     def get_all_data(self, train_data, include_miss=True):
         """
@@ -92,7 +95,7 @@ class FullARModel(BaseModel):
         self.all_data = np.concatenate([self.all_data, new_data]) 
     
     
-    def pred_fix_step(self, step_ahead, ci):
+    def predict_fix_step(self, step_ahead, ci, is_sample):
         """
         Predicting a Fixed Step given any specified step_ahead (Used only when performing actual prediction)
 
@@ -109,6 +112,10 @@ class FullARModel(BaseModel):
         """
         raise NotImplementedError()
     
+    def add_sample_result(self, samples):
+        print(samples.shape)
+        self.sample.append(samples)
+    
     def add_results(self, mean, upper, lower):
         """
         Collecting results from the prediction from pred_fix_step.
@@ -121,33 +128,48 @@ class FullARModel(BaseModel):
         self.pred_rollout += mean
         self.upper_rollout += upper
         self.lower_rollout += lower
+    
+    def pred_and_add(self, step_ahead, ci, is_sample):
+        if is_sample:
+            samples = self.predict_fix_step(step_ahead, ci, is_sample)
+            self.add_sample_result(samples)
+        else:
+            mean, upper, lower = self.predict_fix_step(step_ahead, ci, is_sample)
+            self.add_results(mean, upper, lower)
+            
 
-    def predict_step_ahead(self, test_data, step_ahead, all_date, ci=0.9):
+    def predict_step_ahead(self, test_data, step_ahead, all_date, ci=0.9, is_sample=False):
         self.initialize()
         span_per_round = self.hyperparam["len_out"]
         assert span_per_round <= step_ahead
-        
-        data = self.get_batch_test_data(test_data)
 
-        num_iter = math.floor(step_ahead/span_per_round)
-        num_left = step_ahead - span_per_round*num_iter
+        if self.hyperparam["is_full_pred"]:
+            self.pred_and_add(step_ahead, ci, is_sample)
+            pred_len = step_ahead
+        else:
+            data = self.get_batch_test_data(test_data)
 
-        for i in range(num_iter):
-            if self.hyperparam["is_verbose"]:
-                print("Predicting...", i, "/", num_iter)
-            mean, upper, lower = self.predict_fix_step(span_per_round, ci)
-            self.add_results(mean, upper, lower)
+            num_iter = math.floor(step_ahead/span_per_round)
+            num_left = step_ahead - span_per_round*num_iter
 
-            # Constantly adding the data 
-            self.append_all_data(data[i])
-            
-        if num_left > 0:
-            if self.hyperparam["is_verbose"]:
-                print("Predicting num rest", num_left)
-            mean, upper, lower = self.predict_fix_step(num_left, ci)
-            self.add_results(mean, upper, lower)
-        
+            for i in range(num_iter):
+                if self.hyperparam["is_verbose"]:
+                    print("Predicting...", i, "/", num_iter)
+                
+                self.pred_and_add(span_per_round, ci, is_sample)
+
+                # Constantly adding the data 
+                self.append_all_data(data[i])
+
+            if num_left > 0:
+                if self.hyperparam["is_verbose"]:
+                    print("Predicting num rest", num_left)
+                self.pred_and_add(num_left, ci, is_sample)
+            pred_len = num_iter*span_per_round
+         
         len_date = len(all_date)
-        pred_len = num_iter*span_per_round
 
-        return self.pred_rollout, self.upper_rollout, self.lower_rollout, all_date[len_date-pred_len:]
+        if not is_sample:
+            return self.pred_rollout, self.upper_rollout, self.lower_rollout, all_date[len_date-pred_len:]
+        else:
+            return np.concatenate(self.sample, axis=1), all_date[len_date-pred_len:]

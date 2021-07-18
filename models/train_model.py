@@ -110,6 +110,7 @@ class BaseTrainMultiTask(BaseTrainModel):
         # We don't care about the model as we will define here.
         hyperparam = list_config[0][0]
         super().__init__(list_train_data, hyperparam)
+        self.hyperparam["optim_iter"] *= self.num_task
     
     def merge_all_data(self, data_list, label_list):
         raise NotImplementedError()
@@ -149,25 +150,29 @@ class BaseTrainMultiTask(BaseTrainModel):
         else:
             return self.merge_all_data(data_list, label_list)
     
-    def predict(self, list_test_data, list_step_ahead, list_all_date, ci=0.9):
-        all_mean, all_lower, all_upper, all_date = self.predict_step_ahead(
-            list_test_data, list_step_ahead, list_all_date
-        )
+    def predict(self, list_test_data, list_step_ahead, list_all_date, ci=0.9, is_sample=False):
 
-        pred_list = []
-        for i in range(self.num_task):
-            pred_list.append(data_visualization.pack_result_data(
-                all_mean[i].tolist(), 
-                all_lower[i].tolist(), 
-                all_upper[i].tolist(),  
-                all_date[i]
-            ))
+        if not is_sample:
+            all_mean, all_lower, all_upper, all_date = self.predict_step_ahead(
+                list_test_data, list_step_ahead, list_all_date
+            )
 
-        return pred_list
+            pred_list = []
+            for i in range(self.num_task):
+                pred_list.append(data_visualization.pack_result_data(
+                    all_mean[i].tolist(), 
+                    all_lower[i].tolist(), 
+                    all_upper[i].tolist(),  
+                    all_date[i]
+                ))
 
-
-
+        else:
+            all_sample, all_date = self.predict_step_ahead(
+                list_test_data, list_step_ahead, list_all_date, is_sample=is_sample
+            )
+            pred_list = []
+            for i in range(self.num_task):
+                pred_list.append((all_sample[i], all_date[i]))
         
-
-    
+        return pred_list
 

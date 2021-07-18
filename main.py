@@ -12,6 +12,7 @@ from models.GP_multi_out import GPMultiTaskMultiOut
 from models.GP_multi_index import GPMultiTaskIndex
 
 from utils.data_structure import DatasetTaskDesc
+from utils.data_visualization import plot_latex
 from experiments import algo_dict
 
 import warnings
@@ -24,10 +25,12 @@ torch.random.manual_seed(48)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--test-type", help="Type of ", type=str)
+    parser.add_argument("--test-type", help="Type of Testing (w, f)", type=str)
+    parser.add_argument("--iter", help="Number of Training Iteration for GP", type=int)
     args = parser.parse_args()
 
     test_type = args.test_type
+    num_train_iter = args.iter
     create_folder("save")
     
     exp_setting1 = {
@@ -107,7 +110,7 @@ def main():
     
     exp_setting4 = {
         "task": {
-            "sub_model": ["Mean", "Mean"],
+            "sub_model": ["GP", "GP"],
             "dataset": [
                 DatasetTaskDesc(
                     inp_metal_list=["aluminium"],
@@ -130,23 +133,24 @@ def main():
         # There is a problem with the display when not using first of the data.....
         "using_first": False
     }
+        
+    for (k, v) in algo_dict.algorithms_dic.items():
+        v[0]["is_verbose"] = True
+        v[0]["optim_iter"] = num_train_iter    
 
     if test_type == "f":
         example_plot_all_algo_lag(
-            exp_setting1, is_save=True, is_load=False,
+            exp_setting3, is_save=True, is_load=False,
             load_path="GP-Multi"
             # load_path="07-14-21-19-38-29-GP-Multi"
         )
     elif test_type == "w":
         
-        for (_, v) in algo_dict.algorithms_dic.items():
-            v[0]["is_verbose"] = False
-        
-        # print("Multi-Task Out")
-        # example_plot_walk_forward(exp_setting1, "Multi-GP-Out",
-        #     is_save=True, is_load=False,
-        #     load_path="Multi-GP"
-        # )
+        print("Multi-Task Out")
+        example_plot_walk_forward(exp_setting4, "Multi-GP-Out",
+            is_save=False, is_load=False,
+            load_path="Multi-GP"
+        )
         # print("Independent GP")
         # example_plot_walk_forward(exp_setting2, "Ind-GP",
         #     is_save=True, is_load=False,
@@ -162,24 +166,30 @@ def main():
         #     is_save=True, is_load=False,
         #     load_path="Multi-GP"
         # )
-        example_plot_walk_forward(
-            exp_setting3, "Multi-GP-Index", is_save=False, is_load=True, is_show=False,
-            # load_path="GP-Ind"
-            load_path="07-16-21-22-46-23-Multi-GP-Index"
-        )
-        example_plot_walk_forward(
-            exp_setting2, "Ind-GP", is_save=False, is_load=True, is_show=False,
-            # load_path="GP-Ind"
-            load_path="07-16-21-22-46-04-Ind-GP"
-        )
-        example_plot_walk_forward(
-            exp_setting1, "Multi-GP-Out", is_save=False, is_load=True, is_show=False,
-            # load_path="GP-Ind"
-            load_path="07-16-21-22-45-34-Multi-GP-Out"
-        )
+
+        # output_1 = example_plot_walk_forward(
+        #     exp_setting2, "Ind-GP", is_save=False, is_load=True, is_show=False,
+        #     # load_path="GP-Ind"
+        #     load_path="07-16-21-22-46-04-Ind-GP"
+        # )
+        # output_2 = example_plot_walk_forward(
+        #     exp_setting1, "Multi-GP-Out", is_save=False, is_load=True, is_show=False,
+        #     # load_path="GP-Ind"
+        #     load_path="07-16-21-22-45-34-Multi-GP-Out"
+        # )
+        # output_3 = example_plot_walk_forward(
+        #     exp_setting3, "Multi-GP-Index", is_save=False, is_load=True, is_show=False,
+        #     # load_path="GP-Ind"
+        #     load_path="07-16-21-22-46-23-Multi-GP-Index"
+        # )
+
+        # plot_latex(
+        #     names=["Independent GP", "Multitask GP", "Multitask GP Index"],
+        #     results=[output_1, output_2, output_3]
+        # )
+
     
 
 if __name__ == '__main__':
     main()
-
 

@@ -42,11 +42,12 @@ def get_data_example(dataset_desc):
     log_prices = log_prices[["Output"]]
 
     # This can be integrated later.....
-    total_dataset = dataset_desc["len_dataset"]
+    len_dataset = dataset_desc["len_dataset"]
 
-    if total_dataset != -1:
-        features = features.head(total_dataset)
-        log_prices = log_prices.head(total_dataset)
+    if len_dataset != -1:
+        features = features.head(len_dataset)
+        log_prices = log_prices.head(len_dataset)
+
     len_data = len(features)
 
     first_day = features["Date"].iloc[0]

@@ -50,9 +50,8 @@ def plot_frequency_features():
 def plot_feature_PCA_overtime():
     metal = "copper"
     data = load_metal_data(metal)
-    print(data.columns.to_list())
-    assert False
     data = data.dropna()
+
     data = data.loc[:, data.columns != "Price"]
     data = data.loc[:, data.columns != "Date"].to_numpy()
 

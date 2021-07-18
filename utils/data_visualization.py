@@ -9,6 +9,8 @@ from utils.data_preprocessing import parse_series_time
 from scipy.interpolate import make_interp_spline
 from models.ind_multi_model import IndependentMultiModel
 
+from collections import OrderedDict
+
 color = {
     "o": "#ff7500",
     "p": "#5a08bf",
@@ -98,7 +100,7 @@ def plot_bound(ax, data, color, plot_name):
         plot_name: Name of the line
     """
     mean_pred, upper_pred, lower_pred, x_test = data["mean"], data["upper"], data["lower"], data["x"]
-    ax.fill_between(x_test, upper_pred, lower_pred, color=color, alpha=0.3)
+    ax.fill_between(x_test, upper_pred, lower_pred, color=color, alpha=0.2)
     ax.plot(x_test, mean_pred, color, linewidth=1.5, label=plot_name)
 
 def plot_area(axs, x, y, miss, start_ind, end_ind, lag_color):
@@ -230,7 +232,7 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_d
 
     axs[0].set_xlim(left=x[0])
     axs[1].set_xlim(left=x[0])
-    
+
     axs[1].set_xlabel("Time Step")
     axs[0].set_ylabel("Log Prices")
     axs[1].set_ylabel("Square Loss")
@@ -298,5 +300,26 @@ def pack_result_data(mean, upper, lower, x):
     d = {"mean": mean, "upper": upper, "lower": lower, "x": x}
     return pd.DataFrame(data=d)
     
+def plot_latex(names, results):
 
-    
+    df = OrderedDict({"Names": names})
+
+    num_task = len(results[0])
+    num_algo = len(names)
+
+    def dataframe_to_latex():
+        """
+        """
+        pass
+
+    for n_task in range(num_task):
+        task_result = []
+        for n_algo in range(num_algo):
+            mean, std = list(zip(*results[n_algo]))[n_task]
+            task_result.append(f"{round(mean, 5):.5f} $\pm$ {round(std, 5):.5f}")
+        df.update({f"Task {n_task+1}": task_result})
+
+    print(pd.DataFrame(df).to_latex(index=False, escape=False))
+    assert False
+
+

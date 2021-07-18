@@ -5,6 +5,21 @@ import warnings
 
 from utils.data_structure import TrainingPoint
 
+class CacheData():
+    def __init__(self, funct):
+        self.data = {}
+        self.funct = funct
+    
+    def create_key(self, args, kwargs):
+        return tuple((args, tuple(sorted(kwargs.items()))))
+    
+    def __call__(self, *args, **kwargs):
+        expected_key = self.create_key(args, kwargs)
+        if not expected_key in self.data:
+            self.data[expected_key] = self.funct(*args, **kwargs)
+
+        return self.data[expected_key] 
+
 def parse_series_time(dates, first_day):
     """
     Given the time from panda dataframe, we turn it to time lengths and label
@@ -67,6 +82,8 @@ def load_metal_data(metal_type):
      
     return pd.merge(feature, price, on="Date")
 
+cache_load_meta_data = CacheData(load_metal_data)
+
 def transform_full_data(
         full_data, 
         feature_name="Price",
@@ -114,7 +131,7 @@ def load_transform_data(
         X: Feature over time. 
         y: (log)-Price over time.
     """
-    data_all = load_metal_data(metal_type)
+    data_all = cache_load_meta_data(metal_type)
     X, y = transform_full_data(
         data_all, feature_name=feature_name, trans_column=trans_column,
         use_only_last=use_only_last

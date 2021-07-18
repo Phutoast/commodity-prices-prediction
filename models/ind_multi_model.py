@@ -53,7 +53,7 @@ class IndependentMultiModel(object):
             print(f"Training Model: {i}/{len(self.models)}")
             m.train()
 
-    def predict(self, list_test_data, list_step_ahead, list_all_date, ci=0.9):
+    def predict(self, list_test_data, list_step_ahead, list_all_date, ci=0.9, is_sample=False):
         """
         Predict multiple independent multi-model data
 
@@ -81,11 +81,12 @@ class IndependentMultiModel(object):
         
         if self.using_first:
             list_test_data = replace_dataset(list_test_data)
-        
+
         return [
             # WE have to follow the first one, so we will ignore the actual dataset.
             self.models[i].predict(
-                list_test_data[i], list_step_ahead[i], list_all_date[i], ci=ci
+                list_test_data[i], list_step_ahead[i], list_all_date[i], 
+                ci=ci, is_sample=is_sample
             )
             for i in range(self.num_model)
         ]

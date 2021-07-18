@@ -5,6 +5,11 @@ from collections import namedtuple
 
 from models.full_AR_model import FullARModel
 
+import matplotlib.pyplot as plt
+import pandas as pd
+from utils import data_visualization
+from scipy.stats import norm
+
 GaussianParam = namedtuple("GaussianParam", ["mean", "std"])
 
 class IIDDataModel(FullARModel):
@@ -15,7 +20,7 @@ class IIDDataModel(FullARModel):
     def __init__(self, train_data, model_hyperparam):
         super().__init__(train_data, model_hyperparam)
      
-    def predict_fix_step(self, step_ahead, ci=0.9):
+    def predict_fix_step(self, step_ahead, ci=0.9, is_sample=False):
         if self.hyperparam["dist"] == "Gaussian":
             self.model = self.build_model()
             mean, std = self.model
@@ -25,9 +30,18 @@ class IIDDataModel(FullARModel):
             right = 1 - (1 - ci)/2
 
             total_mean = np.ones(step_ahead) * mean.mean()
-            upper = np.ones(step_ahead) * dist.ppf(right)
-            lower = np.ones(step_ahead) * dist.ppf(left)
-            return total_mean.tolist(), upper.tolist(), lower.tolist()
+
+            if not is_sample:
+                upper = np.ones(step_ahead) * dist.ppf(right)
+                lower = np.ones(step_ahead) * dist.ppf(left)
+                return total_mean.tolist(), upper.tolist(), lower.tolist()
+            else:
+                upper = np.ones(step_ahead) * dist.ppf(right)
+                lower = np.ones(step_ahead) * dist.ppf(left)
+            
+                rv = np.reshape(dist.rvs(size=self.hyperparam["sample_size"]), (-1, 1)) 
+                rv = np.repeat(rv, step_ahead, axis=1)
+                return rv
         else:
             assert False, "No Distribution Avaliable"
     
