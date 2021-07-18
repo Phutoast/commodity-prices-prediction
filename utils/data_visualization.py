@@ -163,7 +163,7 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_d
         )
 
 
-    for i, (pred, missing_data, intv_loss, _) in enumerate(fold_result):
+    for i, (pred, missing_data, _, loss_detail) in enumerate(fold_result):
         first_day = pred["x"].iloc[0]
         first_index = x.index(first_day)
         last_day = pred["x"].iloc[-1]
@@ -211,7 +211,7 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_d
         axs[1].axvline(last_day, color=color["grey"])
         axs[1].axvspan(first_day, last_day, color=color["grey"], alpha=0.4) 
 
-        axs[1].plot(pred["x"], pred["time_step_error"], 
+        axs[1].plot(pred["x"], loss_detail["time_step_error"], 
             color=color[below_err], alpha=0.6)
 
         if is_missing:
@@ -219,7 +219,7 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_d
                 first_day, first_index, last_day, last_index
             )
         
-        for i_start, j_start, loss in intv_loss:
+        for i_start, j_start, loss in loss_detail["intv_loss"]:
             loc_bar = (i_start + j_start)/2
             width = loc_bar - i_start
             if width == 0:
@@ -247,38 +247,50 @@ def show_result_fold(fold_results, exp_setting):
         fold_result: Result of walk_forward 
         exp_setting: Experiment Setting for Each Task
     """
-    header = ["", "All Error", "Interval Error"]
+    header = ["", "MSE", "CRPS", "Interval Error"]
     table = []
 
-    all_mean_error = []
-    all_std_error = []
+    all_time_step = []
+    all_crps = []
 
     for i, fold_result in enumerate(fold_results):
         all_error_ind, all_error_intv = [], []
+        all_error_crps = []
         for result in fold_result:
-            all_error_ind += result.pred["time_step_error"].to_list() 
-            all_error_intv += [loss for _, _, loss in result.interval_loss]
+            loss_detail = result.loss_detail
+            all_error_ind += loss_detail["time_step_error"]
+            all_error_intv += [
+                loss for _, _, loss in loss_detail["intv_loss"]
+            ]
+            all_error_crps.append(loss_detail["all_crps"])
         
         task_setting = exp_setting["task"]
         task_prop = task_setting["dataset"][i]["out_feat_tran_lag"]
         metal = "+".join(task_setting["dataset"][i]["inp_metal_list"])
 
-        mean_error = np.mean(all_error_ind)
-        std_error = np.std(all_error_ind)/np.sqrt(len(all_error_ind))
+        cal_mean_std = lambda x: (
+            np.mean(x), np.std(x)/np.sqrt(len(x))
+        )
 
-        all_mean_error.append(mean_error)
-        all_std_error.append(std_error)
+        time_step_mean, time_step_std = cal_mean_std(all_error_ind)
+        all_time_step.append((time_step_mean, time_step_std))
+
+        intv_mean, intv_std = cal_mean_std(all_error_intv)
+
+        crps_mean, crps_std = cal_mean_std(all_error_crps)
+        all_crps.append((crps_mean, crps_std))
+
+        num_round = 7
 
         table.append([
             f"Task {i+1} (Metal={metal}, Lag={task_prop[0]}, Step ahead={task_prop[1]})", 
-            # f"{round(np.median(all_error_ind), 7)}", 
-            # f"{round(np.median(all_error_intv), 7)}"
-            f"{round(mean_error, 7)} ± {round(std_error, 7)}", 
-            f"{round(np.mean(all_error_intv), 7)} ± {round(np.std(all_error_intv)/np.sqrt(len(all_error_intv)), 7)}"
+            f"{time_step_mean:.{num_round}} ± {time_step_std:.{num_round}}", 
+            f"{crps_mean:.{num_round}} ± {crps_std:.{num_round}}", 
+            f"{intv_mean:.{num_round}} ± {intv_std:.{num_round}}"
         ])
 
     print(tabulate(table, headers=header, tablefmt="grid"))
-    return all_mean_error, all_std_error
+    return all_time_step, all_crps
 
 def pack_result_data(mean, upper, lower, x):
     """

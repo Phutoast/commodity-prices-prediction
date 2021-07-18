@@ -5,6 +5,7 @@ import itertools
 
 from utils.data_structure import TrainingPoint, FoldWalkForewardResult
 from utils.data_preprocessing import parse_series_time
+from experiments.calculation import PerformanceMetric
 
 def prepare_dataset(X, first_day, y, len_inp, 
             len_out=22, return_lag=22, is_padding=False, convert_date=True, offset=1, is_show_progress=False, num_dataset=-1):
@@ -105,9 +106,9 @@ def transpose_list(list_mat):
     return result
     
 
-def walk_forward(all_data, task_setting, multi_model_class, loss, size_train, 
+def walk_forward(all_data, task_setting, multi_model_class, size_train, 
             size_test, train_offset, return_lag_list, convert_date, using_first,
-            is_train_pad=True, is_test_pad=False, intv_loss=None):
+            is_train_pad=True, is_test_pad=False):
     """
     Performing walk forward testing (k-fold like) of the models
         In terms of setting up training and testing data.
@@ -265,22 +266,30 @@ def walk_forward(all_data, task_setting, multi_model_class, loss, size_train,
             date_pred_list, 
             ci=0.9
         )
+        all_task_sample = model.predict(
+            pred_dataset_list, 
+            len_pred_list, 
+            date_pred_list, 
+            ci=0.9, is_sample=True
+        )
 
         summary_iter = enumerate(zip(
-            all_task_pred, true_pred_list, missing_data_list, algo_prop_list
+            all_task_pred, all_task_sample, 
+            true_pred_list, missing_data_list, algo_prop_list
         ))
 
         task_result_list = []        
-        for k, (pred, (true_date, true_price), miss_data, algo_prop) in summary_iter:
+        for k, (pred, task_sample, date_price, miss_data, algo_prop) in summary_iter:
             len_inp, len_out, return_lag = algo_prop
-            pred, interval_loss = cal_walk_forward_result(
+            true_date, true_price = date_price
+            pred, loss_detail = cal_walk_forward_result(
                 pred, true_date, true_price, 
                 len_inp, len_out, 
-                return_lag, loss, intv_loss
+                return_lag, task_sample
             )
 
             result_fold = FoldWalkForewardResult(
-                pred=pred, missing_data=miss_data, interval_loss=interval_loss, model=model
+                pred=pred, missing_data=miss_data, model=model, loss_detail=loss_detail
             )
             task_result_list.append(result_fold)
     
@@ -289,15 +298,25 @@ def walk_forward(all_data, task_setting, multi_model_class, loss, size_train,
     return transpose_list(fold_result_list)
 
 
-def cal_walk_forward_result(pred, true_date, true_price, len_inp, len_out, return_lag, loss, intv_loss):
+def cal_walk_forward_result(pred, true_date, 
+    true_price, len_inp, len_out, return_lag, task_sample):
+
     true_date_pred = true_date[len_inp+return_lag:]
     true_data_pred = true_price[len_inp+return_lag:]
+    
+    metric = PerformanceMetric()
+    loss_detail = {}
+    mapper = dict(zip(true_date_pred, true_data_pred))
+    
+    pred["true_mean"] = pred["x"].map(mapper)
 
-    pred["true_mean"] = pred["x"].map(
-        dict(zip(true_date_pred, true_data_pred))
+    loss_detail["time_step_error"] = metric.square_error(
+        pred["true_mean"], pred["mean"]
+    ).to_list()
+
+    loss_detail["all_crps"] = metric.crps(
+        task_sample[0], np.array(true_data_pred[:len(task_sample[1])])
     )
-
-    pred["time_step_error"] = loss(pred["true_mean"], pred["mean"])
 
     # Sometimes the method uses the test data to do the prediction 
     # Retrain, such as in the case of ARIMA so it is better to consider the loss
@@ -306,16 +325,17 @@ def cal_walk_forward_result(pred, true_date, true_price, len_inp, len_out, retur
     assert len(pred)%len_out == 0
 
     interval_loss = []
-    if intv_loss is None:
-        intv_loss = lambda x, y : np.median(loss(x, y))
+    intv_loss = lambda x, y : np.median(metric.square_error(x, y))
 
     for i in range(len(pred)//len_out):
         parti = pred.iloc[i*len_out:(i+1)*len_out, :]
         interval_loss.append((
-            parti["x"].iloc[0], 
-            parti["x"].iloc[-1], 
-            intv_loss(parti["true_mean"], parti["mean"])
+            parti["x"].iloc[0].item(), 
+            parti["x"].iloc[-1].item(), 
+            intv_loss(parti["true_mean"], parti["mean"]).item()
         ))
     
-    return pred, interval_loss
+    loss_detail["intv_loss"] = interval_loss
+    
+    return pred, loss_detail
 

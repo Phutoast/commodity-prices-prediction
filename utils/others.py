@@ -1,4 +1,5 @@
 import pickle
+import json
 import os
 
 from pathlib import Path
@@ -50,15 +51,17 @@ def save_fold_data(all_fold_result, model_name, base_folder):
     for task_num, fold_result in enumerate(all_fold_result):
         task_folder = base_folder + f"/task_{task_num}/"
         create_folder(task_folder)
-        for i, (pred, miss_data, intv_loss, model) in enumerate(fold_result):
+        for i, (pred, miss_data, model, loss_detail) in enumerate(fold_result):
             curr_folder = task_folder + f"fold_{i}/"
             create_folder(curr_folder)
 
             pred.to_csv(curr_folder + "pred.csv")
             with open(curr_folder + "miss_data.pkl", "wb") as handle:
-                pickle.dump(miss_data, handle, protocol=pickle.HIGHEST_PROTOCOL) 
-            with open(curr_folder + "intv_loss.pkl", "wb") as handle:
-                pickle.dump(intv_loss, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump(miss_data, handle, protocol=pickle.HIGHEST_PROTOCOL)  
+            with open(curr_folder + "loss_detail.json", 'w', encoding="utf-8") as f:
+                json.dump(
+                    loss_detail, f, ensure_ascii=False, indent=4
+                )
         
             model_save_folder = curr_folder + model_name
             create_folder(model_save_folder)
@@ -88,15 +91,15 @@ def load_fold_data(base_folder, model_name, model_class):
             pred = pd.read_csv(curr_folder + "pred.csv")
             with open(curr_folder + "miss_data.pkl", "rb") as handle:
                 miss_data = pickle.load(handle)
-            
-            with open(curr_folder + "intv_loss.pkl", "rb") as handle:
-                intv_loss = pickle.load(handle)
+        
+            with open(curr_folder + "loss_detail.json", 'r', encoding="utf-8") as f:
+                loss_detail = json.load(f)
             
             model = model_class.load_from_path(
                 curr_folder + model_name
             )
             result_fold = FoldWalkForewardResult(
-                pred=pred, missing_data=miss_data, interval_loss=intv_loss, model=model
+                pred=pred, missing_data=miss_data, model=model, loss_detail=loss_detail
             )
             fold_result_list.append(result_fold)
         

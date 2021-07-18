@@ -110,7 +110,7 @@ def main():
     
     exp_setting4 = {
         "task": {
-            "sub_model": ["GP", "GP"],
+            "sub_model": ["ARIMA", "Mean"],
             "dataset": [
                 DatasetTaskDesc(
                     inp_metal_list=["aluminium"],
@@ -147,9 +147,9 @@ def main():
     elif test_type == "w":
         
         print("Multi-Task Out")
-        example_plot_walk_forward(exp_setting4, "Multi-GP-Out",
-            is_save=False, is_load=False,
-            load_path="Multi-GP"
+        example_plot_walk_forward(exp_setting1, "Multi-GP-Out",
+            is_save=False, is_load=True,
+            load_path="07-18-21-21-29-36-Multi-GP-Out"
         )
         # print("Independent GP")
         # example_plot_walk_forward(exp_setting2, "Ind-GP",

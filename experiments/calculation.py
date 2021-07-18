@@ -1,4 +1,6 @@
 import numpy as np
+import torch
+from pyro.contrib.forecast import eval_crps
 
 class PerformanceMetric(object):
     """
@@ -24,5 +26,10 @@ class PerformanceMetric(object):
 
         """
         return np.square(true-pred)
+    
+    def crps(self, sample, true_data):
+        sample = torch.from_numpy(sample)
+        true_data = torch.from_numpy(true_data)
+        return eval_crps(sample, true_data)
 
 

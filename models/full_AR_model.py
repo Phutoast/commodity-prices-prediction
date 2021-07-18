@@ -113,7 +113,6 @@ class FullARModel(BaseModel):
         raise NotImplementedError()
     
     def add_sample_result(self, samples):
-        print(samples.shape)
         self.sample.append(samples)
     
     def add_results(self, mean, upper, lower):
@@ -154,7 +153,8 @@ class FullARModel(BaseModel):
 
             for i in range(num_iter):
                 if self.hyperparam["is_verbose"]:
-                    print("Predicting...", i, "/", num_iter)
+                    if i%5==0:
+                        print("Predicting...", i, "/", num_iter)
                 
                 self.pred_and_add(span_per_round, ci, is_sample)
 

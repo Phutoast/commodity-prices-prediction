@@ -13,7 +13,6 @@ from utils.data_preprocessing import load_dataset_from_desc
 
 from experiments.algo_dict import algorithms_dic
 from experiments.eval_methods import prepare_dataset, walk_forward
-from experiments.calculation import PerformanceMetric
 
 from models.ind_multi_model import IndependentMultiModel
 
@@ -253,12 +252,9 @@ def example_plot_walk_forward(exp_setting, model_name, load_path,
         )
         return_lag_list.append(dataset_desc["out_feat_tran_lag"][0])
  
-    metric = PerformanceMetric()
-
     run_fold = lambda: walk_forward(
         all_data, exp_setting["task"],  
         exp_setting["algo"],
-        metric.square_error, 
         size_train=size_train, size_test=size_test, 
         train_offset=1, 
         return_lag_list=return_lag_list, 

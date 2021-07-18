@@ -6,7 +6,7 @@ import warnings
 
 # Storing Prediction Results for Plotting
 DisplayPrediction = namedtuple("DisplayPrediction", ["packed_data", "name", "color", "is_bridge"], defaults=(None, "k", True))
-FoldWalkForewardResult = namedtuple("FoldWalkForewardResult", ["pred", "missing_data", "interval_loss", "model"])
+FoldWalkForewardResult = namedtuple("FoldWalkForewardResult", ["pred", "missing_data", "model", "loss_detail"])
 full_features_names = {
     "aluminium": ['Date', 'COT', 'COT.1', 'CTA', 'CTA.1', 'CURVE', 'CURVE.1', 'CURVE.2', 'CURRENCY', 'CURRENCY.1', 'CURRENCY.2', 'CURRENCY.3', 'CURRENCY.4', 'CURRENCY.5', 'CURRENCY.6', 'CURRENCY.7', 'CURRENCY.8', 'CURRENCY.9', 'FREIGHT', 'FREIGHT.1', 'FREIGHT.2', 'FREIGHT.3', 'FREIGHT.4', 'FREIGHT.5', 'FREIGHT.6', 'FREIGHT.7', 'FREIGHT.8', 'FREIGHT.9', 'INVENTORIES', 'INVENTORIES.1', 'INVENTORIES.2', 'INVENTORIES.3', 'INVENTORIES.4', 'INVENTORIES.5', 'SATELLITE', 'SATELLITE.1', 'SATELLITE.2', 'SATELLITE.3', 'SATELLITE.4', 'SATELLITE.5', 'SATELLITE.6', 'SATELLITE.7', 'SATELLITE.8', 'SATELLITE.9', 'SATELLITE.10', 'SEASONALITY', 'MACRO', 'MACRO.1', 'MACRO.2', 'MACRO.3', 'MACRO.4', 'MACRO.5', 'MACRO.6', 'MACRO.7', 'MACRO.8', 'TECHNICAL', 'Price'], 
     "copper": ['Date', 'COT', 'COT.1', 'COT.2', 'CTA', 'CTA.1', 'CURVE', 'CURVE.1', 'CURVE.2', 'CURRENCY', 'CURRENCY.1', 'CURRENCY.2', 'CURRENCY.3', 'CURRENCY.4', 'CURRENCY.5', 'FREIGHT', 'FREIGHT.1', 'FREIGHT.2', 'FREIGHT.3', 'FREIGHT.4', 'FREIGHT.5', 'FREIGHT.6', 'FREIGHT.7', 'FREIGHT.8', 'FREIGHT.9', 'INVENTORIES', 'INVENTORIES.1', 'INVENTORIES.2', 'INVENTORIES.3', 'INVENTORIES.4', 'INVENTORIES.5', 'SATELLITE', 'SATELLITE.1', 'SATELLITE.2', 'SEASONALITY', 'MACRO', 'MACRO.1', 'MACRO.2', 'MACRO.3', 'MACRO.4', 'MACRO.5', 'MACRO.6', 'MACRO.7', 'MACRO.8', 'TECHNICAL', 'Price']

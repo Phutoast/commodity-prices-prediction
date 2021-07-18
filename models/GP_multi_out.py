@@ -149,31 +149,7 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
                 list_sample.append(rv[:, :, i][:, advance_index:])
                 all_date.append(list_all_date[i][advance_index:])
 
-            return list(zip(list_sample, all_date))
-
-                # --------------------------------------------------------
-                
-                # pred = self.likelihood(self.model(test_x))
-                # pred_mean = pred.mean.detach().cpu().numpy()[advance_index:, i]
-                # lower, upper = pred.confidence_region()
-                # pred_lower = lower.detach().cpu().numpy()[advance_index:, i]
-                # pred_upper = upper.detach().cpu().numpy()[advance_index:, i]
-                
-                # fig, ax = plt.subplots(figsize=(6, 6))
-                # data = {
-                #     "mean": pred_mean,
-                #     "upper": pred_upper,
-                #     "lower": pred_lower,
-                #     "x": list(range(len(pred_mean)))
-                # }
-
-                # df = pd.DataFrame(data)
-                # data_visualization.plot_bound(ax, df, "#0062b8", "ABC")
-                # for j in range(10):
-                #     ax.plot(rv[:, :, i][j, advance_index:], alpha=0.5, color="#0062b8")
-                # plt.show()
-                # assert False
-
+            return list_sample, all_date
 
     def save(self, base_path):
         others.create_folder(base_path)

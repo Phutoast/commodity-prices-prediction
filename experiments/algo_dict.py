@@ -15,7 +15,7 @@ algorithms_dic = {
         order=(2, 0, 5), 
         is_full_pred=True
     ), ARIMAModel],
-    "Mean-Cheat": [Hyperparameters(
+    "Mean": [Hyperparameters(
         len_inp=0, 
         len_out=1, 
         is_date=False, 
@@ -30,7 +30,7 @@ algorithms_dic = {
         order=(2, 1, 5), 
         is_full_pred=False
     ), ARIMAModel],
-    "Mean": [Hyperparameters(
+    "Mean-Cheat": [Hyperparameters(
         len_inp=0, 
         len_out=10, 
         is_date=False, 
@@ -71,6 +71,7 @@ algorithms_dic = {
     ), None],
 }
 
+# For independent Learner Only
 class_name = {
     "ARIMAModel": ARIMAModel,
     "IIDDataModel": IIDDataModel,

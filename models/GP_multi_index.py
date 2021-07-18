@@ -138,7 +138,7 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
                 list_sample[i].shape[1] == len(list_all_date[i])
                 for i in range(self.num_task)
             )
-            return list(zip(list_sample, list_all_date))
+            return list_sample, list_all_date
 
 
     def save(self, base_path):

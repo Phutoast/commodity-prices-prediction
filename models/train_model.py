@@ -170,9 +170,7 @@ class BaseTrainMultiTask(BaseTrainModel):
             all_sample, all_date = self.predict_step_ahead(
                 list_test_data, list_step_ahead, list_all_date, is_sample=is_sample
             )
-            pred_list = []
-            for i in range(self.num_task):
-                pred_list.append((all_sample[i], all_date[i]))
+            pred_list = list(zip(all_sample, all_date))
         
         return pred_list
 
