@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import warnings
 
-from utils.data_structure import TrainingPoint, CompressMethod
+from utils import data_structure
 from sklearn.decomposition import PCA
 import copy
 
@@ -251,7 +251,7 @@ def replace_dataset(list_train_data):
             current_train_data = list_train_data[i]
         else:
             current_train_data = [
-                TrainingPoint(a, b, c, d) for (_, _, _, d), (a, b, c)
+                data_structure.TrainingPoint(a, b, c, d) for (_, _, _, d), (a, b, c)
                 in zip(list_train_data[i], all_label_out)
             ] 
         

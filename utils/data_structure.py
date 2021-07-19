@@ -105,6 +105,10 @@ class DatasetTaskDesc(dict):
         elif isinstance(metal_modifier, list):
             if len(metal_modifier) != len(inp_metal_list):
                 raise ValueError("The modifier for the metal list should be the same length is the metal_list.")
+            self["metal_modifier"] = [
+                (0, "id") if modi is None else modi
+                for modi in metal_modifier
+            ]
         else:
             raise TypeError("Wrong Type For metal_modifier")
         

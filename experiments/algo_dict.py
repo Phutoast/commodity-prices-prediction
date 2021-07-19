@@ -49,7 +49,7 @@ algorithms_dic = {
         is_time_only=False,
         is_date=False, 
         is_past_label=True,
-        kernel="Composite_2",
+        kernel="Composite_3",
     ), IndependentGP],
     "GP-Test": [Hyperparameters(
         len_inp=10, 
@@ -59,7 +59,7 @@ algorithms_dic = {
         is_time_only=False,
         is_date=False, 
         is_past_label=True,
-        kernel="Composite_2",
+        kernel="Composite_4",
     ), IndependentGP],
     "GP-Multi-Task": [Hyperparameters(
         len_inp=10, 
@@ -70,7 +70,7 @@ algorithms_dic = {
         is_time_only=False,
         is_date=False, 
         is_past_label=True,
-        kernel="Composite_2",
+        kernel="Composite_4",
     ), None],
 }
 
@@ -87,6 +87,7 @@ kernel_name = {
     "Composite_1": kernels.ScaleKernel(kernels.RBFKernel()) + kernels.ScaleKernel(kernels.PeriodicKernel(power=2)),
     "Composite_2": kernels.ScaleKernel(kernels.MaternKernel()) + kernels.ScaleKernel(kernels.PeriodicKernel(power=2)),
     "Composite_3": kernels.ScaleKernel(kernels.RBFKernel()) + kernels.ScaleKernel(kernels.PolynomialKernel(power=2)),
+    "Composite_4": kernels.ScaleKernel(kernels.MaternKernel()) + kernels.ScaleKernel(kernels.PolynomialKernel(power=2)),
     "Batch_1": lambda num_task: kernels.ScaleKernel(
         kernels.ScaleKernel(kernels.CosineKernel(batch_shape=torch.Size([num_task])), batch_shape=torch.Size([num_task]))+ 
         kernels.ScaleKernel(kernels.MaternKernel(batch_shape=torch.Size([num_task])), batch_shape=torch.Size([num_task])), batch_shape=torch.Size([num_task])
