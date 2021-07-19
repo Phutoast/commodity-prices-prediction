@@ -99,11 +99,7 @@ class IndependentMultiModel(object):
             base_model: The name of the whole multimodel
         """
         others.create_folder(base_path)
-
-        with open(f"{base_path}/config.json", 'w', encoding="utf-8") as f:
-            json.dump(
-                self.list_config_json, f, ensure_ascii=False, indent=4
-            )
+        others.dump_json(f"{base_path}/config.json", self.list_config_json)
 
         for i in range(self.num_model):
             model_path = base_path + f"/model_{i}/"
@@ -136,8 +132,7 @@ class IndependentMultiModel(object):
         Args:
             path: Path of the folder where the model is saved 
         """
-        with open(f"{path}/config.json", 'r', encoding="utf-8") as f:
-            data = json.load(f)
+        data = others.load_json(f"{path}/config.json")
         
         num_model = len(data["hyperparam"])
         assert num_model == len(data["model_class"])

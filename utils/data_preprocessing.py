@@ -3,22 +3,67 @@ import pandas as pd
 import numpy as np
 import warnings
 
-from utils.data_structure import TrainingPoint
+from utils.data_structure import TrainingPoint, CompressMethod
+from sklearn.decomposition import PCA
+import copy
 
-class CacheData():
-    def __init__(self, funct):
-        self.data = {}
-        self.funct = funct
-    
-    def create_key(self, args, kwargs):
-        return tuple((args, tuple(sorted(kwargs.items()))))
-    
-    def __call__(self, *args, **kwargs):
-        expected_key = self.create_key(args, kwargs)
-        if not expected_key in self.data:
-            self.data[expected_key] = self.funct(*args, **kwargs)
+column_transform = {
+    "id": lambda x: x,
+    "log": lambda x: np.log(x),
+    "sin": lambda x: np.sin(x),
+}
 
-        return self.data[expected_key] 
+class GlobalModifier(object):
+    """
+    TODO: Cache this thing.....
+    """
+    def __init__(self, compress_method):
+        self.compress_dim, self.method = compress_method
+
+        if self.method.lower() == "id":
+            self.is_drop = False
+            self.is_id = True
+        elif self.method.lower() == "pca":
+            self.is_drop = True
+            self.is_id = False
+        else:
+            assert False
+
+        self.base_name = "FeatureFamily."
+    
+    def extract_numpy(self, df):
+        self.price = df["Price"]
+        self.date = df["Date"]
+        np_data = df.loc[:, df.columns != "Price"]
+        np_data = np_data.loc[:, np_data.columns != "Date"].to_numpy(dtype=np.float32)
+        return np_data
+    
+    def numpy_to_df(self, np_arr):
+        df = {"Date": self.date}
+        for i in range(self.compress_dim):
+            df.update({f"{self.base_name}Feature{i+1}": np_arr[:, i]})
+        df.update({"Price": self.price})
+        return pd.DataFrame(df)
+    
+    def __call__(self, data):
+        original_dim = len(data.columns)
+        if original_dim == self.compress_dim:
+            return data
+
+        if self.is_id:
+            return data
+
+        if self.is_drop:
+            data = data.dropna()
+
+        if self.method.lower() == "pca": 
+            np_data = self.extract_numpy(data)
+            pca = PCA(n_components=self.compress_dim)
+            reduced_data = pca.fit_transform(np_data)
+            return self.numpy_to_df(reduced_data)
+        
+
+identity_modifier = GlobalModifier((0, "id"))
 
 def parse_series_time(dates, first_day):
     """
@@ -43,7 +88,7 @@ def parse_series_time(dates, first_day):
 
     return time_step, label
     
-def load_metal_data(metal_type):
+def load_metal_data(metal_type, global_modifier):
     """
     Loading the metal data (both feature and *raw* prices). 
     The files will be stores given the path: 
@@ -80,9 +125,8 @@ def load_metal_data(metal_type):
     
     feature = feature.sort_values(by=["Date"]).reset_index(drop=True)
      
-    return pd.merge(feature, price, on="Date")
-
-cache_load_meta_data = CacheData(load_metal_data)
+    # Will Train with Features for now
+    return global_modifier(pd.merge(feature, price, on="Date"))
 
 def transform_full_data(
         full_data, 
@@ -118,7 +162,8 @@ def load_transform_data(
         skip=0,
         feature_name="Price",
         trans_column=lambda x: np.log(x),
-        use_only_last=False
+        use_only_last=False, 
+        global_modifier=identity_modifier
     ):
     """
     Loading and Transform the data in one function 
@@ -131,7 +176,7 @@ def load_transform_data(
         X: Feature over time. 
         y: (log)-Price over time.
     """
-    data_all = cache_load_meta_data(metal_type)
+    data_all = load_metal_data(metal_type, global_modifier)
     X, y = transform_full_data(
         data_all, feature_name=feature_name, trans_column=trans_column,
         use_only_last=use_only_last
@@ -218,7 +263,7 @@ def load_dataset_from_desc(dataset_desc):
 
     # We assume under the same date 
     # (because skipping and return_log doesn't make sense)
-    default_trans = (0, 0, lambda x: x)
+    default_trans = (0, 0, "id")
     base_name = "FeatureFamily."
 
     def find_version(list_parse):
@@ -273,21 +318,22 @@ def load_dataset_from_desc(dataset_desc):
 
         return_lag, skip, transform = return_trans
         if feature_name == "Price":
-            transform = lambda x: np.log(x)
+            transform = "log"
 
         # We will use the Date of the first dataset here.
         if dataset_index is None:
             assert feature_name == "Date"
             dataset_index = 0
-            transform = lambda x: x
+            transform = "id"
 
         date, column = load_transform_data(
             inp_metal_list[dataset_index], 
             return_lag=return_lag,
             skip=skip,
             feature_name=feature_name,
-            trans_column=transform,
-            use_only_last=True
+            trans_column=column_transform[transform],
+            use_only_last=True,
+            global_modifier=GlobalModifier(dataset_desc["metal_modifier"][dataset_index])
         )
 
         column.columns = ["Date", get_final_feat_name(
@@ -297,8 +343,8 @@ def load_dataset_from_desc(dataset_desc):
         return date, column
     
     inp_metal_list = dataset_desc["inp_metal_list"]
-    use_feat = dataset_desc["feature"]
-    use_feat_tran_lag = dataset_desc["inp_feat_tran_lag"]
+    use_feat = dataset_desc["use_feature"]
+    use_feat_tran_lag = dataset_desc["use_feat_tran_lag"]
     out_feat = dataset_desc["out_feature"]
 
     list_loc_use_feat = [get_loc_feat(feat) for feat in use_feat]

@@ -117,12 +117,12 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
                 test_ind = test_ind.detach().cpu()
             else:
                 rv = self.model(test_x, test_ind)
-                rv = rv.sample(sample_shape=torch.Size([1000])).numpy()
+                rv = rv.sample(sample_shape=torch.Size([1000])).cpu().numpy()
         
         if not is_sample:
             list_mean, list_lower, list_upper = [], [], [] 
             for i in range(self.num_task):
-                index_task = (test_ind == i).nonzero(as_tuple=True)[0]
+                index_task = (test_ind == i).nonzero(as_tuple=True)[0].cpu().numpy()
                 list_mean.append(np.reshape(pred_mean[index_task], (-1)))
                 list_lower.append(np.reshape(pred_lower[index_task], (-1)))
                 list_upper.append(np.reshape(pred_upper[index_task], (-1)))
@@ -131,7 +131,7 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
         else:
             list_sample = []
             for i in range(self.num_task):
-                index_task = (test_ind == i).nonzero(as_tuple=True)[0]
+                index_task = (test_ind == i).nonzero(as_tuple=True)[0].cpu().numpy()
                 list_sample.append(rv[:, index_task])
 
             assert all(
@@ -153,15 +153,11 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
         torch.save(self.mean_x, path + "_mean_x.pt")
         torch.save(self.std_x, path + "_std_x.pt")
         torch.save(self.train_ind, path + "_train_ind.pt")
-        
-        with open(f"{base_path}/config.json", 'w', encoding="utf-8") as f:
-            json.dump(
-                self.list_config_json, f, ensure_ascii=False, indent=4
-            )
+
+        others.dump_json(f"{base_path}/config.json", self.list_config_json)
     
-    def load(self, base_path): 
-        with open(f"{base_path}/config.json", 'r', encoding="utf-8") as f:
-            data = json.load(f)
+    def load(self, base_path):  
+        data = others.load_json(f"{base_path}/config.json")
         
         list_config = data["list_config"]
         num_task = len(list_config)
@@ -191,8 +187,7 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
  
     @classmethod
     def load_from_path(cls, path):
-        with open(f"{path}/config.json", 'r', encoding="utf-8") as f:
-            data = json.load(f)
+        data = others.load_json(f"{path}/config.json")
         
         using_first = data["using_first"]
         list_config = data["list_config"]

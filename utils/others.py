@@ -8,6 +8,7 @@ import pandas as pd
 
 from experiments.algo_dict import algorithms_dic
 from utils.data_structure import FoldWalkForewardResult
+from utils import others
 from models import ind_multi_model
 
 def create_folder(path):
@@ -58,10 +59,8 @@ def save_fold_data(all_fold_result, model_name, base_folder):
             pred.to_csv(curr_folder + "pred.csv")
             with open(curr_folder + "miss_data.pkl", "wb") as handle:
                 pickle.dump(miss_data, handle, protocol=pickle.HIGHEST_PROTOCOL)  
-            with open(curr_folder + "loss_detail.json", 'w', encoding="utf-8") as f:
-                json.dump(
-                    loss_detail, f, ensure_ascii=False, indent=4
-                )
+            
+            others.dump_json(curr_folder + "loss_detail.json", loss_detail)
         
             model_save_folder = curr_folder + model_name
             create_folder(model_save_folder)
@@ -83,6 +82,8 @@ def load_fold_data(base_folder, model_name, model_class):
 
     task_list = []
     for task_folder in sorted(os.listdir(base_folder)):
+        if ".json" in task_folder:
+            continue
         task_folder = base_folder + "/" + task_folder
 
         fold_result_list = []
@@ -92,9 +93,7 @@ def load_fold_data(base_folder, model_name, model_class):
             with open(curr_folder + "miss_data.pkl", "rb") as handle:
                 miss_data = pickle.load(handle)
         
-            with open(curr_folder + "loss_detail.json", 'r', encoding="utf-8") as f:
-                loss_detail = json.load(f)
-            
+            loss_detail = load_json(curr_folder + "loss_detail.json")
             model = model_class.load_from_path(
                 curr_folder + model_name
             )
@@ -106,3 +105,14 @@ def load_fold_data(base_folder, model_name, model_class):
         task_list.append(fold_result_list)
     
     return task_list
+
+def dump_json(path, data):
+    with open(path, 'w', encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+def load_json(path):
+    with open(path, 'r', encoding="utf-8") as f:
+        data = json.load(f)
+    return data
+
+

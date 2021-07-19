@@ -104,7 +104,7 @@ class IndependentGP(BaseTrainModel):
                 return pred_mean, pred_lower, pred_upper, all_date[date_size-step_ahead:]
             else:
                 rv = self.model(test_x.float())
-                rv = rv.sample(sample_shape=torch.Size([1000])).numpy()
+                rv = rv.sample(sample_shape=torch.Size([1000])).cpu().numpy()
                 return rv, all_date[date_size-step_ahead:]
  
  

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 from collections import defaultdict
 import pandas as pd
+import math
 
 from utils.data_preprocessing import parse_series_time
 from scipy.interpolate import make_interp_spline
@@ -250,8 +251,8 @@ def show_result_fold(fold_results, exp_setting):
     header = ["", "MSE", "CRPS", "Interval Error"]
     table = []
 
-    all_time_step = []
-    all_crps = []
+    all_time_step_loss = []
+    all_crps_loss = []
 
     for i, fold_result in enumerate(fold_results):
         all_error_ind, all_error_intv = [], []
@@ -266,19 +267,19 @@ def show_result_fold(fold_results, exp_setting):
         
         task_setting = exp_setting["task"]
         task_prop = task_setting["dataset"][i]["out_feat_tran_lag"]
-        metal = "+".join(task_setting["dataset"][i]["inp_metal_list"])
+        metal = task_setting["dataset"][i].gen_name()
 
         cal_mean_std = lambda x: (
             np.mean(x), np.std(x)/np.sqrt(len(x))
         )
 
         time_step_mean, time_step_std = cal_mean_std(all_error_ind)
-        all_time_step.append((time_step_mean, time_step_std))
+        all_time_step_loss.append((time_step_mean, time_step_std))
 
         intv_mean, intv_std = cal_mean_std(all_error_intv)
 
         crps_mean, crps_std = cal_mean_std(all_error_crps)
-        all_crps.append((crps_mean, crps_std))
+        all_crps_loss.append((crps_mean, crps_std))
 
         num_round = 7
 
@@ -290,7 +291,7 @@ def show_result_fold(fold_results, exp_setting):
         ])
 
     print(tabulate(table, headers=header, tablefmt="grid"))
-    return all_time_step, all_crps
+    return all_time_step_loss, all_crps_loss
 
 def pack_result_data(mean, upper, lower, x):
     """
@@ -312,26 +313,78 @@ def pack_result_data(mean, upper, lower, x):
     d = {"mean": mean, "upper": upper, "lower": lower, "x": x}
     return pd.DataFrame(data=d)
     
-def plot_latex(names, results):
+def plot_latex(names, results, multi_task_name, display_name_to_algp):
 
-    df = OrderedDict({"Names": names})
+    for multi_task_no, mt_name in enumerate(multi_task_name):
+        all_algo_name = names[multi_task_no]
+        all_results = results[multi_task_no]
 
-    num_task = len(results[0])
-    num_algo = len(names)
+        df = OrderedDict({"Names": all_algo_name})
 
-    def dataframe_to_latex():
-        """
-        """
-        pass
+        num_algo = len(all_algo_name)
+        num_task = len(all_results[list(all_results.keys())[0]]["MSE"])
+        len_evals = -1
 
-    for n_task in range(num_task):
-        task_result = []
-        for n_algo in range(num_algo):
-            mean, std = list(zip(*results[n_algo]))[n_task]
-            task_result.append(f"{round(mean, 5):.5f} $\pm$ {round(std, 5):.5f}")
-        df.update({f"Task {n_task+1}": task_result})
+        for n_task in range(num_task):
+            task_result = []
+            for name in all_algo_name:
+                total_eval = []
+                true_name = display_name_to_algp[name]
+                eval_dict = all_results[true_name]
+                for eval_method, eval_result in eval_dict.items():
+                    evals_per_task = [
+                        f"{mean:.5f} $\pm$ {std:.5f}"
+                        for mean, std in eval_result
+                    ]
+                    total_eval.append(evals_per_task)
+                
+                len_evals = len(eval_dict) 
+                task_result.append(list(zip(*total_eval))[n_task])
+            
+            df.update({f"{mt_name[n_task]}.Task {n_task+1}": task_result})
+        
+        if multi_task_no == 0:
+            total_df = pd.DataFrame(df)
+        else:
+            total_df = total_df.merge(
+                pd.DataFrame(df), how="left", on="Names"
+            )
+    
+    def map_numpy(x):
+        if isinstance(x, float):
+            return np.array([np.inf for _ in range(len_evals)])
+        else:
+            return np.array([float(val.split(" ")[0]) for val in x])
 
-    print(pd.DataFrame(df).to_latex(index=False, escape=False))
-    assert False
+    all_vals = total_df.to_numpy()[:, 1:]
+    new_vals = np.zeros_like(all_vals).tolist()
 
+    for i in range(all_vals.shape[0]):
+        for j in range(all_vals.shape[1]):
+            new_vals[i][j] = map_numpy(all_vals[i, j])
+    
+    new_vals = np.array(new_vals)
+    min_values = np.argmin(new_vals, axis=0)
+
+    for index_method, row in total_df.iterrows():
+        row_name = row[0]
+        eval_values = [[] for i in range(len_evals)]
+        for task_num, contents in enumerate(row[1:]):
+            for eval_num in range(len_evals):
+                if isinstance(contents, float):
+                    eval_values[eval_num].append("-")
+                else:
+                    if index_method == min_values[task_num, eval_num]:
+                        bold_max = contents[eval_num].split(" ")
+                        bold_max[0] = "\\textbf{" + bold_max[0] + "}" 
+                        eval_values[eval_num].append(' '.join(bold_max))
+                    else:
+                        eval_values[eval_num].append(contents[eval_num])
+
+        for i in range(len_evals):
+            if i == 0:
+                print(row_name, end='')
+            print(" & ", end='')
+            print(" & ".join(eval_values[i]) + "\\\\")
+        print("\\addlinespace")
 

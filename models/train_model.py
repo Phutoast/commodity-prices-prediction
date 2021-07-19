@@ -15,6 +15,7 @@ class BaseTrainModel(BaseModel):
     """
     def __init__(self, train_data, model_hyperparam):
         super().__init__(train_data, model_hyperparam)
+        self.optim_iter = self.hyperparam["optim_iter"]
     
     def prepare_data(self):
         """
@@ -66,7 +67,7 @@ class BaseTrainModel(BaseModel):
 
         self.optimizer, self.loss_obj = self.build_optimizer_loss()
 
-        num_iter = self.hyperparam["optim_iter"]
+        num_iter = self.optim_iter
         for i in range(num_iter):
             self.optimizer.zero_grad()
             output, loss = self.cal_train_loss()
@@ -110,7 +111,7 @@ class BaseTrainMultiTask(BaseTrainModel):
         # We don't care about the model as we will define here.
         hyperparam = list_config[0][0]
         super().__init__(list_train_data, hyperparam)
-        self.hyperparam["optim_iter"] *= self.num_task
+        self.optim_iter = self.num_task * self.hyperparam["optim_iter"]
     
     def merge_all_data(self, data_list, label_list):
         raise NotImplementedError()

@@ -31,7 +31,7 @@ class ConstructMergeDataset(unittest.TestCase):
                 use_feature=["metal1.Feature1"],
                 use_feat_tran_lag=[None],
                 out_feature="metal1.Price",
-                out_feat_tran_lag=(0, 0, lambda x: np.log(x)),
+                out_feat_tran_lag=(0, 0, "log"),
             )
         
         self.assertTrue(
@@ -49,7 +49,7 @@ class ConstructMergeDataset(unittest.TestCase):
                 use_feature=["Date", "metal1.Feature1"],
                 use_feat_tran_lag=[None, None],
                 out_feature="metal1.Feature1",
-                out_feat_tran_lag=(0, 0, lambda x: np.log(x)),
+                out_feat_tran_lag=(0, 0, "log"),
             )
     
     @patch(
@@ -63,7 +63,7 @@ class ConstructMergeDataset(unittest.TestCase):
                 use_feature=["Date", "metal1.Feature1-1"],
                 use_feat_tran_lag=[None],
                 out_feature="metal1.Feature2",
-                out_feat_tran_lag=(0, 0, lambda x: np.log(x)),
+                out_feat_tran_lag=(0, 0, "log"),
             )
         
         self.assertTrue(
@@ -110,7 +110,7 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[(0,0,lambda x: np.log(x))],
+            use_feat_tran_lag=[(0,0,"log")],
             out_feature="metal1.Price",
             out_feat_tran_lag=None,
         )
@@ -143,7 +143,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=[None],
             out_feature="metal1.Price",
-            out_feat_tran_lag=(0, 0, lambda x: np.sin(x)),
+            out_feat_tran_lag=(0, 0, "sin"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -174,7 +174,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=[None],
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -207,7 +207,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=[None],
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(0, 0, lambda x: np.sin(x)),
+            out_feat_tran_lag=(0, 0, "sin"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -237,7 +237,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=[None, None],
             out_feature="metal1.Price",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -267,7 +267,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=[None, None],
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -297,7 +297,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=None,
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -325,9 +325,9 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[None, (0, 0, lambda x: np.sin(x))],
+            use_feat_tran_lag=[None, (0, 0, "sin")],
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -357,7 +357,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=None,
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -387,7 +387,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=None,
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(5, 0, lambda x: x),
+            out_feat_tran_lag=(5, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -429,7 +429,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=None,
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(5, 0, lambda x: np.sin(x)),
+            out_feat_tran_lag=(5, 0, "sin"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -471,7 +471,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=None,
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(0, 5, lambda x: x),
+            out_feat_tran_lag=(0, 5, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -513,7 +513,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=None,
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(0, 5, lambda x: np.sin(x)),
+            out_feat_tran_lag=(0, 5, "sin"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -555,7 +555,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=None,
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(3, 2, lambda x: x),
+            out_feat_tran_lag=(3, 2, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -600,7 +600,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=None,
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(3, 2, lambda x: np.sin(x)),
+            out_feat_tran_lag=(3, 2, "sin"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -643,9 +643,9 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[None, (2, 0, lambda x: x)],
+            use_feat_tran_lag=[None, (2, 0, "id")],
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(3, 0, lambda x: x),
+            out_feat_tran_lag=(3, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -691,9 +691,9 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[None, (3, 0, lambda x: x)],
+            use_feat_tran_lag=[None, (3, 0, "id")],
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(2, 0, lambda x: x),
+            out_feat_tran_lag=(2, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -739,9 +739,9 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[None, (2, 0, lambda x: np.sin(x))],
+            use_feat_tran_lag=[None, (2, 0, "sin")],
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(3, 0, lambda x: x),
+            out_feat_tran_lag=(3, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -787,9 +787,9 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[None, (0, 2, lambda x: x)],
+            use_feat_tran_lag=[None, (0, 2, "id")],
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(3, 0, lambda x: x),
+            out_feat_tran_lag=(3, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -835,9 +835,9 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[None, (3, 0, lambda x: x)],
+            use_feat_tran_lag=[None, (3, 0, "id")],
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(0, 2, lambda x: x),
+            out_feat_tran_lag=(0, 2, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -883,9 +883,9 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[None, (3, 0, lambda x: x)],
+            use_feat_tran_lag=[None, (3, 0, "id")],
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(0, 2, lambda x: np.sin(x)),
+            out_feat_tran_lag=(0, 2, "sin"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -933,7 +933,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=[None],
             out_feature="metal2.Price",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -965,7 +965,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=[None],
             out_feature="metal2.Feature2",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -997,7 +997,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=None,
             out_feature="metal2.Price",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -1030,9 +1030,9 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1", "metal2"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[None, (0, 0, lambda x: np.sin(x)), None],
+            use_feat_tran_lag=[None, (0, 0, "sin"), None],
             out_feature="metal2.Price",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -1065,9 +1065,9 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1", "metal2"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[None, (3, 0, lambda x: x),(5, 0, lambda x: x)],
+            use_feat_tran_lag=[None, (3, 0, "id"),(5, 0, "id")],
             out_feature="metal2.Price",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -1114,9 +1114,9 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1", "metal2"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[None, (0, 3, lambda x: x),(0, 5, lambda x: x)],
+            use_feat_tran_lag=[None, (0, 3, "id"),(0, 5, "id")],
             out_feature="metal2.Price",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -1163,9 +1163,9 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1", "metal2"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[None, (0, 3, lambda x: x),(5, 0, lambda x: x)],
+            use_feat_tran_lag=[None, (0, 3, "id"),(5, 0, "id")],
             out_feature="metal2.Price",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -1212,9 +1212,9 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1", "metal2"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[None, (0, 3, lambda x: x),(5, 0, lambda x: x)],
+            use_feat_tran_lag=[None, (0, 3, "id"),(5, 0, "id")],
             out_feature="metal2.Price",
-            out_feat_tran_lag=(6, 0, lambda x: x),
+            out_feat_tran_lag=(6, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -1262,7 +1262,7 @@ class ConstructMergeDataset(unittest.TestCase):
 
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x: generate_fake_data(x, is_weird=True)
+        new=lambda x, y: generate_fake_data(x, is_weird=True)
     )
     def test_load_data_price_mult_source_weird_out(self):
         pred_feature_out = ["Date"]
@@ -1271,7 +1271,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=[None],
             out_feature="metal2.Price",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -1297,7 +1297,7 @@ class ConstructMergeDataset(unittest.TestCase):
 
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x: generate_fake_data(x, is_weird=True)
+        new=lambda x, y: generate_fake_data(x, is_weird=True)
     )
     def test_load_data_price_mult_source_weird_mult_feature(self):
         pred_feature_out = ["Date", "metal1.Feature2", "metal2.Feature3"]
@@ -1306,7 +1306,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=None,
             out_feature="metal2.Price",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
 
@@ -1336,7 +1336,7 @@ class ConstructMergeDataset(unittest.TestCase):
     
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x: generate_fake_data(x, is_nan=True)
+        new=lambda x, y: generate_fake_data(x, is_nan=True)
     )
     def test_load_data_drop_nan_normal(self):
         # Only remove the data when feature are not avaliable. 
@@ -1346,7 +1346,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=[None, None],
             out_feature="metal1.Price",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
             is_drop_nan=True
         )
         feature, target = load_dataset_from_desc(simple_desc)
@@ -1369,7 +1369,7 @@ class ConstructMergeDataset(unittest.TestCase):
     
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x: generate_fake_data(x, is_nan=True)
+        new=lambda x, y: generate_fake_data(x, is_nan=True)
     )
     def test_load_data_drop_nan_normal_block_both_feature(self):
         # Only remove the data when feature are not avaliable. 
@@ -1379,7 +1379,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=[None, None],
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(0, 0, lambda x: x),
+            out_feat_tran_lag=(0, 0, "id"),
             is_drop_nan=True
         )
         with pytest.warns(UserWarning, match="There is a NaN in the output, we can still drop it but the time series may be irregular."):
@@ -1403,7 +1403,7 @@ class ConstructMergeDataset(unittest.TestCase):
     
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x: generate_fake_data(x, is_nan=True)
+        new=lambda x, y: generate_fake_data(x, is_nan=True)
     )
     def test_load_data_drop_nan_retain_trans_lag(self):
         pred_feature_out = ["Date", "metal1.Feature1"]
@@ -1412,7 +1412,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=None,
             out_feature="metal1.Price",
-            out_feat_tran_lag=(5, 0, lambda x: x),
+            out_feat_tran_lag=(5, 0, "id"),
             is_drop_nan=True
         )
         feature, target = load_dataset_from_desc(simple_desc)
@@ -1453,7 +1453,7 @@ class ConstructMergeDataset(unittest.TestCase):
     
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x: generate_fake_data(x, is_nan=True)
+        new=lambda x, y: generate_fake_data(x, is_nan=True)
     )
     def test_load_data_drop_nan_retain_trans_skip(self):
         pred_feature_out = ["Date", "metal1.Feature1"]
@@ -1462,7 +1462,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=None,
             out_feature="metal1.Price",
-            out_feat_tran_lag=(0, 5, lambda x: x),
+            out_feat_tran_lag=(0, 5, "id"),
             is_drop_nan=True
         )
         feature, target = load_dataset_from_desc(simple_desc)
@@ -1503,7 +1503,7 @@ class ConstructMergeDataset(unittest.TestCase):
     
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x: generate_fake_data(x, is_nan=True)
+        new=lambda x, y: generate_fake_data(x, is_nan=True)
     )
     def test_load_data_drop_nan_retain_trans_skip(self):
         pred_feature_out = ["Date", "metal1.Feature1"]
@@ -1512,7 +1512,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=None,
             out_feature="metal1.Price",
-            out_feat_tran_lag=(0, 5, lambda x: x),
+            out_feat_tran_lag=(0, 5, "id"),
             is_drop_nan=True
         )
         feature, target = load_dataset_from_desc(simple_desc)
@@ -1553,7 +1553,7 @@ class ConstructMergeDataset(unittest.TestCase):
 
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x: generate_fake_data(x, is_nan=True)
+        new=lambda x, y: generate_fake_data(x, is_nan=True)
     )
     def test_load_data_drop_nan_lag_output_Nan(self):
         pred_feature_out = ["Date", "metal1.Feature1"]
@@ -1562,7 +1562,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=None,
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(5, 0, lambda x: x),
+            out_feat_tran_lag=(5, 0, "id"),
             is_drop_nan=True
         )
         with pytest.warns(UserWarning, match="There is a NaN in the output, we can still drop it but the time series may be irregular."):
@@ -1614,7 +1614,7 @@ class ConstructMergeDataset(unittest.TestCase):
 
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x: generate_fake_data(x, is_nan=True)
+        new=lambda x, y: generate_fake_data(x, is_nan=True)
     )
     def test_load_data_drop_nan_lag_other_out_nan_out(self):
         pred_feature_out = ["Date", "metal1.Feature1", "metal2.Feature3"]
@@ -1623,7 +1623,7 @@ class ConstructMergeDataset(unittest.TestCase):
             use_feature=pred_feature_out,
             use_feat_tran_lag=None,
             out_feature="metal1.Feature2",
-            out_feat_tran_lag=(5, 0, lambda x: x),
+            out_feat_tran_lag=(5, 0, "id"),
             is_drop_nan=True
         )
 
@@ -1716,7 +1716,7 @@ class ConstructMergeDataset(unittest.TestCase):
             simple_desc = DatasetTaskDesc(
                 inp_metal_list=["metal1"],
                 use_feature=pred_feature_out,
-                use_feat_tran_lag=[None, (5, 0, lambda x: x)],
+                use_feat_tran_lag=[None, (5, 0, "id")],
                 out_feature="metal1.Price",
                 out_feat_tran_lag=None,
             )
@@ -1819,7 +1819,7 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[None, (5, 0, lambda x: x), None],
+            use_feat_tran_lag=[None, (5, 0, "id"), None],
             out_feature="metal1.Price",
             out_feat_tran_lag=None,
         )
@@ -1859,7 +1859,7 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[None, (5, 0, lambda x: x), (3, 0, lambda x: x)],
+            use_feat_tran_lag=[None, (5, 0, "id"), (3, 0, "id")],
             out_feature="metal1.Price",
             out_feat_tran_lag=None,
         )
@@ -1904,9 +1904,9 @@ class ConstructMergeDataset(unittest.TestCase):
         simple_desc = DatasetTaskDesc(
             inp_metal_list=["metal1"],
             use_feature=pred_feature_out,
-            use_feat_tran_lag=[None, (5, 0, lambda x: x), (3, 0, lambda x: x)],
+            use_feat_tran_lag=[None, (5, 0, "id"), (3, 0, "id")],
             out_feature="metal1.Price",
-            out_feat_tran_lag=(1, 0, lambda x: x),
+            out_feat_tran_lag=(1, 0, "id"),
         )
         feature, target = load_dataset_from_desc(simple_desc)
         real_data = generate_fake_data("metal1")

@@ -3,18 +3,19 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import itertools
 import torch
+import copy
 
 from utils.data_preprocessing import load_transform_data, parse_series_time
 from utils.data_structure import DisplayPrediction
 from utils.data_visualization import visualize_time_series, visualize_walk_forward, show_result_fold, pack_result_data
-from utils.others import create_folder, save_fold_data, load_fold_data, create_name
+from utils.others import create_folder, save_fold_data, load_fold_data, create_name, dump_json, load_json  
 from utils.data_structure import DatasetTaskDesc
 from utils.data_preprocessing import load_dataset_from_desc
 
 from experiments.algo_dict import algorithms_dic
 from experiments.eval_methods import prepare_dataset, walk_forward
 
-from models.ind_multi_model import IndependentMultiModel
+from models.list_models import multi_task_algo
 
 class SkipLookUp(object):
     def __init__(self, skip, all_date):
@@ -62,7 +63,9 @@ def get_data_example(dataset_desc):
 
 def create_task(len_inp, len_out, len_pred_show, dataset_desc):
     return_lag = dataset_desc["out_feat_tran_lag"][0]
-    features, log_prices, first_day, len_data, convert_date = get_data_example(dataset_desc)
+    features, log_prices, first_day, len_data, convert_date = get_data_example(
+        dataset_desc
+    )
     splitted_data = prepare_dataset(
         features, first_day, log_prices, 
         len_inp=len_data-len_pred_show, len_out=len_pred_show, return_lag=0, 
@@ -101,8 +104,9 @@ def prepare_task(task, len_inp, return_lag, plot_gap):
     
     return all_date_pred, true_date, true_price, missing_data, convert_date
 
-def gen_prepare_task(
-    len_inp, len_out, len_pred_show, plot_gap, dataset_desc):
+def gen_prepare_task(len_inp, len_out, 
+    len_pred_show, plot_gap, dataset_desc):
+
     return_lag = dataset_desc["out_feat_tran_lag"][0]
     task = create_task(
         len_inp, len_out, len_pred_show, dataset_desc
@@ -112,103 +116,123 @@ def gen_prepare_task(
 
 def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=False, load_path=None):
 
-    train_dataset_list = []
-    algo_hyper_class_list = []
+    def prepare_model_train(exp_setting):
+        train_dataset_list = []
+        algo_hyper_class_list = []
 
-    pred_dataset_list = []
-    len_pred_list = []
-    date_pred_list = []
+        pred_dataset_list = []
+        len_pred_list = []
+        date_pred_list = []
 
-    true_pred_list = []
-    full_feature_list = []
-    log_prices_train_list = []
-    missing_data_list = []
+        true_pred_list = []
+        full_feature_list = []
+        log_prices_train_list = []
+        missing_data_list = []
 
-    plot_all_algo = [
-        exp_setting["task"]["sub_model"],
-        exp_setting["task"]["dataset"],
-        exp_setting["task"]["len_pred_show"]
-    ]
-    num_task = len(plot_all_algo[0])
-    assert all(num_task == len(a) for a in plot_all_algo)
-    plot_all_algo_iter = zip(*plot_all_algo)
-    
-    for i, (algo_name, dataset, len_pred_show) in enumerate(plot_all_algo_iter):
-        hyperparam, algo_class = algorithms_dic[algo_name]
-        len_inp = hyperparam["len_inp"]
-        len_out = hyperparam["len_out"]
 
-        # Adding info the hyperparam
-        hyperparam["using_first"] = exp_setting["using_first"]
-
-        task_helper = gen_prepare_task(
-            len_inp=len_inp, 
-            len_out=len_out,
-            len_pred_show=len_pred_show, 
-            plot_gap=plot_gap, 
-            dataset_desc=dataset
-        )
-        task, helper = task_helper
-
-        features_train, log_prices_train, _, _ = task[0]
-        train_dataset, pred_dataset = task[1]
-        all_date_pred, true_date, true_price, missing_data, convert_date = helper 
-        return_lag = dataset["out_feat_tran_lag"][0]
-
-        # Used For Training
-        train_dataset_list.append(train_dataset)
-        algo_hyper_class_list.append((hyperparam, algo_class))
+        plot_all_algo = [
+            exp_setting["task"]["sub_model"],
+            exp_setting["task"]["dataset"],
+        ]
+        len_pred_show = exp_setting["task"]["len_pred_show"]
+        num_task = len(plot_all_algo[0])
+        assert all(num_task == len(a) for a in plot_all_algo)
+        plot_all_algo_iter = zip(*plot_all_algo)
         
-        # Used For Prediction
-        pred_dataset_list.append(pred_dataset)
+        for i, (algo_name, dataset) in enumerate(plot_all_algo_iter):
+            # New modifier every-task
+            hyperparam, algo_class = algorithms_dic[algo_name]
+            len_inp = hyperparam["len_inp"]
+            len_out = hyperparam["len_out"]
 
-        if not exp_setting["using_first"]:
-            len_pred_list.append(len(all_date_pred))
-            date_pred_list.append(all_date_pred)
-        else:
-            if i == 0:
-                basis_time_step = [convert_date.reverse(d) for d in all_date_pred]
+            # Adding info the hyperparam
+            hyperparam["using_first"] = exp_setting["using_first"]
+
+            task_helper = gen_prepare_task(
+                len_inp=len_inp, 
+                len_out=len_out,
+                len_pred_show=len_pred_show, 
+                plot_gap=plot_gap, 
+                dataset_desc=dataset,
+            )
+            task, helper = task_helper
+
+            features_train, log_prices_train, _, _ = task[0]
+            train_dataset, pred_dataset = task[1]
+            all_date_pred, true_date, true_price, missing_data, convert_date = helper 
+            return_lag = dataset["out_feat_tran_lag"][0]
+
+            # Used For Training
+            train_dataset_list.append(train_dataset)
+            algo_hyper_class_list.append((hyperparam, algo_class))
             
+            # Used For Prediction
+            pred_dataset_list.append(pred_dataset)
+            
+            if not exp_setting["using_first"]:
                 len_pred_list.append(len(all_date_pred))
                 date_pred_list.append(all_date_pred)
             else:
-                len_pred_list.append(len(all_date_pred))
-                all_date_pred = [convert_date(d) for d in basis_time_step]
+                if i == 0:
+                    basis_time_step = [convert_date.reverse(d) for d in all_date_pred]
                 
-                date_pred_list.append(all_date_pred)
+                    len_pred_list.append(len(all_date_pred))
+                    date_pred_list.append(all_date_pred)
+                else:
+                    len_pred_list.append(len(all_date_pred))
+                    all_date_pred = [convert_date(d) for d in basis_time_step]
+                    
+                    date_pred_list.append(all_date_pred)
 
-        # Used For Display
-        true_pred_list.append(DisplayPrediction(
-            pack_result_data(true_price[len_inp+return_lag:], [], [], true_date[len_inp+return_lag:]),
-            name="True Value", is_bridge=False
-        ))
+            # Used For Display
+            true_pred_list.append(DisplayPrediction(
+                pack_result_data(true_price[len_inp+return_lag:], [], [], true_date[len_inp+return_lag:]),
+                name="True Value", is_bridge=False
+            ))
+        
+            full_feature = features_train.copy()
+            full_feature["Date"] = full_feature["Date"].map(convert_date)
+
+            full_feature_list.append(full_feature)
+            log_prices_train_list.append(log_prices_train)
+            missing_data_list.append(missing_data)
+        
+        model = multi_task_algo[exp_setting["algo"]](
+            train_dataset_list, 
+            algo_hyper_class_list,
+            exp_setting["using_first"]
+        )
+
+        return model, (
+            num_task, pred_dataset_list, 
+            len_pred_list, date_pred_list, 
+            full_feature_list, log_prices_train_list, 
+            true_pred_list, missing_data_list
+        )
     
-        full_feature = features_train.copy()
-        full_feature["Date"] = full_feature["Date"].map(convert_date)
-
-        full_feature_list.append(full_feature)
-        log_prices_train_list.append(log_prices_train)
-        missing_data_list.append(missing_data)
-    
-    model = exp_setting["algo"](
-        train_dataset_list, 
-        algo_hyper_class_list,
-        exp_setting["using_first"]
-    )
-
     if load_path is not None:
         if is_load:
-            # model.load(f"save/{load_path}")
-            model = exp_setting["algo"].load_from_path(f"save/{load_path}")
+            exp_setting = load_json(f"save/{load_path}/exp_setting.json")
+            exp_setting["task"]["dataset"] = [DatasetTaskDesc(**d) for d in exp_setting["task"]["dataset"]]
+            _, useful_info = prepare_model_train(exp_setting)
+            model = multi_task_algo[exp_setting["algo"]].load_from_path(f"save/{load_path}")
         elif is_save:
+            model, useful_info = prepare_model_train(exp_setting)
             model.train()
             base_name = create_name("save/", load_path)
             model.save(base_name)
+            dump_json(base_name + "/exp_setting.json", exp_setting)
         else:
+            model, useful_info = prepare_model_train(exp_setting)
             model.train()
     else:
+        model, useful_info = prepare_model_train(exp_setting)
         model.train()
-
+    
+    (num_task, pred_dataset_list, len_pred_list, date_pred_list, 
+        full_feature_list, log_prices_train_list, 
+        true_pred_list, missing_data_list) = useful_info
+    
     pred = model.predict(
         pred_dataset_list, 
         len_pred_list, 
@@ -218,8 +242,12 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
 
     fig, axes = plt.subplots(nrows=num_task, figsize=(15, 6))
     for i in range(num_task):
+        all_task = exp_setting["task"]
+        curr_dataset = all_task["dataset"][i]
+
+        display_name = all_task["sub_model"][i] + " " + curr_dataset.gen_name()
         model_pred = DisplayPrediction(
-            pred[i], name=exp_setting["task"]["sub_model"][i], color="p", is_bridge=False
+            pred[i], name=display_name, color="p", is_bridge=False
         )
 
         fig, ax1 = visualize_time_series(
@@ -232,50 +260,61 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
     plt.show()
 
 def example_plot_walk_forward(exp_setting, model_name, load_path, 
-    size_train=300, size_test=200, is_save=False, is_load=True, is_show=True):
+    is_save=False, is_load=True, is_show=True):
 
-    all_data = []
-    return_lag_list = []
+    def full_model_running(exp_setting):
+        all_data = []
+        return_lag_list = []
+        
+        size_train, size_test = exp_setting["task"]["len_train_show"]
+        
+        plot_all_algo = [
+            exp_setting["task"]["dataset"],
+            exp_setting["task"]["sub_model"],
+        ]
+        num_task = len(plot_all_algo[0])
+        assert all(num_task == len(a) for a in plot_all_algo)
+        plot_all_algo_iter = zip(*plot_all_algo)
+        
+        for dataset_desc, algo_name in plot_all_algo_iter:
+            features, log_prices, _, _, convert_date = get_data_example(dataset_desc) 
+            all_data.append(
+                (features, log_prices, convert_date, algorithms_dic[algo_name])
+            )
+            return_lag_list.append(dataset_desc["out_feat_tran_lag"][0])
     
-    plot_all_algo = [
-        exp_setting["task"]["dataset"],
-        exp_setting["task"]["sub_model"],
-    ]
-    num_task = len(plot_all_algo[0])
-    assert all(num_task == len(a) for a in plot_all_algo)
-    plot_all_algo_iter = zip(*plot_all_algo)
-
-    for dataset_desc, algo_name in plot_all_algo_iter:
-        features, log_prices, _, _, convert_date = get_data_example(dataset_desc) 
-        all_data.append(
-            (features, log_prices, convert_date, algorithms_dic[algo_name])
+        run_fold = lambda: walk_forward(
+            all_data, exp_setting["task"],  
+            multi_task_algo[exp_setting["algo"]],
+            size_train=size_train, size_test=size_test, 
+            train_offset=1, 
+            return_lag_list=return_lag_list, 
+            convert_date=convert_date,
+            using_first=exp_setting["using_first"],
+            is_train_pad=True, 
+            is_test_pad=False 
         )
-        return_lag_list.append(dataset_desc["out_feat_tran_lag"][0])
- 
-    run_fold = lambda: walk_forward(
-        all_data, exp_setting["task"],  
-        exp_setting["algo"],
-        size_train=size_train, size_test=size_test, 
-        train_offset=1, 
-        return_lag_list=return_lag_list, 
-        convert_date=convert_date,
-        using_first=exp_setting["using_first"],
-        is_train_pad=True, 
-        is_test_pad=False 
-    )
-    
+        return run_fold, all_data
+     
     if load_path is not None:
         if is_load:
+            exp_setting = load_json("save/" + load_path  + "/exp_setting.json")
+            exp_setting["task"]["dataset"] = [DatasetTaskDesc(**d) for d in exp_setting["task"]["dataset"]]
+            _, all_data = full_model_running(exp_setting)
             fold_result = load_fold_data(
-                load_path, model_name, exp_setting["algo"]
+                load_path, model_name, multi_task_algo[exp_setting["algo"]]
             )
         elif is_save:
+            run_fold, all_data = full_model_running(exp_setting)
             base_folder = create_name("save/", model_name)
             fold_result = run_fold()
             save_fold_data(fold_result, model_name, base_folder)
+            dump_json(base_folder + "/exp_setting.json", exp_setting)
         else:
+            run_fold, all_data = full_model_running(exp_setting)
             fold_result = run_fold()
     else:
+        run_fold, all_data = full_model_running(exp_setting)
         fold_result = run_fold()
 
     if is_show:

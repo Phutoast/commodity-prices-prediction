@@ -47,11 +47,23 @@ def plot_frequency_features():
     
     fig.savefig(f"img/data_vis/freq_feat.pdf")
 
-def plot_feature_PCA_overtime():
-    metal = "copper"
+def check_data():
+    metal = "aluminium"
     data = load_metal_data(metal)
     data = data.dropna()
 
+    metal = "copper"
+    data1 = load_metal_data(metal)
+    data1 = data1.dropna()
+
+    # Confirm that they are the same
+    print(data["Date"].to_list() == data1["Date"].to_list())
+
+def plot_feature_PCA_overtime():
+    metal = "aluminium"
+    data = load_metal_data(metal)
+    data = data.dropna()
+    
     data = data.loc[:, data.columns != "Price"]
     data = data.loc[:, data.columns != "Date"].to_numpy()
 
@@ -70,7 +82,7 @@ def plot_feature_PCA_overtime():
     # print(reduced_data)
 
 def main():
-    plot_feature_PCA_overtime()
+    check_data()
 
 
 if __name__ == '__main__':

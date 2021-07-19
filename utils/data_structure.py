@@ -1,12 +1,14 @@
 from collections import namedtuple
 import pandas as pd
 import torch
+from utils import data_preprocessing
 
 import warnings
 
 # Storing Prediction Results for Plotting
 DisplayPrediction = namedtuple("DisplayPrediction", ["packed_data", "name", "color", "is_bridge"], defaults=(None, "k", True))
 FoldWalkForewardResult = namedtuple("FoldWalkForewardResult", ["pred", "missing_data", "model", "loss_detail"])
+CompressMethod = namedtuple("CompressMethod", ["compress_dim", "method"])
 full_features_names = {
     "aluminium": ['Date', 'COT', 'COT.1', 'CTA', 'CTA.1', 'CURVE', 'CURVE.1', 'CURVE.2', 'CURRENCY', 'CURRENCY.1', 'CURRENCY.2', 'CURRENCY.3', 'CURRENCY.4', 'CURRENCY.5', 'CURRENCY.6', 'CURRENCY.7', 'CURRENCY.8', 'CURRENCY.9', 'FREIGHT', 'FREIGHT.1', 'FREIGHT.2', 'FREIGHT.3', 'FREIGHT.4', 'FREIGHT.5', 'FREIGHT.6', 'FREIGHT.7', 'FREIGHT.8', 'FREIGHT.9', 'INVENTORIES', 'INVENTORIES.1', 'INVENTORIES.2', 'INVENTORIES.3', 'INVENTORIES.4', 'INVENTORIES.5', 'SATELLITE', 'SATELLITE.1', 'SATELLITE.2', 'SATELLITE.3', 'SATELLITE.4', 'SATELLITE.5', 'SATELLITE.6', 'SATELLITE.7', 'SATELLITE.8', 'SATELLITE.9', 'SATELLITE.10', 'SEASONALITY', 'MACRO', 'MACRO.1', 'MACRO.2', 'MACRO.3', 'MACRO.4', 'MACRO.5', 'MACRO.6', 'MACRO.7', 'MACRO.8', 'TECHNICAL', 'Price'], 
     "copper": ['Date', 'COT', 'COT.1', 'COT.2', 'CTA', 'CTA.1', 'CURVE', 'CURVE.1', 'CURVE.2', 'CURRENCY', 'CURRENCY.1', 'CURRENCY.2', 'CURRENCY.3', 'CURRENCY.4', 'CURRENCY.5', 'FREIGHT', 'FREIGHT.1', 'FREIGHT.2', 'FREIGHT.3', 'FREIGHT.4', 'FREIGHT.5', 'FREIGHT.6', 'FREIGHT.7', 'FREIGHT.8', 'FREIGHT.9', 'INVENTORIES', 'INVENTORIES.1', 'INVENTORIES.2', 'INVENTORIES.3', 'INVENTORIES.4', 'INVENTORIES.5', 'SATELLITE', 'SATELLITE.1', 'SATELLITE.2', 'SEASONALITY', 'MACRO', 'MACRO.1', 'MACRO.2', 'MACRO.3', 'MACRO.4', 'MACRO.5', 'MACRO.6', 'MACRO.7', 'MACRO.8', 'TECHNICAL', 'Price']
@@ -69,15 +71,17 @@ class DatasetTaskDesc(dict):
         out_feature: The feature we want to predict
         kwargs: other model specific hyperparameters (e.g hidden-layer size). 
     """
-    def __init__(self, inp_metal_list, 
+    def __init__(self, inp_metal_list,
         use_feature, use_feat_tran_lag, out_feature, 
-        out_feat_tran_lag, is_drop_nan=False, len_dataset=1000, **kwargs): 
+        out_feat_tran_lag, is_drop_nan=False, len_dataset=-1, 
+        metal_modifier=None, name=None, **kwargs): 
 
         self["inp_metal_list"] = inp_metal_list
         self["out_feature"] = out_feature
         self["out_feat_tran_lag"] = out_feat_tran_lag
         self["is_drop_nan"] = is_drop_nan
         self["len_dataset"] = len_dataset
+        self["metal_modifier"] = metal_modifier
 
         if all("Date" not in col_name for col_name in use_feature):
             raise ValueError("Date has to be included in use_feature (but can be removed later)")
@@ -93,9 +97,35 @@ class DatasetTaskDesc(dict):
         else:
             raise TypeError("Wrong Type For use_feat_tran_lag")
         
-        self["feature"] = use_feature
-        self["inp_feat_tran_lag"] = use_feat_tran_lag
+        if metal_modifier is None:
+            self["metal_modifier"] = [
+                (0, "id")
+                for _ in range(len(inp_metal_list))
+            ]
+        elif isinstance(metal_modifier, list):
+            if len(metal_modifier) != len(inp_metal_list):
+                raise ValueError("The modifier for the metal list should be the same length is the metal_list.")
+        else:
+            raise TypeError("Wrong Type For metal_modifier")
+        
+        self.name = name 
+        
+        self["use_feature"] = use_feature
+        self["use_feat_tran_lag"] = use_feat_tran_lag
         self.update(kwargs)
     
     def __repr__(self):
         return f"{type(self).__name__}({super().__repr__()})"
+    
+    def gen_name(self):
+        if self.name is None:
+            metal_names = " ".join(map(lambda x: x.capitalize(), self["inp_metal_list"]))
+            if all(modi is None for modi in self["metal_modifier"]):
+                generated_name = metal_names
+            else:
+                modifier = "*".join(map(lambda x: f"{x[1].upper()}({x[0]})", self["metal_modifier"]))
+                generated_name = metal_names + " + " + modifier
+            
+            return generated_name
+        
+        return self.name
