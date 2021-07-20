@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 import json
+import warnings
 
 from utils import others
 from experiments import algo_dict
@@ -21,10 +22,16 @@ class IndependentMultiModel(object):
         using_first: Using the first data set inputs but with difference labels.
 
     """
+    
+    expect_using_first = False
+    
     def __init__(self, list_train_data, list_config, using_first):
         assert len(list_train_data) == len(list_config) 
         self.num_model = len(list_config)
         self.using_first = using_first
+
+        if using_first != self.expect_using_first:
+            warnings.warn(UserWarning(f"To gain the best performance, we requires using_first to be {self.expect_using_first}"))
 
         self.models = []  
         self.list_config_json = {"hyperparam": [], "model_class": [], "using_first": using_first}

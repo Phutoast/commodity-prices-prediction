@@ -1,15 +1,7 @@
 from experiments import algo_dict
 from examples.simple_example import example_plot_walk_forward
 
-algo_default_hyperparam = {
-    "GPMultiTaskMultiOut": "GP-Multi-Task",
-    "IndependentGP": "GP-Test",
-    "GPMultiTaskIndex": "GP-Multi-Task",
-    "IIDDataModel": "Mean",
-    "ARIMAModel": "ARIMA"
-}
-
-def create_exp_setting(dataset, algo):
+def create_exp(dataset, algo, algo_config):
     num_task = len(dataset)
 
     if algo in algo_dict.class_name:
@@ -18,12 +10,12 @@ def create_exp_setting(dataset, algo):
         train_algo = algo
     
     using_first = False
-    if algo in ["GPMultiTaskMultiOut"]:
+    if algo in algo_dict.using_first_algo:
         using_first = True
 
     exp_setting = {
         "task": {
-            "sub_model": [algo_default_hyperparam[algo]] * num_task,
+            "sub_model": [algo_config[algo]] * num_task,
             "dataset": dataset,
             "len_pred_show": 130,
             "len_train_show": (275, 130)

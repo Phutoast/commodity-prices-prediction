@@ -14,6 +14,9 @@ from utils.data_structure import Hyperparameters
 import copy
 
 class GPMultiTaskIndex(BaseTrainMultiTask):
+    
+    expect_using_first = False
+
     def __init__(self, list_train_data, list_config, using_first):
         super().__init__(list_train_data, list_config, using_first)
         self.likelihood = gpytorch.likelihoods.GaussianLikelihood()
@@ -23,8 +26,6 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
 
         if self.hyperparam["is_gpu"]:
             self.likelihood = self.likelihood.cuda()
-
-        assert not using_first
     
     def merge_all_data(self, data_list, label_list):
         train_ind = [
@@ -37,7 +38,7 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
      
     def prepare_data(self):
         (all_data, train_ind), self.train_y = self.pack_data_merge(
-            self.train_data, self.hyperparam["is_past_label"]
+            self.train_data, self.hyperparam["is_past_label"], using_first=self.using_first
         )
 
         self.train_y = torch.from_numpy(self.train_y).float()
@@ -92,7 +93,7 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
         self.likelihood.eval() 
         
         (all_data, test_ind), _ = self.pack_data_merge(
-            list_test_data, self.hyperparam["is_past_label"]
+            list_test_data, self.hyperparam["is_past_label"], using_first=self.using_first
         )
         if self.hyperparam["is_time_only"]:
             all_data = all_data[:, 0]

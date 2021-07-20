@@ -7,6 +7,7 @@ from utils import data_visualization
 
 from experiments import algo_dict
 import copy
+import warnings
 
 class BaseTrainModel(BaseModel):
     """
@@ -107,6 +108,12 @@ class BaseTrainMultiTask(BaseTrainModel):
         )
         self.num_task = len(list_config)
         self.using_first = using_first
+
+        if self.expect_using_first:
+            assert using_first
+        else:
+            if using_first != self.expect_using_first:
+                warnings.warn(UserWarning(f"To gain the best performance, we requires using_first to be {self.expect_using_first}"))
 
         # We don't care about the model as we will define here.
         hyperparam = list_config[0][0]

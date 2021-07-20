@@ -2,7 +2,7 @@ from utils.data_structure import DatasetTaskDesc, CompressMethod
 
 length_dataset = 795
 
-def generate_list_dataset(type_task="time", modifier=None, metal_type="aluminium"):
+def gen_datasets(type_task="time", modifier=None, metal_type="aluminium"):
 
     def cal_modifier_feature(inp_metal_list):
         metal_modifier, additional_features = [], []

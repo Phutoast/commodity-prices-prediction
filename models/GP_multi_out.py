@@ -19,6 +19,9 @@ from utils import data_visualization
 import copy
 
 class GPMultiTaskMultiOut(BaseTrainMultiTask):
+
+    expect_using_first = True
+
     def __init__(self, list_train_data, list_config, using_first):
         super().__init__(list_train_data, list_config, using_first)
         self.likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(

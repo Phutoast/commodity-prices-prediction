@@ -12,10 +12,8 @@ from utils.others import create_folder, save_fold_data, load_fold_data, create_n
 from utils.data_structure import DatasetTaskDesc
 from utils.data_preprocessing import load_dataset_from_desc
 
-from experiments.algo_dict import algorithms_dic
+from experiments.algo_dict import algorithms_dic, multi_task_algo
 from experiments.eval_methods import prepare_dataset, walk_forward
-
-from models.list_models import multi_task_algo
 
 class SkipLookUp(object):
     def __init__(self, skip, all_date):

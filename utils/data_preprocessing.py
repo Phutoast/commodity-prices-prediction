@@ -23,6 +23,11 @@ class GlobalModifier(object):
         if self.method.lower() == "id":
             self.is_drop = False
             self.is_id = True
+            self.compress_dim = 0
+        elif self.method.lower() == "drop":
+            self.is_drop = True
+            self.is_id = False
+            self.compress_dim = 0
         elif self.method.lower() == "pca":
             self.is_drop = True
             self.is_id = False
@@ -61,6 +66,8 @@ class GlobalModifier(object):
             pca = PCA(n_components=self.compress_dim)
             reduced_data = pca.fit_transform(np_data)
             return self.numpy_to_df(reduced_data)
+        elif self.method.lower() == "drop": 
+            return data
         
 
 identity_modifier = GlobalModifier((0, "id"))
