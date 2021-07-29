@@ -91,11 +91,11 @@ def parse_series_time(dates, first_day):
     for d in dates:
         current_date = parse_date(d)
         time_step.append((current_date - first_day).days)
-        label.append(current_date.strftime('%d/%m/%Y'))
+        label.append(current_date.strftime('%Y-%m-%d'))
 
     return time_step, label
     
-def load_metal_data(metal_type, global_modifier):
+def load_metal_data(metal_type, global_modifier=identity_modifier):
     """
     Loading the metal data (both feature and *raw* prices). 
     The files will be stores given the path: 

@@ -1,14 +1,18 @@
 import numpy as np
 from tabulate import tabulate
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from matplotlib.ticker import AutoMinorLocator
+
 from collections import defaultdict
 import pandas as pd
 import math
 
 from utils.data_preprocessing import parse_series_time
 from scipy.interpolate import make_interp_spline
-from models.ind_multi_model import IndependentMultiModel
+
+from datetime import datetime  
+from datetime import timedelta  
 
 from collections import OrderedDict
 
@@ -22,8 +26,31 @@ color = {
     "r": "#d6022a"
 }
 color = defaultdict(lambda:"#1a1a1a", color)
+    
+def plot_axis_date(ax, data_date, month_interval=3):
+    # https://matplotlib.org/stable/gallery/text_labels_and_annotations/date.html
+    fmt_half_year = mdates.MonthLocator(interval=month_interval)
+    ax.xaxis.set_major_locator(fmt_half_year)
 
-def visualize_time_series(fig_ax, data, inp_color, missing_data, lag_color,
+    # Minor ticks every month.
+    fmt_month = mdates.MonthLocator()
+    ax.xaxis.set_minor_locator(fmt_month)
+
+    # Text in the x axis will be displayed in 'YYYY-mm' format.
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+
+    # Round to nearest years.
+    datemin = np.datetime64(data_date[0], 'Y')
+    datemax = np.datetime64(data_date[-1], 'Y') + np.timedelta64(12, 'M')
+    ax.set_xlim(datemin, datemax)
+
+    # Format the coords message box, i.e. the numbers displayed as the cursor moves
+    # across the axes within the interactive GUI.
+    ax.format_xdata = mdates.DateFormatter('%Y-%m')
+    ax.format_ydata = lambda x: f'${x:.2f}'  # Format the price.
+
+
+def visualize_time_series(fig_ax, data, inp_color, missing_data, lag_color, first_date,
     x_label="Number of Days", y_label="Log of Aluminium Price", title="Prices over time"):
     """
     Ploting out the time series, given each time step label to be stored in the DataFrame
@@ -44,30 +71,37 @@ def visualize_time_series(fig_ax, data, inp_color, missing_data, lag_color,
         title: Plot title 
     """
     fig, ax = fig_ax
-    ((x_train, y_train), y_pred_list) = data
+    ((x_train_raw, y_train_raw), y_pred_list) = data
 
     missing_x, missing_y = missing_data
     is_missing = len(missing_x) != 0
 
-    convert_date = lambda x: x["Date"].to_list()
+    first_date = datetime.strptime(first_date, '%Y-%m-%d')
+
+    convert_date = lambda x: [
+        np.datetime64((first_date + timedelta(days=d)).strftime('%Y-%m-%d'))
+        for d in x
+    ]
     convert_price = lambda x: x["Output"].to_list()
 
-    x_train = convert_date(x_train)
-    y_train = convert_price(y_train)
+    x_train = convert_date(x_train_raw["Date"].to_list())
+    y_train = convert_price(y_train_raw)
     
     cut_point = x_train[-1]
     ax.plot(x_train, y_train, color=color[inp_color])
 
     for i, y_pred in enumerate(y_pred_list):
         data, plot_name, color_code, is_bridge = y_pred
-        mean_pred, x_test = data["mean"], data["x"]
+        mean_pred, x_test_raw = data["mean"], data["x"]
+        x_test = convert_date(x_test_raw)
 
         if i == 0 and is_missing:
+            missing_x = convert_date(missing_x)
             ax.axvline(x_test[0], color=color[lag_color], linestyle='--', linewidth=0.5, dashes=(5, 0), alpha=0.2)
             ax.plot([missing_x[-1], x_test[0]], [missing_y[-1], mean_pred[0]], color[lag_color], linestyle="dashed")
             ax.axvspan(cut_point, x_test[0], color=color[lag_color], alpha=0.1)
 
-        plot_bound(ax, data, color[color_code], plot_name)
+        plot_bound(ax, data, x_test, color[color_code], plot_name)
 
         if is_bridge and (not is_missing): 
             ax.plot([x_train[-1], x_test[0]], [y_train[-1], mean_pred[0]], color[color_code], linewidth=1.5)
@@ -80,17 +114,18 @@ def visualize_time_series(fig_ax, data, inp_color, missing_data, lag_color,
         ax.axvline(cut_point, color=color["k"], linestyle='--')
 
     ax.xaxis.set_minor_locator(AutoMinorLocator())
-    ax.grid()
     ax.legend()
 
     # ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
     ax.set_title(title)
 
-    ax.set_xlim(left=cut_point-500)
+    # ax.set_xlim(left=cut_point-np.timedelta64(1, 'm'))
+    plot_axis_date(ax, x_train + missing_x + x_test)
+    ax.grid()
     return fig, ax
 
-def plot_bound(ax, data, color, plot_name):
+def plot_bound(ax, data, x_test, color, plot_name):
     """
     Plotting with graph with uncertainty 
 
@@ -100,7 +135,7 @@ def plot_bound(ax, data, color, plot_name):
         color: Color of the line
         plot_name: Name of the line
     """
-    mean_pred, upper_pred, lower_pred, x_test = data["mean"], data["upper"], data["lower"], data["x"]
+    mean_pred, upper_pred, lower_pred = data["mean"], data["upper"], data["lower"]
     ax.fill_between(x_test, upper_pred, lower_pred, color=color, alpha=0.2)
     ax.plot(x_test, mean_pred, color, linewidth=1.5, label=plot_name)
 
@@ -132,7 +167,8 @@ def plot_area(axs, x, y, miss, start_ind, end_ind, lag_color):
     )
 
 
-def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_dict, lag_color="o", pred_color="p", below_err="g", title="Walk Forward Validation Loss Visualization"):
+def visualize_walk_forward(full_data_x, full_data_y, 
+    fold_result, convert_date_dict, lag_color="o", pred_color="p", below_err="g", title="Walk Forward Validation Loss Visualization"):
 
     convert_date = lambda x: x["Date"].to_list()
     convert_price = lambda x: x["Output"].to_list()
@@ -140,13 +176,21 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_d
 
     x, _ = parse_series_time(convert_date(full_data_x), first_day)
     x = list(map(lambda a: convert_date_dict[a], x))
+    
+    first_day_abs = datetime.strptime(first_day, '%Y-%m-%d')
+    convert_date2 = lambda x: [
+        np.datetime64((first_day_abs + timedelta(days=d)).strftime('%Y-%m-%d'))
+        for d in x
+    ]
+
+    x = convert_date2(x)
     y = convert_price(full_data_y)
-    get_first_day = lambda df: df["x"][0]
 
     _, (miss_x, miss_y), _, _ = fold_result[0]
     is_missing = len(miss_x) != 0
 
     if is_missing:
+        miss_x = convert_date2(miss_x)
         day_plot = (
             0, 0, miss_x[0], x.index(miss_x[0])
         )
@@ -165,9 +209,10 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_d
 
 
     for i, (pred, missing_data, _, loss_detail) in enumerate(fold_result):
-        first_day = pred["x"].iloc[0]
+        pred_x = convert_date2(pred["x"])
+        first_day = pred_x[0]
         first_index = x.index(first_day)
-        last_day = pred["x"].iloc[-1]
+        last_day = pred_x[-1]
         last_index = x.index(last_day)
 
         if not is_missing:
@@ -181,12 +226,22 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_d
             axs[0].axvline(last_day, color=color["k"], linestyle='--')
         
         axs[0].plot(
-            pred["x"].to_list(), pred["true_mean"].to_list(),
+            pred_x, pred["true_mean"].to_list(),
             color=color["k"] 
         )
 
         if is_missing:
-            missing_x, _ = missing_data
+            missing_x_raw, _ = missing_data
+            #  = convert_date2(missing_x)
+
+            missing_x = []
+            for a in missing_x_raw:
+                day = first_day_abs + timedelta(days=a)
+                day_str = day.strftime('%Y-%m-%d')
+                missing_x.append(np.datetime64(day_str))
+            
+            missing_data = (missing_x, missing_data[1])
+
             start_area_index = day_plot[3]-1
 
             # Fixing incomplete testing (since we don't do padding)
@@ -206,13 +261,13 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_d
                 color="grey", alpha=0.1
             )
 
-        plot_bound(axs[0], pred, color[pred_color], "Test")
+        plot_bound(axs[0], pred, pred_x, color[pred_color], "Test")
         
         axs[1].axvline(first_day, color=color["grey"])
         axs[1].axvline(last_day, color=color["grey"])
         axs[1].axvspan(first_day, last_day, color=color["grey"], alpha=0.4) 
 
-        axs[1].plot(pred["x"], loss_detail["time_step_error"], 
+        axs[1].plot(pred_x, loss_detail["time_step_error"], 
             color=color[below_err], alpha=0.6)
 
         if is_missing:
@@ -229,14 +284,14 @@ def visualize_walk_forward(full_data_x, full_data_y, fold_result, convert_date_d
         
 
     axs[0].xaxis.set_minor_locator(AutoMinorLocator())
-    axs[0].grid()
-
-    axs[0].set_xlim(left=x[0])
-    axs[1].set_xlim(left=x[0])
 
     axs[1].set_xlabel("Time Step")
     axs[0].set_ylabel("Log Prices")
     axs[1].set_ylabel("Square Loss")
+
+    plot_axis_date(axs[0], x, month_interval=3)
+    plot_axis_date(axs[1], x, month_interval=3)
+    axs[0].grid()
 
     return fig, axs
 

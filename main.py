@@ -6,14 +6,8 @@ import torch
 from examples.simple_example import example_plot_all_algo_lag, example_plot_walk_forward
 from utils.others import create_folder
 
-from models.ind_multi_model import IndependentMultiModel
-from models.GP_multi_out import GPMultiTaskMultiOut
-from models.GP_multi_index import GPMultiTaskIndex
-
-from utils.data_structure import DatasetTaskDesc, CompressMethod
-from utils.data_visualization import plot_latex
-from utils.data_preprocessing import GlobalModifier
-from experiments import algo_dict, gen_experiment, list_dataset
+from utils.data_structure import CompressMethod
+from experiments import algo_dict, list_dataset
 from run_experiments import gen_task_list
 
 import warnings
@@ -43,17 +37,19 @@ def main():
     # exp_setting3 = gen_experiment.create_exp_setting(list_dataset.diff_time_pca_feature, "GPMultiTaskIndex")
     # exp_setting4 = gen_experiment.create_exp_setting(list_dataset.diff_time, "IIDDataModel")
 
+    algo_config = {
+        "IIDDataModel": algo_dict.encode_params(
+        "iid", is_verbose=False, 
+        is_test=True, dist="gaussian")
+    }
+
     # Getting the first one and the actual content
     exp_setting2 = gen_task_list(
-        ["GPMultiTaskIndex"], "time", 
+        ["IIDDataModel"], "time", 
         {"copper": CompressMethod(0, "drop"), "aluminium": CompressMethod(0, "drop")}, 
-        "copper"
+        "copper", algo_config
     )[0][1]
     exp_setting2['using_first'] = True
-     
-    for (k, v) in algo_dict.algorithms_dic.items():
-        v[0]["is_verbose"] = True
-        v[0]["optim_iter"] = num_train_iter    
     
     if test_type == "f":
         example_plot_all_algo_lag(

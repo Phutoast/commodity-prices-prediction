@@ -5,8 +5,10 @@ import itertools
 import torch
 from collections import Counter
 
-from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data
+from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, parse_series_time
 from utils.data_structure import DatasetTaskDesc
+from utils.data_visualization import plot_axis_date
+import datetime
 
 from sklearn.decomposition import PCA
 
@@ -79,8 +81,37 @@ def plot_feature_PCA_overtime():
     ax.plot(x,y,z, color="#5a08bf")
     plt.show()
 
+def explore_data_overall():
+
+    # data = cbook.get_sample_data('goog.npz', np_load=True)['price_data']
+    # assert False
+
+    # identity_modifier = GlobalModifier((0, "id"))
+    metal = "aluminium"
+    _, data_al = load_transform_data(metal, 22)
+    
+    metal = "copper"
+    _, data_cu = load_transform_data(metal, 22)
+
+    dates = data_al["Date"].to_list()
+    dates, text_dates = parse_series_time(dates, dates[0])
+    text_dates = [np.datetime64(date) for date in text_dates]
+
+    fig, axs = plt.subplots(nrows=2, figsize=(15, 5))
+    
+    axs[0].plot(text_dates, data_al["Price"], color="b")
+    axs[1].plot(text_dates, data_cu["Price"], color="r") 
+
+    plot_axis_date(axs[0], text_dates, month_interval=18)
+    plot_axis_date(axs[1], text_dates, month_interval=18)
+
+    axs[0].grid()
+    axs[1].grid()
+
+    plt.show()
+
 def main():
-    check_data()
+    explore_data_overall()
 
 
 if __name__ == '__main__':

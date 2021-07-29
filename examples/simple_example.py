@@ -80,7 +80,7 @@ def create_task(len_inp, len_out, len_pred_show, dataset_desc):
         len_inp=len_inp, len_out=len_out, return_lag=return_lag, 
         convert_date=False, offset=len_out, is_show_progress=False, num_dataset=-1, is_padding=False
     )
-    return (features_train, log_prices_train, feature_test, log_prices_test), (train_dataset, pred_dataset), convert_date
+    return (features_train, log_prices_train, feature_test, log_prices_test), (train_dataset, pred_dataset), convert_date, first_day
 
 def prepare_task(task, len_inp, return_lag, plot_gap):
     _, _, feature_test, log_prices_test = task[0]
@@ -127,6 +127,8 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
         log_prices_train_list = []
         missing_data_list = []
 
+        first_day_list = []
+
 
         plot_all_algo = [
             exp_setting["task"]["sub_model"],
@@ -157,12 +159,14 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
 
             features_train, log_prices_train, _, _ = task[0]
             train_dataset, pred_dataset = task[1]
+            first_date = task[3]
             all_date_pred, true_date, true_price, missing_data, convert_date = helper 
             return_lag = dataset["out_feat_tran_lag"][0]
 
             # Used For Training
             train_dataset_list.append(train_dataset)
             algo_hyper_class_list.append((hyperparam, algo_class))
+            first_day_list.append(first_date)
             
             # Used For Prediction
             pred_dataset_list.append(pred_dataset)
@@ -205,7 +209,7 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
             num_task, pred_dataset_list, 
             len_pred_list, date_pred_list, 
             full_feature_list, log_prices_train_list, 
-            true_pred_list, missing_data_list
+            true_pred_list, missing_data_list, first_day_list
         )
     
     if load_path is not None:
@@ -229,7 +233,7 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
     
     (num_task, pred_dataset_list, len_pred_list, date_pred_list, 
         full_feature_list, log_prices_train_list, 
-        true_pred_list, missing_data_list) = useful_info
+        true_pred_list, missing_data_list, first_day_list) = useful_info
     
     pred = model.predict(
         pred_dataset_list, 
@@ -251,7 +255,7 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
         fig, ax1 = visualize_time_series(
             (fig, axes[i]), 
             ((full_feature_list[i], log_prices_train_list[i]), [true_pred_list[i], model_pred]), 
-            "k", missing_data_list[i], "o", title="Log Lag over Time"
+            "k", missing_data_list[i], "o", first_day_list[i], title="Log Lag over Time"
         )
 
     fig.tight_layout()        

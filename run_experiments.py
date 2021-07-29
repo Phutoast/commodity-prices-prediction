@@ -146,24 +146,21 @@ def general_testing():
 
 
     defaul_config = {
-        "GPMultiTaskMultiOut": 
-        algo_dict.encode_params(
+        "GPMultiTaskMultiOut": algo_dict.encode_params(
             "gp_multi_task", is_verbose=False, 
             is_test=is_test, 
             kernel="Composite_1", 
             optim_iter=100,
             len_inp=10
         ),
-        "IndependentGP": 
-        algo_dict.encode_params(
+        "IndependentGP": algo_dict.encode_params(
             "gp", is_verbose=False, 
             is_test=is_test, 
             kernel="Composite_1", 
             optim_iter=100,
             len_inp=10
         ),
-        "GPMultiTaskIndex": 
-        algo_dict.encode_params(
+        "GPMultiTaskIndex": algo_dict.encode_params(
             "gp_multi_task", is_verbose=False, 
             is_test=is_test, 
             kernel="Composite_1", 
