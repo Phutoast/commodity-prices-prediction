@@ -66,36 +66,46 @@ def main():
     pca_modifier = {"copper": CompressMethod(3, "pca"), "aluminium": CompressMethod(3, "pca")}
     
     all_algo = ["GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex", "IIDDataModel", "ARIMAModel"]
-    all_algo = ["ARIMAModel"]
-    display_name_to_algp = dict(zip(
-        ["Multi-Task Out", "Independent GP", "Multi-Task Index", "Mean", "ARIMA"], all_algo
+    all_algo = ["IIDDataModel"]
+    # display_name_to_algo = dict(zip(
+    #     ["Multi-Task Out", "Independent GP", "Multi-Task Index", "Mean", "ARIMA"], 
+    #     ["GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex", "IIDDataModel", "ARIMAModel"], 
+    # ))
+    display_name_to_algo = dict(zip(
+        ["GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex", "IIDDataModel", "ARIMAModel"], 
+        ["Multi-Task Out", "Independent GP", "Multi-Task Index", "Mean", "ARIMA"],
     ))
 
     defaul_config = {
-        "GPMultiTaskMultiOut": "v-GP_Multi_Task-Composite_1-1",
-        "IndependentGP": "v-GP-Composite_1-1",
-        "GPMultiTaskIndex": "v-GP_Multi_Task-Composite_1-1",
+        "GPMultiTaskMultiOut": "v-GP_Multi_Task-Composite_1-100",
+        "IndependentGP": "v-GP-Composite_1-100",
+        "GPMultiTaskIndex": "v-GP_Multi_Task-Composite_1-100",
+        "IIDDataModel": "iid",
+        "ARIMAModel": "ARIMA"
+    }
+    
+    defaul_config = {
+        "GPMultiTaskMultiOut": "v-GP_Multi_Task-Composite_1-100",
+        "IndependentGP": "v-GP-Composite_1-100",
+        "GPMultiTaskIndex": "v-GP_Multi_Task-Composite_1-100",
         "IIDDataModel": "iid",
         "ARIMAModel": "ARIMA"
     }
 
-    # time_al = gen_task_list(all_algo, "time", no_modifier, "aluminium", defaul_config)
-    # time_cu = gen_task_list(all_algo, "time", no_modifier, "copper", defaul_config) 
-    # commodity = gen_task_list(all_algo, "metal", no_modifier, None, defaul_config)
+    time_al = gen_task_list(all_algo, "time", no_modifier, "aluminium", defaul_config)
+    time_cu = gen_task_list(all_algo, "time", no_modifier, "copper", defaul_config) 
+    commodity = gen_task_list(all_algo, "metal", no_modifier, None, defaul_config)
     
     time_al_feat = gen_task_list(all_algo, "time", pca_modifier, "aluminium", defaul_config)
     time_cu_feat = gen_task_list(all_algo, "time", pca_modifier, "copper", defaul_config)
     commodity_feat = gen_task_list(all_algo, "metal", pca_modifier, None, defaul_config)
-
-    # task_train = [time_al, commodity, time_al_feat, commodity_feat]
-    task_train = [time_al_feat, commodity_feat]
-    # task_names = ["Price", "Metal", "Price_Feat", "Metal_Feat"]
-    task_names = ["Price_Feat", "Metal_Feat"]
+    
+    task_train = [time_al, commodity, time_al_feat, commodity_feat]
+    task_names = ["Price", "Metal", "Price_Feat", "Metal_Feat"]
 
     super_task = {}
     for task, name in zip(task_train, task_names):
         all_out = gen_experiment.run_experiments(task)
-        print("HERE")
         super_task.update({name: all_out})
     
     dump_json("save/all_data.json", super_task) 
@@ -104,7 +114,7 @@ def main():
         names=[all_algo, all_algo],
         results=[super_task["Price"], super_task["Metal"]],
         multi_task_name=[["Date (22)", "Date (44)", "Date (66)"], ["Aluminium", "Copper"]],
-        display_name_to_algp=display_name_to_algp
+        display_name_to_algo=display_name_to_algo
     )
     print()
     print()
@@ -112,36 +122,9 @@ def main():
         names=[all_algo, all_algo],
         results=[super_task["Price_Feat"], super_task["Metal_Feat"]],
         multi_task_name=[["Date (22)", "Date (44)", "Date (66)"], ["Aluminium", "Copper"]],
-        display_name_to_algp=display_name_to_algp
+        display_name_to_algo=display_name_to_algo
     )
 
-
-    assert False
-
-    super_task = {}
-    all_out = gen_experiment.run_experiments(price_multi_task)
-    super_task.update({"Price": all_out})
-    
-    all_out = gen_experiment.run_experiments(commodity_multi_task)
-    super_task.update({"Metal": all_out})
-
-    # all_save_path = list(filter(lambda x: not ".json" in x, sorted(os.listdir("save/"))))
-    # all_save_path = zip(all_algo + all_algo, all_save_path)
-    # gen_experiment.load_experiments(all_save_path)
-
-    dump_json("save/all_data.json", super_task) 
-    # super_task = load_json("save/all_data.json")
-
-    plot_latex(
-        names=[
-            ["Multi-Task Out", "Independent GP", "Multi-Task Index", "Mean", "ARIMA"], 
-            ["Multi-Task Out", "Independent GP", "Multi-Task Index", "Mean", "ARIMA"]
-        ],
-        results=[super_task["Price"], super_task["Metal"]],
-        multi_task_name=[["Date (22)", "Date (44)", "Date (66)"], ["Aluminium", "Copper"]],
-        display_name_to_algp=display_name_to_algp
-    )
-    
 
 if __name__ == '__main__':
     main()

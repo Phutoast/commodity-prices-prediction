@@ -313,14 +313,14 @@ def pack_result_data(mean, upper, lower, x):
     d = {"mean": mean, "upper": upper, "lower": lower, "x": x}
     return pd.DataFrame(data=d)
     
-def plot_latex(names, results, multi_task_name, display_name_to_algp):
+def plot_latex(names, results, multi_task_name, display_name_to_algo):
 
     for multi_task_no, mt_name in enumerate(multi_task_name):
         all_algo_name = names[multi_task_no]
         all_results = results[multi_task_no]
 
-        df = OrderedDict({"Names": all_algo_name})
-
+        df = OrderedDict({"Names": [display_name_to_algo[a] for a in all_algo_name]})
+    
         num_algo = len(all_algo_name)
         num_task = len(all_results[list(all_results.keys())[0]]["MSE"])
         len_evals = -1
@@ -329,8 +329,7 @@ def plot_latex(names, results, multi_task_name, display_name_to_algp):
             task_result = []
             for name in all_algo_name:
                 total_eval = []
-                true_name = display_name_to_algp[name]
-                eval_dict = all_results[true_name]
+                eval_dict = all_results[name]
                 for eval_method, eval_result in eval_dict.items():
                     evals_per_task = [
                         f"{mean:.5f} $\pm$ {std:.5f}"
