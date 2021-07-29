@@ -10,6 +10,7 @@ from utils.data_structure import DatasetTaskDesc
 from utils.data_visualization import plot_axis_date
 import datetime
 
+from statsmodels.tsa.stattools import adfuller
 from sklearn.decomposition import PCA
 
 metal_to_color = {"copper": "#D81B60", "aluminium": "#512DA8"}
@@ -83,8 +84,20 @@ def plot_feature_PCA_overtime():
 
 def explore_data_overall():
 
-    # data = cbook.get_sample_data('goog.npz', np_load=True)['price_data']
-    # assert False
+    def plot_all_data(x, all_data):
+        dates, text_dates = parse_series_time(x, x[0])
+        text_dates = [np.datetime64(date) for date in text_dates]
+
+        num_data = len(all_data)
+        fig, axs = plt.subplots(nrows=num_data, figsize=(15, 5))
+
+        for i, ax in enumerate(axs):
+            ax.plot(text_dates, all_data[i]["Price"], color="k")
+            plot_axis_date(ax, text_dates, month_interval=18)
+            ax.grid()
+    
+        plt.show()
+
 
     # identity_modifier = GlobalModifier((0, "id"))
     metal = "aluminium"
@@ -93,22 +106,18 @@ def explore_data_overall():
     metal = "copper"
     _, data_cu = load_transform_data(metal, 22)
 
-    dates = data_al["Date"].to_list()
-    dates, text_dates = parse_series_time(dates, dates[0])
-    text_dates = [np.datetime64(date) for date in text_dates]
-
-    fig, axs = plt.subplots(nrows=2, figsize=(15, 5))
+    print("Aluminium")
+    result = adfuller(data_al["Price"])
+    print("P-value:", result[1])
+    print("---"*5)
     
-    axs[0].plot(text_dates, data_al["Price"], color="b")
-    axs[1].plot(text_dates, data_cu["Price"], color="r") 
+    print("Copper")
+    result = adfuller(data_cu["Price"])
+    print("P-value:", result[1])
+    print("---"*5)
 
-    plot_axis_date(axs[0], text_dates, month_interval=18)
-    plot_axis_date(axs[1], text_dates, month_interval=18)
+    # Both P-values are less that 0.05, thus both are stationary.
 
-    axs[0].grid()
-    axs[1].grid()
-
-    plt.show()
 
 def main():
     explore_data_overall()
