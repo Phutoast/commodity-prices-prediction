@@ -112,7 +112,7 @@ def gen_prepare_task(len_inp, len_out,
     helper = prepare_task(task, len_inp, return_lag, plot_gap)
     return (task, helper)
 
-def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=False, load_path=None):
+def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=False, load_path=None, save_path="save/"):
 
     def prepare_model_train(exp_setting):
         train_dataset_list = []
@@ -210,14 +210,14 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
     
     if load_path is not None:
         if is_load:
-            exp_setting = load_json(f"save/{load_path}/exp_setting.json")
+            exp_setting = load_json(f"{save_path}{load_path}/exp_setting.json")
             exp_setting["task"]["dataset"] = [DatasetTaskDesc(**d) for d in exp_setting["task"]["dataset"]]
             _, useful_info = prepare_model_train(exp_setting)
-            model = multi_task_algo[exp_setting["algo"]].load_from_path(f"save/{load_path}")
+            model = multi_task_algo[exp_setting["algo"]].load_from_path(f"{save_path}{load_path}")
         elif is_save:
             model, useful_info = prepare_model_train(exp_setting)
             model.train()
-            base_name = create_name("save/", load_path)
+            base_name = create_name(save_path, load_path)
             model.save(base_name)
             dump_json(base_name + "/exp_setting.json", exp_setting)
         else:
@@ -258,7 +258,7 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
     plt.show()
 
 def example_plot_walk_forward(exp_setting, model_name, load_path, 
-    is_save=False, is_load=True, is_show=True):
+    is_save=False, is_load=True, is_show=True, save_path="save/"):
 
     def full_model_running(exp_setting):
         all_data = []
@@ -296,15 +296,15 @@ def example_plot_walk_forward(exp_setting, model_name, load_path,
      
     if load_path is not None:
         if is_load:
-            exp_setting = load_json("save/" + load_path  + "/exp_setting.json")
+            exp_setting = load_json(save_path + load_path  + "/exp_setting.json")
             exp_setting["task"]["dataset"] = [DatasetTaskDesc(**d) for d in exp_setting["task"]["dataset"]]
             _, all_data = full_model_running(exp_setting)
             fold_result = load_fold_data(
-                load_path, model_name, multi_task_algo[exp_setting["algo"]]
+                load_path, model_name, multi_task_algo[exp_setting["algo"]], save_path=save_path
             )
         elif is_save:
             run_fold, all_data = full_model_running(exp_setting)
-            base_folder = create_name("save/", model_name)
+            base_folder = create_name(save_path, model_name)
             fold_result = run_fold()
             save_fold_data(fold_result, model_name, base_folder)
             dump_json(base_folder + "/exp_setting.json", exp_setting)

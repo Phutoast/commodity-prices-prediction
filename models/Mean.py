@@ -21,7 +21,7 @@ class IIDDataModel(FullARModel):
         super().__init__(train_data, model_hyperparam)
      
     def predict_fix_step(self, step_ahead, ci=0.9, is_sample=False):
-        if self.hyperparam["dist"] == "Gaussian":
+        if self.hyperparam["dist"].lower() == "gaussian":
             self.model = self.build_model()
             mean, std = self.model
             dist = sps.norm(loc=mean, scale=std)

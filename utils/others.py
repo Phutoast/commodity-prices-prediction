@@ -66,7 +66,7 @@ def save_fold_data(all_fold_result, model_name, base_folder):
             create_folder(model_save_folder)
             model.save(model_save_folder)
 
-def load_fold_data(base_folder, model_name, model_class):
+def load_fold_data(base_folder, model_name, model_class, save_path="save/"):
     """
     Load the fold data given the base_folder and model name
         The data, including the model, which can be used to generate a plot
@@ -78,7 +78,7 @@ def load_fold_data(base_folder, model_name, model_class):
     Returns:
         fold_result: Loaded data in the fold data format
     """
-    base_folder = "save/" + base_folder
+    base_folder = save_path + base_folder
 
     task_list = []
     for task_folder in sorted(os.listdir(base_folder)):

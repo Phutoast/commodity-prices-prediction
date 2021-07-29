@@ -139,6 +139,10 @@ algorithms_dic = AlgoDict()
 def encode_params(algo, is_verbose, is_test, **kwargs):
     text = "v-" + algo if is_verbose else algo
 
+
+    if "-" in algo:
+        raise ValueError("Shouldn't have - in the name")
+
     def encode_text(value):
         final = ""
         for v in value:
@@ -148,7 +152,7 @@ def encode_params(algo, is_verbose, is_test, **kwargs):
         
         return final
 
-    if algo.lower() == "gp":
+    if "gp" in algo.lower():
 
         all_keys = ["kernel", "optim_iter", "len_inp", "lr"]
         assert all(k in all_keys for k in kwargs.keys())

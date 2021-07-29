@@ -24,12 +24,16 @@ def create_exp(dataset, algo, algo_config):
     }
     return exp_setting
 
-def run_experiments(exp_list):
+def run_experiments(exp_list, save_path="save/"):
     all_results = {}
+
+    if save_path[-1] != "/":
+        save_path = save_path + "/"
+
     for name, exp in exp_list:
         out_result = example_plot_walk_forward(exp, name,
             is_save=True, is_load=False, is_show=False,
-            load_path=name, 
+            load_path=name, save_path=save_path
         )
  
         result = {

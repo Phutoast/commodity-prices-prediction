@@ -79,8 +79,6 @@ def plot_feature_PCA_overtime():
     ax.plot(x,y,z, color="#5a08bf")
     plt.show()
 
-    # print(reduced_data)
-
 def main():
     check_data()
 
