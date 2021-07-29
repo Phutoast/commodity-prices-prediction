@@ -9,6 +9,7 @@ from utils.others import create_folder
 from utils.data_structure import CompressMethod
 from experiments import algo_dict, list_dataset
 from run_experiments import gen_task_list
+from utils.data_visualization import plot_hyperparam_search
 
 import warnings
 # warnings.filterwarnings("ignore")
@@ -65,5 +66,6 @@ def main():
         )
         
 if __name__ == '__main__':
-    main()
+    # main()
+    plot_hyperparam_search("save-hyperparam/hyper_search/final_result.json")
 

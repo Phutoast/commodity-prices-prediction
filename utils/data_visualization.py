@@ -9,6 +9,7 @@ import pandas as pd
 import math
 
 from utils.data_preprocessing import parse_series_time
+from utils.others import load_json
 from scipy.interpolate import make_interp_spline
 
 from datetime import datetime  
@@ -441,4 +442,47 @@ def plot_latex(names, results, multi_task_name, display_name_to_algo):
             print(" & ", end='')
             print(" & ".join(eval_values[i]) + "\\\\")
         print("\\addlinespace")
+
+def plot_heat_map(ax, matrix, row_name, column_name):
+    # https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html
+    im = ax.imshow(matrix, cmap="coolwarm")
+
+    len_col = range(len(column_name))
+    len_row = range(len(row_name))
+
+    ax.set_xticks(len_col)
+    ax.set_yticks(len_row)
+    ax.set_xticklabels(column_name)
+    ax.set_yticklabels(row_name)
+
+    for i in len_row:
+        for j in len_col:
+            text = ax.text(
+                j, i, round(matrix[i, j], 3),
+                ha="center", va="center", color="w"
+            )
+    ax.set_xlabel("PCA")
+    ax.set_ylabel("Backward Time")
+
+def plot_hyperparam_search(load_path):
+    results = load_json(load_path)
+    all_methods = list(results.keys())
+    all_metric = list(results[all_methods[0]].keys())
+
+    fig, ax = plt.subplots(ncols=len(all_methods), nrows=len(all_metric), figsize=(16, 8))
+    row_name = np.arange(2, 14, step=2).tolist()
+    column_name = np.arange(2, 8).tolist()
+
+    for i, metric in enumerate(all_metric):
+        for j, method in enumerate(all_methods):
+            data = np.array(results[method][metric]) * 100
+            curr_ax = ax[i, j]
+            curr_ax.set_title(f"{method} {metric}") 
+            plot_heat_map(curr_ax, data, row_name, column_name)
+
+    # print(ax)
+    # print(all_methods)
+    # print(all_metric)
+    fig.tight_layout()
+    plt.show()
 

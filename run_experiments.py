@@ -86,7 +86,6 @@ def run_multi_task_gp(save_path, len_inp=10, pca_dim=3):
     }
     task = gen_task_list(multi_task_algo, "metal", pca_modifier, None, multi_task_config)
     output = gen_experiment.run_experiments(task, save_path=save_path)
-    print(output)
     dump_json(f"{save_path}all_data.json", output) 
 
     summary = {}
@@ -106,8 +105,6 @@ def run_hyperparam_search():
     
     num_feature = np.arange(2, 14, step=2)
     num_pca = np.arange(2, 8)
-    # num_feature = np.arange(2, 6, step=2)
-    # num_pca = np.arange(2, 5)
 
     all_results = {
         algo:{m: np.zeros((len(num_feature), len(num_pca))).tolist() for m in metric}
@@ -125,12 +122,7 @@ def run_hyperparam_search():
                     all_results[algo][met][i][j] = curr_result[algo][met]
     
     dump_json("save/hyper_search/final_result.json", all_results) 
-    return all_results
-
-def plot_hyperparam_search(load_path):
-    all_results = load_json(load_path)
-    print(all_results)
-    
+    return all_results 
 
 
 def general_testing():
@@ -195,8 +187,6 @@ def general_testing():
     
     # dump_json("save/all_data.json", super_task) 
     super_task = load_json("save/all_data.json")
-    print(super_task)
-    assert False
     
     plot_latex(
         names=[all_algo, all_algo],
