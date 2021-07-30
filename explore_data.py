@@ -9,7 +9,7 @@ import matplotlib.ticker as ticker
 from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, parse_series_time
 from utils.data_structure import DatasetTaskDesc
 from utils.data_visualization import plot_axis_date
-import datetime
+from datetime import datetime
 
 from statsmodels.tsa.stattools import adfuller
 from sklearn.decomposition import PCA
@@ -84,6 +84,14 @@ def plot_feature_PCA_overtime():
     ax.plot(x,y,z, color="#5a08bf")
     plt.show()
 
+def plot_multiple_graph(ax, list_of_tuple, color_list, 
+    name_list, is_point_label=False, offset=0.0, linestyle="--"):
+
+    for color, n, result in zip(color_list, name_list, zip(*list_of_tuple)):
+        ax.plot(np.arange(len(result))+offset, result, label=n, linestyle=linestyle, color=color, zorder=3)
+        if is_point_label:
+            ax.scatter(np.arange(len(result))+offset, result, color=color, marker="s", zorder=3)
+
 def explore_data_overall():
 
     def plot_all_data(x, all_data):
@@ -112,17 +120,101 @@ def explore_data_overall():
         print("P-value:", result[1])
         print("---"*5)
     
-    def corr_test(list_a, list_b):
+    def corr_test(list_a, list_b, is_verbose=False):
         corr_value = []
+        p_value = []
 
         # P-value is low, so they are correlated....
         for n, test in zip(test_name, all_test):
             r, p = test(list_a, list_b)
             corr_value.append(r)
-            print(f"{n}: {r:.5f} with P-Value: {p:.5f}")        
+            p_value.append(p)
+            if is_verbose:
+                print(f"{n}: {r:.5f} with P-Value: {p:.5f}")        
         
-        return corr_value
+        return corr_value, p_value
 
+    def find_sub_string(str_list, substr):
+        for i, s in enumerate(str_list):
+            if substr in s:
+                return i
+        
+        assert False
+    
+    def plot_correlation_year():
+        all_corr, all_p_val = [], []
+        years = [str(2005 + i) for i in range(17)]
+        all_date = data_al["Date"].to_list()
+        for i in range(len(years)-1):
+            start_ind = find_sub_string(all_date, f"{years[i]}-05")
+            end_ind = find_sub_string(all_date, f"{years[i+1]}-05")
+
+            al_data = data_al.iloc[start_ind:end_ind]
+            cu_data = data_cu.iloc[start_ind:end_ind]
+
+            corr, p_val = corr_test(al_data["Price"], cu_data["Price"])
+            all_corr.append(corr)
+            all_p_val.append(p_val)
+        
+        def plot_graph(ax, value, y_label, title):
+            plot_multiple_graph(ax, value, color_list, test_name, is_point_label=True, offset=0.5)
+            
+            ax.grid(zorder=0)
+            ax.legend()
+            ax.set_xticks(np.arange(len(years)))
+            ax.set_xticklabels(years)
+            ax.xaxis.set_major_locator(ticker.MultipleLocator(1.0))
+
+            ax.set_ylabel(y_label)
+            ax.set_title(title)
+        
+        fig, axes = plt.subplots(nrows=2, figsize=(15, 6), sharex=True)
+        plot_graph(axes[0], all_corr, y_label="Correlation", title="Correlation and Years")
+        plot_graph(axes[1], all_p_val, y_label="P-Value", title="P-Value and Years")
+        axes[-1].set_xlabel("Years")
+        
+        plt.show()
+    
+    def plot_correlation_window():
+
+        # This is about a year...
+        window_size = 260
+        all_corr, all_p_val, all_date = [], [], []
+        for i in range(len(data_al)-window_size):
+            data_al_wind = data_al.iloc[i:i+window_size]
+            data_cu_wind = data_cu.iloc[i:i+window_size]
+
+            test_al, test_cu = data_al_wind["Price"], data_cu_wind["Price"]
+            corr, p_val = corr_test(test_al, test_cu)
+            all_corr.append(corr)
+            all_p_val.append(p_val)
+
+            start_day = datetime.strptime(data_al_wind.iloc[0]["Date"], '%Y-%m-%d')
+            end_day = datetime.strptime(data_al_wind.iloc[-1]["Date"], '%Y-%m-%d')
+            middle = start_day + (end_day - start_day)/2
+            all_date.append(np.datetime64(middle.strftime('%Y-%m-%d')))
+            
+        fig, axes = plt.subplots(nrows=2, figsize=(15, 6), sharex=True)
+
+        for color, n, result, result2 in zip(color_list, test_name, zip(*all_corr), zip(*all_p_val)):
+            axes[0].plot(all_date, result, label=n, linestyle="-", color=color, zorder=3)
+            axes[1].plot(all_date, result2, label=n, linestyle="-", color=color, zorder=3)
+            plot_axis_date(axes[0], all_date, month_interval=18)
+            plot_axis_date(axes[1], all_date, month_interval=18)
+
+        axes[0].grid(zorder=0)
+        axes[0].legend()
+        axes[0].set_ylabel("Correlation")
+        
+        axes[1].grid(zorder=0)
+        axes[1].legend()
+        axes[1].axhline(0.05, color="#1a1a1a")
+        axes[1].set_ylabel("P-Value")
+        axes[1].set_xlabel("Middle Date")
+
+        axes[0].set_title("Sliding Window")
+
+        plt.show()
 
     metal = "aluminium"
     _, data_al = load_transform_data(metal, 22)
@@ -132,52 +224,9 @@ def explore_data_overall():
 
     all_test = [stats.pearsonr, stats.spearmanr, stats.kendalltau]
     test_name = ["Peason", "Spearman", "Kendell"]
-
-
-    def find_sub_string(str_list, substr):
-        for i, s in enumerate(str_list):
-            if substr in s:
-                return i
-        
-        assert False
-
-    # corr_test(data_al["Price"], data_cu["Price"])
-    # plot_all_data(data_al["Date"], [data_al, data_cu])
-
-    all_date = data_al["Date"].to_list()
-    years = [str(2005 + i) for i in range(17)]
-
-    all_corr = []
-
-    for i in range(len(years)-1):
-        start_ind = find_sub_string(all_date, f"{years[i]}-05")
-        end_ind = find_sub_string(all_date, f"{years[i+1]}-05")
-
-        al_data = data_al.iloc[start_ind:end_ind]
-        cu_data = data_cu.iloc[start_ind:end_ind]
-
-        all_corr.append(corr_test(al_data["Price"], cu_data["Price"]))
-    
-    fig, ax = plt.subplots(nrows=1, figsize=(15, 5))
-
     color_list = ["#ff7500", "#0062b8", "#d6022a"]
-    
-    for color, n, result in zip(color_list, test_name, list(zip(*all_corr))):
-        ax.plot(np.arange(len(result))+0.5, result, label=n, linestyle="--", color=color)
-        ax.scatter(np.arange(len(result))+0.5, result, color=color, marker="s")
-    
-    ax.grid()
-    ax.legend()
-    print(years)
-    ax.set_xticks(np.arange(len(years)))
-    ax.set_xticklabels(years)
-    ax.xaxis.set_major_locator(ticker.MultipleLocator(1.0))
 
-    ax.set_ylabel("Correlation")
-    ax.set_xlabel("Years")
-    ax.set_title("Correlation and Years")
-    
-    plt.show()
+    plot_correlation_year()
 
 
 

@@ -9,7 +9,7 @@ import pandas as pd
 import math
 
 from utils.data_preprocessing import parse_series_time
-from utils.others import load_json
+from utils import others
 from scipy.interpolate import make_interp_spline
 
 from datetime import datetime  
@@ -465,7 +465,7 @@ def plot_heat_map(ax, matrix, row_name, column_name):
     ax.set_ylabel("Backward Time")
 
 def plot_hyperparam_search(load_path):
-    results = load_json(load_path)
+    results = others.load_json(load_path)
     all_methods = list(results.keys())
     all_metric = list(results[all_methods[0]].keys())
 
