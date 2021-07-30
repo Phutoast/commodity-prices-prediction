@@ -7,7 +7,7 @@ import json
 from utils.others import create_folder, dump_json, load_json, find_sub_string
 from utils.data_visualization import plot_latex
 from utils.data_structure import DatasetTaskDesc, CompressMethod
-from utils.data_preprocessing import load_transform_data
+from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, parse_series_time
 from experiments import algo_dict, gen_experiment, list_dataset
 
 np.random.seed(48)
@@ -226,12 +226,20 @@ def general_testing():
         display_name_to_algo=display_name_to_algo
     )
 
+def run_multi_task_range(all_results, start_ind, end_ind, save_name, compress_type="id"):
+    common = CompressMethod(0, compress_type, info={"range_index": (start_ind, end_ind)})
+    data_modi = {"copper": common, "aluminium": common} 
+    curr_result = run_multi_task_gp(save_name, data_modi, len_dataset=-1, len_train_show=(100, 32 + 20))
+        
+    for algo in multi_task_algo:
+        for met in metric:
+            all_results[algo][met].append(curr_result[algo][met])
+
 def run_years_prediction():
     _, data_al = load_transform_data("aluminium", 22)
 
     all_date = data_al["Date"].to_list()
     years = [str(2005 + i) for i in range(17)]
-    all_index_years = []
     
     all_results = {
         algo:{m: [] for m in metric}
@@ -241,24 +249,97 @@ def run_years_prediction():
     for i in range(len(years)-1):
         start_ind = find_sub_string(all_date, f"{years[i]}-05")
         end_ind = find_sub_string(all_date, f"{years[i+1]}-05")
-        
-        common = CompressMethod(0, "id", info={"range_index": (start_ind, end_ind)})
-        data_modi = {"copper": common, "aluminium": common}
-        
-        curr_result = run_multi_task_gp(f"save/test-mlt-gp/test-year-{years[i]}-{years[i+1]}/", data_modi, len_dataset=-1, len_train_show=(100, 32 + 20))
-            
-        for algo in multi_task_algo:
-            for met in metric:
-                all_results[algo][met].append(curr_result[algo][met])
+        run_multi_task_range(all_results, start_ind, end_ind, f"save/test-mlt-gp/test-year-{years[i]}-{years[i+1]}/") 
     
     dump_json("save/test-mlt-gp/all_result.json", all_results)
+
+def run_years_prediction_feature():
+    data = load_metal_data("aluminium")
+    data = data.dropna()
+
+    all_date = data["Date"].to_list()
+    years = [str(2018 + i) for i in range(4)]
+    
+    all_results = {
+        algo:{m: [] for m in metric}
+        for algo in multi_task_algo
+    }
+
+    for i in range(len(years)-1):
+        start_ind = find_sub_string(all_date, f"{years[i]}-05")
+        end_ind = find_sub_string(all_date, f"{years[i+1]}-05")
+        run_multi_task_range(
+            all_results, start_ind, 
+            end_ind, 
+            f"save/test-mlt-gp-feature/test-year-{years[i]}-{years[i+1]}-feature/", 
+            compress_type="pca"
+        ) 
+    
+    dump_json("save/test-mlt-gp-feature/all_result_feature.json", all_results)
+
+def run_window_prediction():
+    """
+    This is going to be similar to run_years_prediction
+    """
+    _, data_al = load_transform_data("aluminium", 22)
+        
+    window_size = 260
+
+    # 3 months
+    skip_size = 66
+    
+    all_results = {
+        algo:{m: [] for m in metric}
+        for algo in multi_task_algo
+    }
+
+    total_len = (len(data_al)-window_size) // skip_size
+    for i in range(total_len):
+        start_ind = i*skip_size
+        end_ind = start_ind+window_size
+        run_multi_task_range(
+            all_results, start_ind, 
+            end_ind, f"save/test-mlt-gp-feat/test-window-3-mo-{i}/", 
+            compress_type="pca"
+        )
+    
+    dump_json("save/test-mlt-gp-feat/all_result_window.json", all_results)
+
+def run_window_prediction_feature():
+    data = load_metal_data("aluminium")
+    data = data.dropna()
+        
+    window_size = 260
+
+    # half months
+    skip_size = 11
+    
+    all_results = {
+        algo:{m: [] for m in metric}
+        for algo in multi_task_algo
+    }
+
+    total_len = (len(data)-window_size) // skip_size
+    for i in range(total_len):
+        start_ind = i*skip_size
+        end_ind = start_ind+window_size
+        run_multi_task_range(
+            all_results, start_ind, 
+            end_ind, f"save/test-mlt-gp-feat/test-window-half-mo-{i}/", 
+            compress_type="pca"
+        ) 
+
+    dump_json("save/test-mlt-gp-feat/all_result_window.json", all_results)
 
 
 def main():
     create_folder("save")
     # run_hyperparam_search()
     # run_multi_task_gp("save/test")
-    run_years_prediction()
+    # run_years_prediction()
+    # run_window_prediction()
+    # run_years_prediction_feature()
+    run_window_prediction_feature()
 
 
 if __name__ == '__main__':
