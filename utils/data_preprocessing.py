@@ -18,7 +18,8 @@ class GlobalModifier(object):
     TODO: Cache this thing.....
     """
     def __init__(self, compress_method):
-        self.compress_dim, self.method = compress_method
+        self.compress_dim, self.method, self.info = compress_method
+        self.compress_method = compress_method
 
         if self.method.lower() == "id":
             self.is_drop = False
@@ -52,25 +53,30 @@ class GlobalModifier(object):
     
     def __call__(self, data):
         original_dim = len(data.columns)
-        if original_dim == self.compress_dim:
-            return data
-
-        if self.is_id:
-            return data
-
-        if self.is_drop:
-            data = data.dropna()
+        # if original_dim == self.compress_dim:
+        #     return data
 
         if self.method.lower() == "pca": 
+            data = data.dropna()
             np_data = self.extract_numpy(data)
             pca = PCA(n_components=self.compress_dim)
             reduced_data = pca.fit_transform(np_data)
-            return self.numpy_to_df(reduced_data)
+            final_data = self.numpy_to_df(reduced_data)
         elif self.method.lower() == "drop": 
-            return data
+            final_data = data.dropna()
+        elif self.method.lower() == "id":
+            final_data = data 
+        
+        # Further modify more
+
+        if "range_index" in self.info:
+            start_index, end_index = self.info["range_index"]
+            final_data = final_data[start_index:end_index]
+
+        return final_data
         
 
-identity_modifier = GlobalModifier((0, "id"))
+identity_modifier = GlobalModifier((0, "id", {}))
 
 def parse_series_time(dates, first_day):
     """

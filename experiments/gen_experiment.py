@@ -1,7 +1,7 @@
 from experiments import algo_dict
 from examples.simple_example import example_plot_walk_forward
 
-def create_exp(dataset, algo, algo_config):
+def create_exp(dataset, algo, algo_config, len_train_show=(275, 130)):
     num_task = len(dataset)
 
     if algo in algo_dict.class_name:
@@ -18,7 +18,7 @@ def create_exp(dataset, algo, algo_config):
             "sub_model": [algo_config[algo]] * num_task,
             "dataset": dataset,
             "len_pred_show": 130,
-            "len_train_show": (275, 130)
+            "len_train_show": len_train_show,
         }, "algo": train_algo, 
         "using_first": using_first
     }

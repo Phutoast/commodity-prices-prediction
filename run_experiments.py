@@ -4,9 +4,10 @@ import torch
 import os
 import json
 
-from utils.others import create_folder, dump_json, load_json
+from utils.others import create_folder, dump_json, load_json, find_sub_string
 from utils.data_visualization import plot_latex
 from utils.data_structure import DatasetTaskDesc, CompressMethod
+from utils.data_preprocessing import load_transform_data
 from experiments import algo_dict, gen_experiment, list_dataset
 
 np.random.seed(48)
@@ -16,38 +17,59 @@ torch.random.manual_seed(48)
 
 np.seterr(invalid='raise')
 is_test = True
+    
+multi_task_algo = ["GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex"]
+metric = ["MSE", "CRPS"]
 
-def gen_task_list(all_algo, type_task, modifier, metal_type, algo_config):
+def gen_task_list(all_algo, type_task, modifier, metal_type, 
+    algo_config, len_dataset=795, len_train_show=(275, 130)):
 
     def gen_list(dataset, algo_list):
         multi_task_dataset = []
         for algo in algo_list:
             if algo in algo_dict.using_out_only:
+
+                get_type_using_out = lambda x: "drop" if x in ["pca", "drop"] else "id"
+                cu_modi = modifier["copper"]
+                al_modi = modifier["aluminium"]
+
+                new_modi = {
+                    "copper": CompressMethod(
+                        0, get_type_using_out(cu_modi), 
+                        cu_modi.info
+                    ), 
+                    "aluminium": CompressMethod(
+                        0, get_type_using_out(al_modi), 
+                        al_modi.info
+                    )
+                }
                 if type_task == "time":
                     dataset = list_dataset.gen_datasets(
                         type_task, 
-                        {"copper": CompressMethod(0, "drop"), "aluminium": CompressMethod(0, "drop")}, 
-                        metal_type
+                        new_modi,
+                        metal_type,
+                        len_dataset=len_dataset
                     )
                 else:
                     dataset = list_dataset.gen_datasets(
                         type_task, 
-                        {"copper": CompressMethod(0, "drop"), "aluminium": CompressMethod(0, "drop")}, 
-                        metal_type
+                        new_modi,
+                        metal_type,
+                        len_dataset=len_dataset
                     )[0]
 
             multi_task_dataset.append(
-                (algo, gen_experiment.create_exp(dataset, algo, algo_config))
+                (algo, gen_experiment.create_exp(dataset, algo, algo_config, len_train_show))
             )
         return multi_task_dataset
 
     if type_task == "time":
-        dataset = list_dataset.gen_datasets("time", modifier, metal_type)
+        dataset = list_dataset.gen_datasets("time", modifier, metal_type, len_dataset=len_dataset)
         time_multi_task = gen_list(dataset, all_algo)
         return time_multi_task
 
     elif type_task == "metal":
-        commo, commo_first = list_dataset.gen_datasets("metal", modifier, metal_type=None)
+        commo, commo_first = list_dataset.gen_datasets("metal", modifier, metal_type=None, len_dataset=len_dataset)
         metal_multi_task = gen_list(
             commo_first, 
             list(filter(lambda x : x in algo_dict.using_first_algo, all_algo))
@@ -60,12 +82,7 @@ def gen_task_list(all_algo, type_task, modifier, metal_type, algo_config):
     else:
         raise ValueError("There are only 2 tasks for now, time and metal")
 
-def run_multi_task_gp(save_path, len_inp=10, pca_dim=3):
-    multi_task_algo = ["GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex"]
-    pca_modifier = {
-        "copper": CompressMethod(pca_dim, "pca"), 
-        "aluminium": CompressMethod(pca_dim, "pca")
-    }
+def run_multi_task_gp(save_path, modifier, len_inp=10, len_dataset=795, len_train_show=(275, 130)):
     config = algo_dict.encode_params(
         "gp_multi_task", is_verbose=False, 
         is_test=is_test, 
@@ -80,11 +97,15 @@ def run_multi_task_gp(save_path, len_inp=10, pca_dim=3):
             is_test=is_test, 
             kernel="Composite_1", 
             optim_iter=100,
-            len_inp=10
+            len_inp=len_inp
         ),
         "GPMultiTaskIndex": config,
     }
-    task = gen_task_list(multi_task_algo, "metal", pca_modifier, None, multi_task_config)
+    task = gen_task_list(
+        multi_task_algo, "metal", 
+        modifier, None, multi_task_config,
+        len_dataset=len_dataset, len_train_show=len_train_show
+    )
     output = gen_experiment.run_experiments(task, save_path=save_path)
     dump_json(f"{save_path}all_data.json", output) 
 
@@ -99,10 +120,7 @@ def run_multi_task_gp(save_path, len_inp=10, pca_dim=3):
     
     return summary
 
-def run_hyperparam_search():
-    multi_task_algo = ["GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex"]
-    metric = ["MSE", "CRPS"]
-    
+def run_hyperparam_search(): 
     num_feature = np.arange(2, 14, step=2)
     num_pca = np.arange(2, 8)
 
@@ -110,12 +128,17 @@ def run_hyperparam_search():
         algo:{m: np.zeros((len(num_feature), len(num_pca))).tolist() for m in metric}
         for algo in multi_task_algo
     }
-
+    
     for i, feature in enumerate(num_feature):
         for j, pca in enumerate(num_pca):
+            pca_modifier = {
+                "copper": CompressMethod(int(pca), "pca", info={}), 
+                "aluminium": CompressMethod(int(pca), "pca", info={})
+            }
             curr_result = run_multi_task_gp(
                 f"save/hyper_search/run_pca_{pca}_feat_{feature}/",
-                len_inp=int(feature), pca_dim=int(pca)
+                pca_modifier,
+                len_inp=int(feature)
             )
             for algo in multi_task_algo:
                 for met in metric:
@@ -203,10 +226,39 @@ def general_testing():
         display_name_to_algo=display_name_to_algo
     )
 
+def run_years_prediction():
+    _, data_al = load_transform_data("aluminium", 22)
+
+    all_date = data_al["Date"].to_list()
+    years = [str(2005 + i) for i in range(17)]
+    all_index_years = []
+    
+    all_results = {
+        algo:{m: [] for m in metric}
+        for algo in multi_task_algo
+    }
+
+    for i in range(len(years)-1):
+        start_ind = find_sub_string(all_date, f"{years[i]}-05")
+        end_ind = find_sub_string(all_date, f"{years[i+1]}-05")
+        
+        common = CompressMethod(0, "id", info={"range_index": (start_ind, end_ind)})
+        data_modi = {"copper": common, "aluminium": common}
+        
+        curr_result = run_multi_task_gp(f"save/test-mlt-gp/test-year-{years[i]}-{years[i+1]}/", data_modi, len_dataset=-1, len_train_show=(100, 32 + 20))
+            
+        for algo in multi_task_algo:
+            for met in metric:
+                all_results[algo][met].append(curr_result[algo][met])
+    
+    dump_json("save/test-mlt-gp/all_result.json", all_results)
+
 
 def main():
     create_folder("save")
-    run_hyperparam_search()
+    # run_hyperparam_search()
+    # run_multi_task_gp("save/test")
+    run_years_prediction()
 
 
 if __name__ == '__main__':

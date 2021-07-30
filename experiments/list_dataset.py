@@ -1,8 +1,6 @@
 from utils.data_structure import DatasetTaskDesc, CompressMethod
 
-length_dataset = 795
-
-def gen_datasets(type_task="time", modifier=None, metal_type="aluminium"):
+def gen_datasets(type_task="time", modifier=None, metal_type="aluminium", len_dataset=795):
 
     def cal_modifier_feature(inp_metal_list):
         metal_modifier, additional_features = [], []
@@ -13,6 +11,7 @@ def gen_datasets(type_task="time", modifier=None, metal_type="aluminium"):
             if not curr_modifier is None:
                 dim = curr_modifier.compress_dim
                 additional_features += [f"{metal}.Feature{i+1}" for i in range(dim)]
+
         return metal_modifier, additional_features
         
     if modifier is None:
@@ -34,7 +33,7 @@ def gen_datasets(type_task="time", modifier=None, metal_type="aluminium"):
                 use_feat_tran_lag=None,
                 out_feature=f"{metal_type}.Price",
                 out_feat_tran_lag=(time, 0, "id"),
-                len_dataset=length_dataset,
+                len_dataset=len_dataset,
             )
             for time in all_time_step
         ]
@@ -56,7 +55,7 @@ def gen_datasets(type_task="time", modifier=None, metal_type="aluminium"):
                 use_feat_tran_lag=None,
                 out_feature=f"{metal}.Price",
                 out_feat_tran_lag=(22, 0, "id"),
-                len_dataset=length_dataset,
+                len_dataset=len_dataset,
             )
             for metal, (modi_list, addi_feature) in zip(all_metals, list_compose)
         ]
@@ -73,7 +72,7 @@ def gen_datasets(type_task="time", modifier=None, metal_type="aluminium"):
                 use_feat_tran_lag=use_feat_tran_lag + [None] * len(additional_features),
                 out_feature=f"{all_metals[0]}.Price",
                 out_feat_tran_lag=(22, 0, "id"),
-                len_dataset=length_dataset,
+                len_dataset=len_dataset,
             )
         ]
 
@@ -85,7 +84,7 @@ def gen_datasets(type_task="time", modifier=None, metal_type="aluminium"):
                 use_feat_tran_lag=None,
                 out_feature=f"{metal}.Price",
                 out_feat_tran_lag=(22, 0, "id"),
-                len_dataset=length_dataset,
+                len_dataset=len_dataset,
             )
             for metal, (modi_list, addi_feature) in zip(all_metals[1:], list_compose[1:])
         ]

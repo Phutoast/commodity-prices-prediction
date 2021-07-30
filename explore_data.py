@@ -9,6 +9,7 @@ import matplotlib.ticker as ticker
 from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, parse_series_time
 from utils.data_structure import DatasetTaskDesc
 from utils.data_visualization import plot_axis_date
+from utils.others import find_sub_string, load_json
 from datetime import datetime
 
 from statsmodels.tsa.stattools import adfuller
@@ -41,8 +42,7 @@ def plot_frequency_features():
                 count_freq_all.append(0)
             else:
                 count_freq_all.append(count_freq[j])
-                j += 1
-        
+                j += 1 
 
         axs[k].bar(x_pos, count_freq_all, color=metal_to_color[metal], zorder=3)
         axs[k].set_xlabel("Number of Features")
@@ -83,14 +83,6 @@ def plot_feature_PCA_overtime():
     ax.scatter3D(x, y, z, c="#1a1a1a", s=1.0)
     ax.plot(x,y,z, color="#5a08bf")
     plt.show()
-
-def plot_multiple_graph(ax, list_of_tuple, color_list, 
-    name_list, is_point_label=False, offset=0.0, linestyle="--"):
-
-    for color, n, result in zip(color_list, name_list, zip(*list_of_tuple)):
-        ax.plot(np.arange(len(result))+offset, result, label=n, linestyle=linestyle, color=color, zorder=3)
-        if is_point_label:
-            ax.scatter(np.arange(len(result))+offset, result, color=color, marker="s", zorder=3)
 
 def explore_data_overall():
 
@@ -133,14 +125,7 @@ def explore_data_overall():
                 print(f"{n}: {r:.5f} with P-Value: {p:.5f}")        
         
         return corr_value, p_value
-
-    def find_sub_string(str_list, substr):
-        for i, s in enumerate(str_list):
-            if substr in s:
-                return i
-        
-        assert False
-    
+ 
     def plot_correlation_year():
         all_corr, all_p_val = [], []
         years = [str(2005 + i) for i in range(17)]
@@ -157,20 +142,57 @@ def explore_data_overall():
             all_p_val.append(p_val)
         
         def plot_graph(ax, value, y_label, title):
-            plot_multiple_graph(ax, value, color_list, test_name, is_point_label=True, offset=0.5)
+            for color, n, result in zip(color_list, test_name, zip(*value)):
+                x_val = np.arange(len(result)*2, step=2)
+                ax.plot(x_val+1, result, label=n, linestyle="--", color=color, zorder=3)
+                ax.scatter(x_val+1, result, color=color, marker="s", zorder=3)
             
             ax.grid(zorder=0)
             ax.legend()
-            ax.set_xticks(np.arange(len(years)))
+            ax.set_xticks(np.arange(len(years)*2, step=2))
             ax.set_xticklabels(years)
-            ax.xaxis.set_major_locator(ticker.MultipleLocator(1.0))
+            ax.xaxis.set_major_locator(ticker.MultipleLocator(2.0))
 
             ax.set_ylabel(y_label)
             ax.set_title(title)
         
+        def plot_bar(ax, type_eval="CRPS"):
+            results = load_json("save-hyperparam/test-mlt-gp/all_result.json")
+
+            all_methods = list(results.keys())
+            all_metric = list(results[all_methods[0]].keys())
+            num_years = len(results[all_methods[0]][all_metric[0]])
+
+            colors = ["#0074bf", "#f24a00", "#00db64"]
+
+            loc_list = np.arange(0, num_years*2, step=2)
+            width = 0.3
+            for i, loc in enumerate(loc_list):        
+                for j, method in enumerate(all_methods): 
+                    ax.bar(
+                        x=loc+width*(j-1.5)+width/2 + 1.0, 
+                        height=results[method][type_eval][i], 
+                        width=width, 
+                        label=None if i != 0 else method,
+                        color=colors[j], 
+                        edgecolor = "k",
+                        zorder=3,
+                    ) 
+            
+            ax.grid(zorder=0)
+            
+            # ax.set_xticks(loc_list)
+            # ax.set_xticklabels(years[:-1])
+            # ax.xaxis.set_major_locator(ticker.MultipleLocator(1.0))
+
+            ax.legend()
+        
         fig, axes = plt.subplots(nrows=2, figsize=(15, 6), sharex=True)
         plot_graph(axes[0], all_corr, y_label="Correlation", title="Correlation and Years")
-        plot_graph(axes[1], all_p_val, y_label="P-Value", title="P-Value and Years")
+        plot_bar(axes[1])
+
+        # plot_graph(axes[1], all_p_val, y_label="P-Value", title="P-Value and Years")
+
         axes[-1].set_xlabel("Years")
         
         plt.show()
@@ -179,10 +201,16 @@ def explore_data_overall():
 
         # This is about a year...
         window_size = 260
+        # Around 4 months
+        skip_size = 88
+
+        total_len = (len(data_al)-window_size) // skip_size
+
         all_corr, all_p_val, all_date = [], [], []
-        for i in range(len(data_al)-window_size):
-            data_al_wind = data_al.iloc[i:i+window_size]
-            data_cu_wind = data_cu.iloc[i:i+window_size]
+        for i in range(total_len):
+            start_ind = i*skip_size
+            data_al_wind = data_al.iloc[start_ind:start_ind+window_size]
+            data_cu_wind = data_cu.iloc[start_ind:start_ind+window_size]
 
             test_al, test_cu = data_al_wind["Price"], data_cu_wind["Price"]
             corr, p_val = corr_test(test_al, test_cu)
@@ -201,6 +229,8 @@ def explore_data_overall():
             axes[1].plot(all_date, result2, label=n, linestyle="-", color=color, zorder=3)
             plot_axis_date(axes[0], all_date, month_interval=18)
             plot_axis_date(axes[1], all_date, month_interval=18)
+        
+        print(len(all_date))
 
         axes[0].grid(zorder=0)
         axes[0].legend()
@@ -226,12 +256,18 @@ def explore_data_overall():
     test_name = ["Peason", "Spearman", "Kendell"]
     color_list = ["#ff7500", "#0062b8", "#d6022a"]
 
+    # plot_correlation_window()
+    # start_ind = find_sub_string(data_al["Date"].to_list(), f"2005-05")
+    # end_ind = find_sub_string(data_al["Date"].to_list(), f"2005-07")
+    # print(end_ind - start_ind)
     plot_correlation_year()
 
 
 
 def main():
     explore_data_overall()
+    # fig, ax = plt.subplots(1, figsize=(15, 5))
+    # plt.show()
 
 
 if __name__ == '__main__':

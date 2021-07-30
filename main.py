@@ -32,25 +32,43 @@ def main():
     create_folder("save")
 
     length_dataset = 795
-    
-    # exp_setting1 = gen_experiment.create_exp_setting(list_dataset.diff_time_pca_feature, "GPMultiTaskMultiOut")
-    # exp_setting2 = gen_experiment.create_exp_setting(list_dataset.diff_time_pca_feature, "IndependentGP")
-    # exp_setting3 = gen_experiment.create_exp_setting(list_dataset.diff_time_pca_feature, "GPMultiTaskIndex")
-    # exp_setting4 = gen_experiment.create_exp_setting(list_dataset.diff_time, "IIDDataModel")
+    is_test = False
+    multi_task_gp_config = algo_dict.encode_params(
+        "gp_multi_task", is_verbose=True, 
+        is_test=is_test, 
+        kernel="Composite_1", 
+        optim_iter=num_train_iter,
+        len_inp=10
+    )
 
     algo_config = {
         "IIDDataModel": algo_dict.encode_params(
-        "iid", is_verbose=False, 
-        is_test=True, dist="gaussian")
+            "iid", is_verbose=False, 
+            is_test=is_test, dist="gaussian"
+        ), 
+        "GPMultiTaskMultiOut": multi_task_gp_config,
+        "GPMultiTaskIndex": multi_task_gp_config,
+        "IndependentGP": algo_dict.encode_params(
+            "gp", is_verbose=False, 
+            is_test=is_test, 
+            kernel="Composite_1", 
+            optim_iter=num_train_iter,
+            len_inp=10
+        ),
     }
+
+    common_compress = CompressMethod(
+        0, "id", info={"range_index": (0, 260)}
+    )
 
     # Getting the first one and the actual content
     exp_setting2 = gen_task_list(
-        ["IIDDataModel"], "time", 
-        {"copper": CompressMethod(0, "drop"), "aluminium": CompressMethod(0, "drop")}, 
-        "copper", algo_config
+        ["IndependentGP"], "metal", {
+            "copper": common_compress, 
+            "aluminium": common_compress
+        }, 
+        "copper", algo_config, len_dataset=-1, len_train_show=(100, 32 + 20)
     )[0][1]
-    exp_setting2['using_first'] = True
     
     if test_type == "f":
         example_plot_all_algo_lag(
