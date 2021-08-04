@@ -10,7 +10,8 @@ from utils.data_structure import CompressMethod
 from experiments import algo_dict, list_dataset
 from run_experiments import gen_task_list
 from utils.data_visualization import plot_hyperparam_search
-from utils.data_preprocessing import GlobalModifier, load_metal_data
+from utils.data_preprocessing import GlobalModifier, load_metal_data, save_date_common
+from utils import explore_data
 
 import warnings
 # warnings.filterwarnings("ignore")
@@ -88,7 +89,10 @@ def main():
         )
         
 if __name__ == '__main__':
-    main()
+    # print("HERE")
+    # save_date_common("raw_data", "data")
+    explore_data.plot_correlation_all()
+    # main()
     # plot_hyperparam_search("save-hyperparam/hyper_search/final_result.json")
     # common_compress = CompressMethod(
     #     3, "pca"

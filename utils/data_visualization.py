@@ -443,7 +443,7 @@ def plot_latex(names, results, multi_task_name, display_name_to_algo):
             print(" & ".join(eval_values[i]) + "\\\\")
         print("\\addlinespace")
 
-def plot_heat_map(ax, matrix, row_name, column_name):
+def plot_heat_map(ax, matrix, row_name, column_name, xlabel="PCA", ylabel="Backward Time", round_acc=3):
     # https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html
     im = ax.imshow(matrix, cmap="coolwarm")
 
@@ -458,11 +458,12 @@ def plot_heat_map(ax, matrix, row_name, column_name):
     for i in len_row:
         for j in len_col:
             text = ax.text(
-                j, i, round(matrix[i, j], 3),
+                j, i, round(matrix[i, j], round_acc),
                 ha="center", va="center", color="w"
             )
-    ax.set_xlabel("PCA")
-    ax.set_ylabel("Backward Time")
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    return ax
 
 def plot_hyperparam_search(load_path):
     results = others.load_json(load_path)

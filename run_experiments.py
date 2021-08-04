@@ -149,8 +149,15 @@ def run_hyperparam_search():
 
 
 def general_testing():
-    no_modifier = {"copper": CompressMethod(0, "drop"), "aluminium": CompressMethod(0, "drop")}
-    pca_modifier = {"copper": CompressMethod(3, "pca"), "aluminium": CompressMethod(3, "pca")}
+    all_metal_name = find_all_metal_names()
+    no_modifier = {
+        metal: CompressMethod(0, "drop")
+        for metal in all_metal_name
+    }
+    pca_modifier = {
+        metal: CompressMethod(3, "pca")
+        for metal in all_metal_name
+    }
     
     all_algo = ["GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex", "IIDDataModel", "ARIMAModel"]
     all_algo = ["GPMultiTaskIndex", "IIDDataModel"]

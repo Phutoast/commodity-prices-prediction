@@ -7,15 +7,37 @@ from collections import Counter
 import matplotlib.ticker as ticker
 import copy
 
-from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, parse_series_time, cal_lag_return
+from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, parse_series_time, cal_lag_return, GlobalModifier
 from utils.data_structure import DatasetTaskDesc
-from utils.data_visualization import plot_axis_date
-from utils.others import find_sub_string, load_json, find_all_metal_names, create_folder
+from utils.data_visualization import plot_axis_date, plot_heat_map
+from utils.others import find_sub_string, load_json, find_all_metal_names, create_folder, save_figure
+from utils.data_structure import CompressMethod
 from datetime import datetime
 
 from statsmodels.tsa.stattools import adfuller
+from statsmodels.tsa.vector_ar.vecm import coint_johansen
 from sklearn.decomposition import PCA
 import scipy.stats as stats
+from tabulate import tabulate
+
+# Ordered in a Group
+metal_names = [
+    "aluminium", "copper", "nickel", 
+    "palladium", "platinum", "lldpe", 
+    "pvc", "natgas", "carbon", "wheat"
+]
+metal_to_display_name = {
+    "aluminium": "Aluminium",
+    "carbon": "Carbon Credits",
+    "copper": "Copper",
+    "lldpe": "LLDPE",
+    "natgas": "Natural Gas",
+    "palladium": "Palladium",
+    "platinum": "Platinum",
+    "pvc": "PVC",
+    "wheat": "Wheat",
+    "nickel": "Nickel"
+}
 
 def plot_frequency_features():
     metal_names = ["aluminium", "copper"]
@@ -52,54 +74,128 @@ def plot_frequency_features():
     
     fig.savefig(f"img/data_vis/freq_feat.pdf")
 
-def plot_feature_PCA_overtime():
-    metal = "aluminium"
-    data = load_metal_data(metal)
-    data = data.dropna()
-    
-    data = data.loc[:, data.columns != "Price"]
-    data = data.loc[:, data.columns != "Date"].to_numpy()
+@save_figure("figure/PCA_multi_task.pdf")
+def plot_feature_PCA():
 
-    pca = PCA(n_components=3)
-    reduced_data = pca.fit_transform(data)
+    fig, axs = plt.subplots(nrows=2, ncols=5,figsize=(20, 10) ,subplot_kw=dict(projection='3d'))
+    axs = axs.flatten()
 
-    fig = plt.figure()
-    ax = plt.axes(projection='3d')
-
-    x, y, z = reduced_data[:100, :].T
-    ax.scatter3D(x[0], y[0], z[0], c="#1a1a1a", s=20.0)
-    ax.scatter3D(x, y, z, c="#1a1a1a", s=1.0)
-    ax.plot(x,y,z, color="#5a08bf")
-    plt.show()
-
-def explore_data_overall():
-
-    def plot_all_data(x, all_data):
-        dates, text_dates = parse_series_time(x, x[0])
-        text_dates = [np.datetime64(date) for date in text_dates]
-
-        num_data = len(all_data)
-        fig, axs = plt.subplots(nrows=num_data, figsize=(15, 5))
-
-        for i, ax in enumerate(axs):
-            ax.plot(text_dates, all_data[i]["Price"], color="k")
-            plot_axis_date(ax, text_dates, month_interval=18)
-            ax.grid()
-    
-        plt.show()
-    
-    def stationary_test():
-        # Augmented Dickey-Fuller
-        print("Aluminium")
-        result = adfuller(data_al["Price"])
-        print("P-value:", result[1])
-        print("---"*5)
+    def plot_PCA_metal(ax, metal_name):
+        data = load_metal_data(metal_name)
+        data = data.dropna()
+        price = np.log(data["Price"])
         
-        print("Copper")
-        result = adfuller(data_cu["Price"])
-        print("P-value:", result[1])
-        print("---"*5)
+        data = data.loc[:, data.columns != "Price"]
+        data = data.loc[:, data.columns != "Date"].to_numpy()
+
+        pca = PCA(n_components=3)
+        reduced_data = pca.fit_transform(data)
+
+        num_data_show = 200
+
+        x, y, z = reduced_data[:num_data_show, :].T
+        ax.scatter3D(x, y, z, c=price[:num_data_show], s=10.0, cmap=plt.cm.coolwarm)
+        ax.view_init(20, -120)
+        ax.set_title(metal_to_display_name[metal_name])
     
+    for i, metal in enumerate(metal_names):
+        plot_PCA_metal(axs[i], metal)
+    
+    return fig, axs
+
+@save_figure("figure/all_data.pdf")
+def plot_all_data():
+    all_output_data = [
+        load_transform_data(metal, 22)[1] 
+        for metal in metal_names
+    ]
+    x = all_output_data[0]["Date"]
+
+    dates, text_dates = parse_series_time(x, x[0])
+    text_dates = [np.datetime64(date) for date in text_dates]
+
+    num_data = len(all_output_data)
+    fig, axs = plt.subplots(nrows=num_data, figsize=(20, 20))
+
+    for i, ax in enumerate(axs):
+        ax.plot(text_dates, all_output_data[i]["Price"], color="k")
+        plot_axis_date(ax, text_dates, month_interval=18)
+        ax.set_title(metal_to_display_name[metal_names[i]])
+        ax.grid()
+    
+    fig.tight_layout()
+    
+    return fig, axs
+
+def stationary_test(is_tabulate=True):
+    get_p_val = lambda metal : adfuller(load_transform_data(metal, 22)[1]["Price"])[1]
+    stationary_result = [
+        (metal_to_display_name[metal], get_p_val(metal), "✅" if get_p_val(metal) < 0.05 else "❌")
+        for metal in metal_names
+    ]
+
+    if is_tabulate:
+        print(tabulate(stationary_result, headers=["Commodity", "P-Value", "Is Stationary"], tablefmt="grid"))
+    else:
+        dataframe = {
+            header: data 
+            for header, data in zip(["Commodity", "P-Value", "Is Stationary"], zip(*stationary_result))
+        }
+        return pd.DataFrame(dataframe)
+
+def stationary_test_features():
+    data = load_metal_data(
+        "copper", global_modifier=GlobalModifier(CompressMethod(3, "pca"))
+    )
+    # data = data.loc[:, data.columns != "Price"]
+    data = data.loc[:, data.columns != "Date"]
+
+    print(adfuller(data["FeatureFamily.Feature1"]))
+    # get_p_val = lambda metal : adfuller(load_transform_data(metal, 22)[1]["Price"])
+    # print(get_p_val("copper"))
+
+    print(coint_johansen(data, 0, 1).cvt)
+    # print(coint_johansen(data, 0, 0).cvt)
+    
+    print(coint_johansen(data, 0, 1).lr1)
+    # print(coint_johansen(data, 0, 0).lr2)
+
+@save_figure("figure/all_correlation.pdf")
+def plot_correlation_all():
+    
+    data = [
+        load_transform_data(metal, 22)[1]["Price"]
+        for metal in metal_names
+    ]
+
+    names = [metal_to_display_name[metal] for metal in metal_names]
+
+    num_metals = len(metal_names) 
+    
+    test_name = ["Peason", "Spearman", "Kendell"]
+    all_test = [stats.pearsonr, stats.spearmanr, stats.kendalltau]
+
+    fig, axes = plt.subplots(ncols=len(all_test), figsize=(20, 5))
+
+    for name, test, ax in zip(test_name, all_test, axes):
+        
+        correlation = np.zeros((num_metals, num_metals))
+        for i, d1 in enumerate(data):
+            for j, d2 in enumerate(data):
+                correlation[i, j] = test(d1, d2)[0]
+        
+        ax.set_title(name)
+        
+        plot_heat_map(ax, correlation, names, names, xlabel="Commodities", ylabel="Commodities", round_acc=2)
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+    
+    plt.show()
+    fig.tight_layout()
+
+    return fig, ax
+        
+def explore_data_overall():
+  
     def corr_test(list_a, list_b, is_verbose=False):
         corr_value = []
         p_value = []
@@ -328,7 +424,6 @@ def main():
     # check_data()
     print("HERE")
     print(pd.read_csv("data/aluminium/aluminium_raw_prices.csv"))
-    # save_date_common("raw_data", "data")
 
 
 if __name__ == '__main__':

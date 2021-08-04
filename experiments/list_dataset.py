@@ -1,7 +1,7 @@
 from utils.data_structure import DatasetTaskDesc, CompressMethod
 from utils.others import find_all_metal_names
 
-def gen_datasets(type_task="time", modifier=None, metal_type="aluminium", len_dataset=795):
+def gen_datasets(type_task="time", modifier=None, metal_type="aluminium", len_dataset=794):
 
     def cal_modifier_feature(inp_metal_list):
         metal_modifier, additional_features = [], []

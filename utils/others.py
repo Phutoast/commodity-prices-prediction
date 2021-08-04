@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
+import functools
 
 from experiments.algo_dict import algorithms_dic
 from utils.data_structure import FoldWalkForewardResult
@@ -130,6 +131,13 @@ def find_all_metal_names(folder="data"):
     # return list(filter(lambda x: os.path.isdir(x), os.listdir(folder)))
     return sorted([f for f in os.listdir(folder) if "." not in f])
 
-
-
-
+def save_figure(save_path):
+    def actual_decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            fig, ax = func(*args, **kwargs)
+            if save_path is not None:
+                fig.savefig(save_path)
+            return fig, ax
+        return wrapper
+    return actual_decorator
