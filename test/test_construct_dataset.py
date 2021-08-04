@@ -1262,7 +1262,7 @@ class ConstructMergeDataset(unittest.TestCase):
 
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x, y: generate_fake_data(x, is_weird=True)
+        new=lambda x, global_modifier: generate_fake_data(x, global_modifier=global_modifier, is_weird=True)
     )
     def test_load_data_price_mult_source_weird_out(self):
         pred_feature_out = ["Date"]
@@ -1297,7 +1297,7 @@ class ConstructMergeDataset(unittest.TestCase):
 
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x, y: generate_fake_data(x, is_weird=True)
+        new=lambda x, global_modifier: generate_fake_data(x, global_modifier=global_modifier, is_weird=True)
     )
     def test_load_data_price_mult_source_weird_mult_feature(self):
         pred_feature_out = ["Date", "metal1.Feature2", "metal2.Feature3"]
@@ -1336,7 +1336,7 @@ class ConstructMergeDataset(unittest.TestCase):
     
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x, y: generate_fake_data(x, is_nan=True)
+        new=lambda x, global_modifier: generate_fake_data(x, global_modifier=global_modifier, is_nan=True)
     )
     def test_load_data_drop_nan_normal(self):
         # Only remove the data when feature are not avaliable. 
@@ -1369,7 +1369,7 @@ class ConstructMergeDataset(unittest.TestCase):
     
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x, y: generate_fake_data(x, is_nan=True)
+        new=lambda x, global_modifier: generate_fake_data(x, global_modifier=global_modifier, is_nan=True)
     )
     def test_load_data_drop_nan_normal_block_both_feature(self):
         # Only remove the data when feature are not avaliable. 
@@ -1403,7 +1403,7 @@ class ConstructMergeDataset(unittest.TestCase):
     
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x, y: generate_fake_data(x, is_nan=True)
+        new=lambda x, global_modifier: generate_fake_data(x, global_modifier=global_modifier, is_nan=True)
     )
     def test_load_data_drop_nan_retain_trans_lag(self):
         pred_feature_out = ["Date", "metal1.Feature1"]
@@ -1453,7 +1453,7 @@ class ConstructMergeDataset(unittest.TestCase):
     
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x, y: generate_fake_data(x, is_nan=True)
+        new=lambda x, global_modifier: generate_fake_data(x, global_modifier=global_modifier, is_nan=True)
     )
     def test_load_data_drop_nan_retain_trans_skip(self):
         pred_feature_out = ["Date", "metal1.Feature1"]
@@ -1503,7 +1503,7 @@ class ConstructMergeDataset(unittest.TestCase):
     
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x, y: generate_fake_data(x, is_nan=True)
+        new=lambda x, global_modifier: generate_fake_data(x, global_modifier=global_modifier, is_nan=True)
     )
     def test_load_data_drop_nan_retain_trans_skip(self):
         pred_feature_out = ["Date", "metal1.Feature1"]
@@ -1553,7 +1553,7 @@ class ConstructMergeDataset(unittest.TestCase):
 
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x, y: generate_fake_data(x, is_nan=True)
+        new=lambda x, global_modifier: generate_fake_data(x, global_modifier=global_modifier, is_nan=True)
     )
     def test_load_data_drop_nan_lag_output_Nan(self):
         pred_feature_out = ["Date", "metal1.Feature1"]
@@ -1614,7 +1614,7 @@ class ConstructMergeDataset(unittest.TestCase):
 
     @patch(
         "utils.data_preprocessing.load_metal_data", 
-        new=lambda x, y: generate_fake_data(x, is_nan=True)
+        new=lambda x, global_modifier: generate_fake_data(x, global_modifier=global_modifier, is_nan=True)
     )
     def test_load_data_drop_nan_lag_other_out_nan_out(self):
         pred_feature_out = ["Date", "metal1.Feature1", "metal2.Feature3"]

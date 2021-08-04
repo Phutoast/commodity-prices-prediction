@@ -123,3 +123,13 @@ def find_sub_string(str_list, substr):
     assert False
 
 
+def find_all_metal_names(folder="data"):
+    """
+    Given the folder, get all the metal (commodity) avaliable
+    """
+    # return list(filter(lambda x: os.path.isdir(x), os.listdir(folder)))
+    return sorted([f for f in os.listdir(folder) if "." not in f])
+
+
+
+

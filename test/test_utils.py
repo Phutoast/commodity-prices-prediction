@@ -45,7 +45,7 @@ def get_loc_non_nan(num_metal, index_list):
     return all_index[0]
 
 
-def generate_fake_data(metal_name, global_modifer=identity_modifier, size=26, is_weird=False, is_nan=False):
+def generate_fake_data(metal_name, global_modifier=identity_modifier, size=26, is_weird=False, is_nan=False):
     start_day = datetime.datetime(2001, 1, 1)
     all_days = [
         (start_day + datetime.timedelta(days=i)).strftime("%Y-%m-%d")

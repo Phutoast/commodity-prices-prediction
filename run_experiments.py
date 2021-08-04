@@ -4,7 +4,7 @@ import torch
 import os
 import json
 
-from utils.others import create_folder, dump_json, load_json, find_sub_string
+from utils.others import create_folder, dump_json, load_json, find_sub_string, find_all_metal_names
 from utils.data_visualization import plot_latex
 from utils.data_structure import DatasetTaskDesc, CompressMethod
 from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, parse_series_time
@@ -22,7 +22,7 @@ multi_task_algo = ["GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex"]
 metric = ["MSE", "CRPS"]
 
 def gen_task_list(all_algo, type_task, modifier, metal_type, 
-    algo_config, len_dataset=795, len_train_show=(275, 130)):
+    algo_config, len_dataset=794, len_train_show=(274, 130)):
 
     def gen_list(dataset, algo_list):
         multi_task_dataset = []
@@ -69,7 +69,7 @@ def gen_task_list(all_algo, type_task, modifier, metal_type,
         return time_multi_task
 
     elif type_task == "metal":
-        commo, commo_first = list_dataset.gen_datasets("metal", modifier, metal_type=None, len_dataset=len_dataset)
+        commo, commo_first = list_dataset.gen_datasets("metal", modifier, metal_type, len_dataset=len_dataset)
         metal_multi_task = gen_list(
             commo_first, 
             list(filter(lambda x : x in algo_dict.using_first_algo, all_algo))
@@ -82,7 +82,7 @@ def gen_task_list(all_algo, type_task, modifier, metal_type,
     else:
         raise ValueError("There are only 2 tasks for now, time and metal")
 
-def run_multi_task_gp(save_path, modifier, len_inp=10, len_dataset=795, len_train_show=(275, 130)):
+def run_multi_task_gp(save_path, modifier, len_inp=10, len_dataset=794, len_train_show=(274, 130)):
     config = algo_dict.encode_params(
         "gp_multi_task", is_verbose=False, 
         is_test=is_test, 
@@ -103,7 +103,7 @@ def run_multi_task_gp(save_path, modifier, len_inp=10, len_dataset=795, len_trai
     }
     task = gen_task_list(
         multi_task_algo, "metal", 
-        modifier, None, multi_task_config,
+        modifier, ["aluminium", "copper"], multi_task_config,
         len_dataset=len_dataset, len_train_show=len_train_show
     )
     output = gen_experiment.run_experiments(task, save_path=save_path)
@@ -192,24 +192,28 @@ def general_testing():
         ),
     }
 
-    time_al = gen_task_list(all_algo, "time", no_modifier, "aluminium", defaul_config)
-    time_cu = gen_task_list(all_algo, "time", no_modifier, "copper", defaul_config) 
-    commodity = gen_task_list(all_algo, "metal", no_modifier, None, defaul_config)
-    
-    time_al_feat = gen_task_list(all_algo, "time", pca_modifier, "aluminium", defaul_config)
-    time_cu_feat = gen_task_list(all_algo, "time", pca_modifier, "copper", defaul_config)
-    commodity_feat = gen_task_list(all_algo, "metal", pca_modifier, None, defaul_config)
-    
-    task_train = [time_al, commodity, time_al_feat, commodity_feat]
-    task_names = ["Price", "Metal", "Price_Feat", "Metal_Feat"]
+    def original_test():
+        time_al = gen_task_list(all_algo, "time", no_modifier, "aluminium", defaul_config)
+        time_cu = gen_task_list(all_algo, "time", no_modifier, "copper", defaul_config) 
+        commodity = gen_task_list(all_algo, "metal", no_modifier, ["aluminium", "copper"], defaul_config)
+        
+        time_al_feat = gen_task_list(all_algo, "time", pca_modifier, "aluminium", defaul_config)
+        time_cu_feat = gen_task_list(all_algo, "time", pca_modifier, "copper", defaul_config)
+        commodity_feat = gen_task_list(all_algo, "metal", pca_modifier, ["aluminium", "copper"], defaul_config)
+        
+        task_train = [time_al, commodity, time_al_feat, commodity_feat]
+        task_names = ["Price", "Metal", "Price_Feat", "Metal_Feat"]
+        return task_train, task_names
+
+    task_train, task_names = original_test()
 
     super_task = {}
     for task, name in zip(task_train, task_names):
         all_out = gen_experiment.run_experiments(task)
         super_task.update({name: all_out})
     
-    # dump_json("save/all_data.json", super_task) 
-    super_task = load_json("save/all_data.json")
+    dump_json("save/all_data.json", super_task) 
+    # super_task = load_json("save/all_data.json")
     
     plot_latex(
         names=[all_algo, all_algo],
@@ -339,7 +343,8 @@ def main():
     # run_years_prediction()
     # run_window_prediction()
     # run_years_prediction_feature()
-    run_window_prediction_feature()
+    # run_window_prediction_feature()
+    general_testing()
 
 
 if __name__ == '__main__':

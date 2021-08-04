@@ -6,7 +6,7 @@ import warnings
 
 from utils import others
 from experiments import algo_dict
-from utils.data_preprocessing import replace_dataset
+from utils import data_preprocessing
 from utils.data_structure import Hyperparameters
 
 class IndependentMultiModel(object):
@@ -37,7 +37,7 @@ class IndependentMultiModel(object):
         self.list_config_json = {"hyperparam": [], "model_class": [], "using_first": using_first}
 
         if self.using_first:
-            list_train_data = replace_dataset(list_train_data)
+            list_train_data = data_preprocessing.replace_dataset(list_train_data)
 
         for i in range(self.num_model):
             self.models.append(
@@ -86,7 +86,7 @@ class IndependentMultiModel(object):
             )
         
         if self.using_first:
-            list_test_data = replace_dataset(list_test_data)
+            list_test_data = data_preprocessing.replace_dataset(list_test_data)
 
         return [
             # WE have to follow the first one, so we will ignore the actual dataset.

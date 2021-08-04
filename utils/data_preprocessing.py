@@ -4,6 +4,7 @@ import numpy as np
 import warnings
 
 from utils import data_structure
+from utils import others
 from sklearn.decomposition import PCA
 import copy
 
@@ -17,23 +18,13 @@ class GlobalModifier(object):
     """
     TODO: Cache this thing.....
     """
+    drop_method = ["drop", "pca"]
     def __init__(self, compress_method):
         self.compress_dim, self.method, self.info = compress_method
         self.compress_method = compress_method
 
         if self.method.lower() == "id":
-            self.is_drop = False
-            self.is_id = True
             self.compress_dim = 0
-        elif self.method.lower() == "drop":
-            self.is_drop = True
-            self.is_id = False
-            self.compress_dim = 0
-        elif self.method.lower() == "pca":
-            self.is_drop = True
-            self.is_id = False
-        else:
-            assert False
 
         self.base_name = "FeatureFamily."
     
@@ -66,6 +57,8 @@ class GlobalModifier(object):
             final_data = data.dropna()
         elif self.method.lower() == "id":
             final_data = data 
+        else:
+            raise ValueError("No Method Avaiable")
         
         # Further modify more
 
@@ -101,7 +94,7 @@ def parse_series_time(dates, first_day):
 
     return time_step, label
     
-def load_metal_data(metal_type, global_modifier=identity_modifier):
+def load_metal_data(metal_type, load_path="data", global_modifier=identity_modifier):
     """
     Loading the metal data (both feature and *raw* prices). 
     The files will be stores given the path: 
@@ -115,8 +108,12 @@ def load_metal_data(metal_type, global_modifier=identity_modifier):
         prices: the prices of metal without any preprocessing 
     """
 
-    feature_path = f"data/{metal_type}/{metal_type}_features.csv"
-    price_path = f"data/{metal_type}/{metal_type}_raw_prices.csv"
+    if global_modifier.method in GlobalModifier.drop_method:
+        feature_path = f"{load_path}/{metal_type}/drop_nan/{metal_type}_features.csv"
+        price_path = f"{load_path}/{metal_type}/drop_nan/{metal_type}_raw_prices.csv"
+    else:
+        feature_path = f"{load_path}/{metal_type}/{metal_type}_features.csv"
+        price_path = f"{load_path}/{metal_type}/{metal_type}_raw_prices.csv"
 
     feature = pd.read_csv(feature_path)
 
@@ -124,7 +121,16 @@ def load_metal_data(metal_type, global_modifier=identity_modifier):
     columns = list(feature.columns)
     columns[0] = "Date"
     feature.columns = columns
-    feature = feature.drop([0,1,2]).reset_index(drop=True)
+
+    # Find all index that doesn't have valid date format:
+    invalid_date = []
+    for i, d in enumerate(feature["Date"]):
+        try:
+            datetime.strptime(str(d), "%Y-%m-%d")
+        except ValueError:
+            invalid_date.append(i)
+    
+    feature = feature.drop(invalid_date).reset_index(drop=True)
 
     price = pd.read_csv(price_path)
     price.columns = ["Date", "Price"]
@@ -189,7 +195,7 @@ def load_transform_data(
         X: Feature over time. 
         y: (log)-Price over time.
     """
-    data_all = load_metal_data(metal_type, global_modifier)
+    data_all = load_metal_data(metal_type, global_modifier=global_modifier)
     X, y = transform_full_data(
         data_all, feature_name=feature_name, trans_column=trans_column,
         use_only_last=use_only_last
@@ -201,23 +207,6 @@ def load_transform_data(
     else:
         X, y = X[:len(X)-return_lag], y[:len(y)-return_lag]
         return X[:len(X)-skip], y[skip:]
-
-
-def df_to_numpy(data, label):
-    """
-    Turning a DataFrame into numpy array.
-
-    Args:
-        data: Pandas DataFrame of the data
-        label: Pandas DataFrame of the data
-    
-    Returns:
-        data: numpy array for the data
-        label: numpy array for label
-    """
-    data = data.apply(pd.to_numeric).to_numpy()
-    label = label.to_numpy()
-    return data, label
 
 def cal_lag_return(output, length_lag, feature_name="Price"):
     """
@@ -433,3 +422,105 @@ def load_dataset_from_desc(dataset_desc):
     out_df.columns = ["Date", "Output"]
 
     return all_data_frame[input_col_name], out_df
+
+def save_date_common(raw_folder_name, target_folder_name):
+    """
+    Finding the date that are common to all dataset, 
+        one with common features. Checking whether 
+        the dataset is valid or not. Then save the transformed
+    """
+
+    metal_names = others.find_all_metal_names(raw_folder_name)
+    others.create_folder(target_folder_name)
+
+    all_metal_data = {
+        metal : load_metal_data(metal, load_path=raw_folder_name)
+        for metal in metal_names
+    }
+    
+    # Checking test_lag_return (because why not !!!) 
+    for name, data in all_metal_data.items():
+        test_return_path = f"{raw_folder_name}/{name}/test_lag_return.csv"
+        lag_return = cal_lag_return(np.log(data[["Price"]]), 22, "Price")
+
+        test = lag_return[:len(lag_return)-22]["Price"].to_numpy()
+        calculated = pd.read_csv(test_return_path)["y"].to_numpy()
+        assert np.all(np.isclose(test, calculated))
+        others.create_folder(f"{target_folder_name}/{name}")
+
+
+    all_metal_dates = {
+        k: v["Date"].to_list()
+        for k, v in all_metal_data.items()
+    }
+
+    def find_date_range(metal_to_date, all_metal):
+        start_end_date = lambda metal: (
+            datetime.strptime(metal_to_date[metal][0], '%Y-%m-%d'),
+            datetime.strptime(metal_to_date[metal][-1], '%Y-%m-%d'),
+        )
+
+        # Get smallest and largest date first
+        largest_start_date, smallest_end_date = start_end_date(metal_names[0])
+        for metal in metal_names[1:]:
+            start_date, end_date = start_end_date(metal)
+            if largest_start_date < start_date:
+                largest_start_date = start_date
+            if end_date < smallest_end_date:
+                smallest_end_date = end_date
+
+        return largest_start_date, smallest_end_date
+    
+    list_all_dates = []
+    trim_metal_drop = {}
+    trim_metal_drop_date = {}
+
+    def get_start_end_date(date_to_metal, metal_to_data, save_folder_name, is_drop=True, is_save=False):
+        # Now check whether they are valid or not
+        
+        start_date, end_date = find_date_range(date_to_metal, metal_names)
+        start_date_str, end_date_str = (
+            start_date.strftime('%Y-%m-%d'), 
+            end_date.strftime('%Y-%m-%d')
+        )
+
+        print(f"Start Date: {start_date_str} End Date: {end_date_str}")
+
+        for i, metal in enumerate(metal_names):
+            start_ind = date_to_metal[metal].index(start_date_str)
+            end_ind = date_to_metal[metal].index(end_date_str)
+
+            all_date_range = date_to_metal[metal][start_ind:end_ind]
+            trimmed = metal_to_data[metal].iloc[start_ind:end_ind]
+
+            if is_drop:
+                trimmed_no_nan = trimmed.dropna()
+                trim_metal_drop[metal] = trimmed_no_nan
+                trim_metal_drop_date[metal] = trimmed_no_nan["Date"].to_list()
+            
+            if i == 0:
+                first_metal = all_date_range
+            
+            if save_folder_name is None:
+                path = f"{target_folder_name}/{metal}"
+            else:
+                path = f"{target_folder_name}/{metal}/{save_folder_name}"
+                others.create_folder(path)
+
+            feature_path = f"{path}/{metal}_features.csv"
+            price_path = f"{path}/{metal}_raw_prices.csv"
+
+            all_columns = copy.deepcopy(trimmed.columns.to_list())
+            all_columns.remove("Price")
+
+            feature = trimmed[all_columns]
+            price = trimmed[["Date", "Price"]]
+
+            feature.to_csv(feature_path, index=False)
+            price.to_csv(price_path, index=False)
+                    
+            # All Dates are aligned
+            assert first_metal == all_date_range
+    
+    get_start_end_date(all_metal_dates, all_metal_data, None)
+    get_start_end_date(trim_metal_drop_date, trim_metal_drop,  "drop_nan", is_drop=False)

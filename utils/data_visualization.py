@@ -8,7 +8,7 @@ from collections import defaultdict
 import pandas as pd
 import math
 
-from utils.data_preprocessing import parse_series_time
+from utils import data_preprocessing
 from utils import others
 from scipy.interpolate import make_interp_spline
 
@@ -175,7 +175,7 @@ def visualize_walk_forward(full_data_x, full_data_y,
     convert_price = lambda x: x["Output"].to_list()
     first_day = full_data_x["Date"][0] 
 
-    x, _ = parse_series_time(convert_date(full_data_x), first_day)
+    x, _ = data_preprocessing.parse_series_time(convert_date(full_data_x), first_day)
     x = list(map(lambda a: convert_date_dict[a], x))
     
     first_day_abs = datetime.strptime(first_day, '%Y-%m-%d')

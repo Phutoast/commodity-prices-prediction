@@ -5,25 +5,25 @@ import itertools
 import torch
 from collections import Counter
 import matplotlib.ticker as ticker
+import copy
 
-from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, parse_series_time
+from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, parse_series_time, cal_lag_return
 from utils.data_structure import DatasetTaskDesc
 from utils.data_visualization import plot_axis_date
-from utils.others import find_sub_string, load_json
+from utils.others import find_sub_string, load_json, find_all_metal_names, create_folder
 from datetime import datetime
 
 from statsmodels.tsa.stattools import adfuller
 from sklearn.decomposition import PCA
 import scipy.stats as stats
 
-metal_to_color = {"copper": "#D81B60", "aluminium": "#512DA8"}
-
 def plot_frequency_features():
-    all_metals = ["aluminium", "copper"]
+    metal_names = ["aluminium", "copper"]
+    metal_to_color = {"copper": "#D81B60", "aluminium": "#512DA8"}
 
     fig, axs = plt.subplots(ncols=2, figsize=(15, 5))
 
-    for k, metal in enumerate(all_metals): 
+    for k, metal in enumerate(metal_names): 
         df = load_metal_data(metal)
         total_num_feature = df.shape[1] - 2
         num_total_data = df.shape[0]
@@ -51,22 +51,6 @@ def plot_frequency_features():
         axs[k].grid(zorder=0)
     
     fig.savefig(f"img/data_vis/freq_feat.pdf")
-
-def check_data():
-    metal = "aluminium"
-    raw_metal = load_metal_data(metal)
-    data = raw_metal.dropna()
-
-
-    metal = "copper"
-    raw_metal1 = load_metal_data(metal)
-    data1 = raw_metal1.dropna()
-
-    # Confirm that they are the same
-    print(data["Date"].to_list() == data1["Date"].to_list())
-    
-    # Confirm that there is no missing entry
-    print(data.index.to_list() == list(range(data.index[0], data.index[-1]+1)))
 
 def plot_feature_PCA_overtime():
     metal = "aluminium"
@@ -198,6 +182,7 @@ def explore_data_overall():
             plot_graph(axes[1], all_p_val, y_label="P-Value", title="P-Value and Years")
 
         axes[-1].set_xlabel("Years")
+        axes[-1].set_ylabel("CRPS Error")
         
         plt.show()
     
@@ -314,19 +299,36 @@ def explore_data_overall():
     test_name = ["Peason", "Spearman", "Kendell"]
     color_list = ["#ff7500", "#0062b8", "#d6022a"]
  
-    # plot_correlation_window(data_al, data_cu, show_p_value=False)
+    plot_correlation_window(data_al, data_cu, show_p_value=False)
     # start_ind = find_sub_string(data_al["Date"].to_list(), f"2005-05")
     # end_ind = find_sub_string(data_al["Date"].to_list(), f"2005-07")
     # print(end_ind - start_ind)
     # plot_correlation_year()
     # plot_corr_window_feat()
-    plot_corr_year_feat()
+    # plot_corr_year_feat()
+    # plot_correlation_year(data_al, data_cu, show_p_value=False)
 
+def check_data():
+    metal = "aluminium"
+    raw_metal = load_metal_data(metal)
+    data = raw_metal.dropna()
 
+    metal = "copper"
+    raw_metal1 = load_metal_data(metal)
+    data1 = raw_metal1.dropna()
+
+    # Confirm that they are the same
+    print(data["Date"].to_list() == data1["Date"].to_list())
+    
+    # Confirm that there is no missing entry
+    print(data.index.to_list() == list(range(data.index[0], data.index[-1]+1)))
 
 def main():
-    explore_data_overall()
+    # explore_data_overall()
     # check_data()
+    print("HERE")
+    print(pd.read_csv("data/aluminium/aluminium_raw_prices.csv"))
+    # save_date_common("raw_data", "data")
 
 
 if __name__ == '__main__':

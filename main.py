@@ -4,12 +4,13 @@ import argparse
 import torch
 
 from examples.simple_example import example_plot_all_algo_lag, example_plot_walk_forward
-from utils.others import create_folder
+from utils.others import create_folder, find_all_metal_names
 
 from utils.data_structure import CompressMethod
 from experiments import algo_dict, list_dataset
 from run_experiments import gen_task_list
 from utils.data_visualization import plot_hyperparam_search
+from utils.data_preprocessing import GlobalModifier, load_metal_data
 
 import warnings
 # warnings.filterwarnings("ignore")
@@ -31,7 +32,7 @@ def main():
     num_train_iter = args.iter
     create_folder("save")
 
-    length_dataset = 795
+    length_dataset = 794
     is_test = False
     multi_task_gp_config = algo_dict.encode_params(
         "gp_multi_task", is_verbose=True, 
@@ -58,16 +59,19 @@ def main():
     }
 
     common_compress = CompressMethod(
-        0, "id", info={"range_index": (0, 260)}
+        # 0, "id", info={"range_index": (0, 260)}
+        3, "pca"
     )
+
+    all_modifiers = {
+        metal: common_compress
+        for metal in find_all_metal_names("data")
+    }
 
     # Getting the first one and the actual content
     exp_setting2 = gen_task_list(
-        ["IndependentGP"], "metal", {
-            "copper": common_compress, 
-            "aluminium": common_compress
-        }, 
-        "copper", algo_config, len_dataset=-1, len_train_show=(100, 32 + 20)
+        ["GPMultiTaskIndex"], "metal", all_modifiers, 
+        None, algo_config, len_dataset=-1, len_train_show=(100, 32 + 20)
     )[0][1]
     
     if test_type == "f":
@@ -84,6 +88,11 @@ def main():
         )
         
 if __name__ == '__main__':
-    # main()
-    plot_hyperparam_search("save-hyperparam/hyper_search/final_result.json")
+    main()
+    # plot_hyperparam_search("save-hyperparam/hyper_search/final_result.json")
+    # common_compress = CompressMethod(
+    #     3, "pca"
+    # )
+    # modifier = GlobalModifier(common_compress)
+    # all_data = load_metal_data("carbon", global_modifier=modifier)
 
