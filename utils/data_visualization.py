@@ -487,3 +487,41 @@ def plot_hyperparam_search(load_path):
     fig.tight_layout()
     plt.show()
 
+def cluster_label_to_dict(labels):
+    num_cluster = len(set(labels))
+    assert sorted(list(set(labels))) == list(range(num_cluster))
+
+    return {
+        cluster : [i for i, l in enumerate(labels) if l == cluster]
+        for cluster in range(num_cluster)
+    }
+
+def print_tables_side_by_side(tables, headers, titles, spacing=3):
+    # Adapted from: https://gist.github.com/edisongustavo/d8116e9dc41a9a509a6f2b7c7d74f299
+    string_tables_split = [tabulate(t, headers=h, tablefmt="grid").splitlines() for t, h in zip(tables, headers)]
+    spacing_str = " " * spacing
+
+    # Printing Titles 
+    for t, string in zip(titles, string_tables_split):
+        all_len = len(string[0]) + spacing
+        print(t, end='')
+        print(" " * (all_len - len(t)), end='')
+    print()
+
+    num_lines = max(map(len, string_tables_split))
+    paddings = [max(map(len, s_lines)) for s_lines in string_tables_split]
+
+    for i in range(num_lines):
+        line_each_table = []
+        for padding, table_lines in zip(paddings, string_tables_split):
+            if len(table_lines) <= i:
+                line_each_table.append(" " * (padding + spacing))
+            else:
+                line_table_string = table_lines[i]
+                line_len = len(line_table_string)
+                line_each_table.append(
+                    line_table_string + (" " * (padding - line_len)) + spacing_str
+                )
+
+        final_line_string = "".join(line_each_table)
+        print(final_line_string)

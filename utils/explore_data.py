@@ -7,19 +7,29 @@ from collections import Counter
 import matplotlib.ticker as ticker
 import copy
 
-from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, parse_series_time, cal_lag_return, GlobalModifier
+from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, parse_series_time, cal_lag_return, GlobalModifier, load_dataset_from_desc
 from utils.data_structure import DatasetTaskDesc
-from utils.data_visualization import plot_axis_date, plot_heat_map
-from utils.others import find_sub_string, load_json, find_all_metal_names, create_folder, save_figure
+from utils.data_visualization import plot_axis_date, plot_heat_map, cluster_label_to_dict, print_tables_side_by_side
+from utils.others import find_sub_string, load_json, find_all_metal_names, create_folder, save_figure, dump_json
 from utils.data_structure import CompressMethod
+from experiments.list_dataset import gen_datasets
 from datetime import datetime
 
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
+import statsmodels.api as sm
+
 from sklearn.decomposition import PCA
 import scipy.stats as stats
 from tabulate import tabulate
 import networkx as nx
+from sklearn.cluster import SpectralClustering
+from tslearn.clustering import KernelKMeans, TimeSeriesKMeans, KShape
+
+import tslearn
+
+import json
+
 
 # Ordered in a Group
 metal_names = [
@@ -39,6 +49,20 @@ metal_to_display_name = {
     "wheat": "Wheat",
     "nickel": "Nickel"
 }
+
+def get_data(metal, is_feat=True, is_price_only=True):
+
+    if is_feat:
+        global_modi = GlobalModifier(CompressMethod(3, "pca"))
+    else:
+        global_modi = GlobalModifier(CompressMethod(0, "id"))
+
+    data = load_transform_data(metal, 22, global_modifier=global_modi)[1]
+
+    if is_price_only:
+        return data["Price"]
+    else:
+        return data[["Date", "Price"]]
 
 def plot_frequency_features():
     metal_names = ["aluminium", "copper"]
@@ -92,7 +116,7 @@ def plot_feature_PCA():
         pca = PCA(n_components=3)
         reduced_data = pca.fit_transform(data)
 
-        num_data_show = 200
+        num_data_show = 300
 
         x, y, z = reduced_data[:num_data_show, :].T
         ax.scatter3D(x, y, z, c=price[:num_data_show], s=10.0, cmap=plt.cm.coolwarm)
@@ -107,7 +131,7 @@ def plot_feature_PCA():
 @save_figure("figure/all_data.pdf")
 def plot_all_data():
     all_output_data = [
-        load_transform_data(metal, 22)[1] 
+        get_data(metal, is_price_only=False, is_feat=False)
         for metal in metal_names
     ]
     x = all_output_data[0]["Date"]
@@ -129,7 +153,7 @@ def plot_all_data():
     return fig, axs
 
 def stationary_test(is_tabulate=True):
-    get_p_val = lambda metal : adfuller(load_transform_data(metal, 22)[1]["Price"])[1]
+    get_p_val = lambda metal : adfuller(get_data(metal))[1]
     stationary_result = [
         (metal_to_display_name[metal], get_p_val(metal), "✅" if get_p_val(metal) < 0.05 else "❌")
         for metal in metal_names
@@ -152,14 +176,8 @@ def stationary_test_features():
     data = data.loc[:, data.columns != "Date"]
 
     print(adfuller(data["FeatureFamily.Feature1"]))
-    # get_p_val = lambda metal : adfuller(load_transform_data(metal, 22)[1]["Price"])
-    # print(get_p_val("copper"))
-
-    print(coint_johansen(data, 0, 1).cvt)
-    # print(coint_johansen(data, 0, 0).cvt)
-    
+    print(coint_johansen(data, 0, 1).cvt) 
     print(coint_johansen(data, 0, 1).lr1)
-    # print(coint_johansen(data, 0, 0).lr2)
     
 def corr_test(list_a, list_b, test_name, all_test, is_verbose=False):
     corr_value = []
@@ -175,25 +193,17 @@ def corr_test(list_a, list_b, test_name, all_test, is_verbose=False):
     
     return corr_value, p_value
 
-@save_figure("figure/all_correlation.pdf")
-def plot_correlation_all():
-    
-    data = [
-        load_transform_data(metal, 22)[1]["Price"]
-        for metal in metal_names
-    ]
-
+def correlation_over_dataset(test_name, all_test):
+    list_correlation, list_is_correlated = [], []
     names = [metal_to_display_name[metal] for metal in metal_names]
     num_metals = len(metal_names) 
     
-    test_name = ["Peason", "Spearman", "Kendell"]
-    all_test = [stats.pearsonr, stats.spearmanr, stats.kendalltau]
-    num_test = len(test_name)
-    
-    fig, axes = plt.subplots(ncols=num_test, nrows=2, figsize=(20, 10))
-    
-    for name, test, ax in zip(test_name, all_test, axes.T): 
-        ax_top, ax_bot = ax
+    data = [
+        get_data(metal)
+        for metal in metal_names
+    ]
+
+    for name, test in zip(test_name, all_test): 
         correlation = np.zeros((num_metals, num_metals))
         is_correlated = np.zeros((num_metals, num_metals))
 
@@ -205,7 +215,26 @@ def plot_correlation_all():
                     is_correlated[i, j] = test_result[1] < 0.05
                 else:
                     is_correlated[i, j] = False
-        
+    
+        list_correlation.append(correlation)
+        list_is_correlated.append(is_correlated) 
+    
+    return list_correlation, list_is_correlated
+
+@save_figure("figure/all_correlation.pdf")
+def plot_correlation_all():
+    names = [metal_to_display_name[metal] for metal in metal_names]
+    num_metals = len(metal_names) 
+    
+    test_name = ["Peason", "Spearman", "Kendell"]
+    all_test = [stats.pearsonr, stats.spearmanr, stats.kendalltau]
+    num_test = len(test_name)
+    
+    fig, axes = plt.subplots(ncols=num_test, nrows=2, figsize=(20, 10))
+    list_correlation, list_is_correlated = correlation_over_dataset(test_name, all_test)
+     
+    for name, correlation, is_correlated, ax in zip(test_name, list_correlation, list_is_correlated, axes.T): 
+        ax_top, ax_bot = ax
         ax_top.set_title(name) 
         plot_heat_map(ax_top, correlation, names, names, xlabel="Commodities", ylabel="Commodities", round_acc=2)
         plt.setp(ax_top.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
@@ -237,8 +266,8 @@ def plot_window_related():
     return plot_window("nickel", "palladium")
 
 def plot_window(metal1, metal2):
-    _, data1 = load_transform_data(metal1, 22)
-    _, data2 = load_transform_data(metal2, 22)
+    data1 = get_data(metal1, is_price_only=False)
+    data2 = get_data(metal2, is_price_only=False)
 
     title = f"Sliding Window ({metal_to_display_name[metal1]} vs {metal_to_display_name[metal2]})" 
     fig, axes = plot_correlation_window(data1, data2, title=title, skip_size=1)
@@ -322,8 +351,8 @@ def plot_year_related():
     return plot_years_correlation("nickel", "palladium")
 
 def plot_years_correlation(metal1, metal2):
-    _, data1 = load_transform_data(metal1, 22)
-    _, data2 = load_transform_data(metal2, 22)
+    data1 = get_data(metal1, is_feat=False, is_price_only=False)
+    data2 = get_data(metal2, is_feat=False, is_price_only=False)
 
     title = f"Correlation Years ({metal_to_display_name[metal1]} vs {metal_to_display_name[metal2]})" 
     fig, axes = plot_correlation_year(data1, data2, title=title)
@@ -405,11 +434,190 @@ def plot_correlation_year(data_al, data_cu,
         plot_graph(axes[1], all_p_val, y_label="P-Value", title="P-Value and Years", color_list=color_list2)
 
     axes[-1].set_xlabel("Years")
-    axes[-1].set_ylabel("CRPS Error")
+
+    if not show_p_value:
+        axes[-1].set_ylabel("CRPS Error")
+    else:
+        axes[-1].set_ylabel("P-Value")
+
     axes[1].axhline(0.05, color="#1a1a1a")
     axes[0].set_title(title)
+    axes[0].axhline(0.0, color="#1a1a1a")
 
     return fig, axes
+
+def distance_between_time_series():
+    data = [
+        get_data(metal).to_numpy() 
+        for metal in metal_names
+    ]
+    print(tslearn.metrics.soft_dtw(data[0], data[0], gamma=0.01))
+
+
+def clustering_dataset(is_side_by_side=True, num_cluster=4, is_verbose=True, use_all_data=False):
+
+    if use_all_data:
+        base_folder = "result/cluster_result/all_data"
+    else:
+        base_folder = "result/cluster_result/feat_data"
+
+    create_folder(base_folder)
+    result = {}
+
+    def load_price_feature(metal):
+        pca_modi = {metal: CompressMethod(3, "pca")}
+        dataset_desc, _ = gen_datasets(type_task="metal", modifier=pca_modi, metal_type=[metal], len_dataset=-1)
+        features, log_prices = load_dataset_from_desc(dataset_desc[0])
+        features = features.loc[:, features.columns != "Date"].to_numpy()
+        log_prices = log_prices.loc[:, log_prices.columns != "Date"].to_numpy()
+        return np.expand_dims(np.concatenate([features, log_prices], axis=1), axis=0)
+
+    def prepare_table(labels):
+        cluster_to_index = cluster_label_to_dict(labels)
+        max_csize = 0
+        all_data = []
+        for i in range(len(cluster_to_index)):
+            cluster_metal_name = [
+                metal_to_display_name[metal_names[name_i]]
+                for name_i in cluster_to_index[i]
+            ]
+
+            curr_csize = len(cluster_to_index[i]) 
+            max_csize = curr_csize if max_csize < curr_csize else max_csize
+            all_data.append(cluster_metal_name)
+        
+        padded = [data + [None] * (max_csize - len(data)) for data in all_data]
+        all_data = np.array(padded).T.tolist()
+
+        return all_data, cluster_to_index
+
+    all_test = [stats.pearsonr, stats.spearmanr, stats.kendalltau]
+    test_name = ["Peason", "Spearman", "Kendell"]
+    list_correlation, _ = correlation_over_dataset(test_name, all_test)
+
+    all_tables, all_headers = [], []
+    for name, corr_matrix in zip(test_name, list_correlation):
+        distance_matrix = np.abs(corr_matrix)
+        spectral_cluster = SpectralClustering(
+            n_clusters=num_cluster, assign_labels="discretize", 
+            random_state=48, affinity="precomputed"
+        )
+        cluster = spectral_cluster.fit(distance_matrix)
+        labels = cluster.labels_
+
+        all_data, cluster_to_index = prepare_table(labels) 
+        all_tables.append(all_data)
+
+        header = [f"Cluster {i+1}" for i in range(len(cluster_to_index))]
+        all_headers.append(header)
+
+        result.update({name.lower(): labels.tolist()})
+
+        if not is_side_by_side and is_verbose:
+            print(f"{name} Test")
+            print(tabulate(all_data, headers=header, tablefmt="grid"))
+            print()
+            print()
+     
+    if is_side_by_side and is_verbose:
+        print_tables_side_by_side(all_tables, all_headers, [f"{n} Test"for n in test_name], spacing=6)
+
+    is_feat = not use_all_data
+    # data = [
+    #     get_data(metal, is_feat=is_feat).to_list()
+    #     for metal in metal_names
+    # ]
+    data = [
+        load_price_feature(metal)
+        for metal in metal_names
+    ]
+
+    all_dataset = np.concatenate(data, axis=0)
+    metric_names = ["euclidean", "dtw", "softdtw"]
+
+    all_tables, all_headers = [], []
+    for metric in metric_names:
+        params = {"gamma": .05} if metric == "softdtw" else None
+        print(metric)
+
+        kmean = TimeSeriesKMeans(
+            n_clusters=num_cluster, metric=metric, max_iter=5,
+            random_state=48, metric_params=params, 
+            max_iter_barycenter=5, n_jobs=-1
+        )
+        labels = kmean.fit_predict(all_dataset)
+        
+        result.update({metric.lower(): labels.tolist()})
+        
+        all_data, cluster_to_index = prepare_table(labels) 
+        all_tables.append(all_data)
+        
+        header = [f"Cluster {i+1}" for i in range(len(cluster_to_index))]
+        all_headers.append(header)
+
+        if not is_side_by_side and is_verbose:
+            print(metric.capitalize())
+            print(tabulate(all_data, headers=header, tablefmt="grid"))
+            print()
+            print()
+    
+    if is_side_by_side and is_verbose:
+        print_tables_side_by_side(all_tables, all_headers, [n.capitalize() for n in metric_names], spacing=6)
+
+    all_tables, all_headers = [], []
+    gak_km = KShape(n_clusters=num_cluster, n_init=3, random_state=48)
+    labels = gak_km.fit_predict(all_dataset)
+    print("HERE")
+
+    all_data, cluster_to_index = prepare_table(labels)
+    all_tables.append(all_data)
+    all_headers.append([f"Cluster {i+1}" for i in range(len(cluster_to_index))])
+    
+    if is_verbose:
+        print_tables_side_by_side(all_tables, all_headers, ["KShape"], spacing=6)
+
+    result.update({"kshape": labels.tolist()})
+
+    if num_cluster == 4:
+        expert_cluster = [0, 0, 0, 0, 0, 1, 1, 2, 3, 3]
+    elif num_cluster == 5:
+        expert_cluster = [0, 0, 1, 1, 1, 2, 2, 3, 4, 4]
+    
+    result.update({"expert": expert_cluster})
+
+    for k, v in result.items():
+        print(k, ":", v)
+
+    dump_json(f"{base_folder}/cluster_{num_cluster}.json", result)
+
+@save_figure("figure/acf_pacf_all.pdf")
+def plot_cf_and_acf(metal=None):
+    data = [
+        get_data(metal).to_numpy() 
+        for metal in metal_names
+    ]
+
+    if not metal is None:
+        data = [get_data(metal).to_numpy()] 
+
+    num_data = len(data)
+    
+    fig, axes = plt.subplots(ncols=2, nrows=num_data, figsize=(25, 15))
+
+    for i in range(num_data):
+        ax_left, ax_right = axes[i, :]
+        sm.graphics.tsa.plot_acf(data[i], lags=100, ax=ax_left)
+        sm.graphics.tsa.plot_pacf(data[i], lags=100, ax=ax_right)
+
+        name = metal_to_display_name[metal_names[i]]
+
+        ax_left.set_title(f"{name} ACF")
+        ax_right.set_title(f"{name} PACF")
+    
+    fig.tight_layout()  
+    
+    return fig, axes
+
 
 
 def main():

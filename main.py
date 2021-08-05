@@ -95,8 +95,11 @@ if __name__ == '__main__':
     # explore_data.plot_window_unrelated()
     # explore_data.plot_window_related()
     # explore_data.plot_correlation_all()
-    explore_data.plot_years_correlation("nickel", "copper")
-    explore_data.plot_years_correlation("natgas", "copper")
+    # explore_data.plot_years_correlation("nickel", "copper")
+    # explore_data.plot_years_correlation("natgas", "copper")
+    # explore_data.plot_cf_and_acf()
+    # explore_data.distance_between_time_series()
+    explore_data.clustering_dataset(num_cluster=4, is_verbose=True)
 
     # main()
     # plot_hyperparam_search("save-hyperparam/hyper_search/final_result.json")
