@@ -91,7 +91,13 @@ def main():
 if __name__ == '__main__':
     # print("HERE")
     # save_date_common("raw_data", "data")
-    explore_data.plot_graph_correlation()
+
+    # explore_data.plot_window_unrelated()
+    # explore_data.plot_window_related()
+    # explore_data.plot_correlation_all()
+    explore_data.plot_years_correlation("nickel", "copper")
+    explore_data.plot_years_correlation("natgas", "copper")
+
     # main()
     # plot_hyperparam_search("save-hyperparam/hyper_search/final_result.json")
     # common_compress = CompressMethod(

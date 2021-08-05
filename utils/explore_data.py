@@ -160,6 +160,20 @@ def stationary_test_features():
     
     print(coint_johansen(data, 0, 1).lr1)
     # print(coint_johansen(data, 0, 0).lr2)
+    
+def corr_test(list_a, list_b, test_name, all_test, is_verbose=False):
+    corr_value = []
+    p_value = []
+
+    # P-value is low, so they are correlated....
+    for n, test in zip(test_name, all_test):
+        r, p = test(list_a, list_b)
+        corr_value.append(r)
+        p_value.append(p)
+        if is_verbose:
+            print(f"{n}: {r:.5f} with P-Value: {p:.5f}")        
+    
+    return corr_value, p_value
 
 @save_figure("figure/all_correlation.pdf")
 def plot_correlation_all():
@@ -174,7 +188,9 @@ def plot_correlation_all():
     
     test_name = ["Peason", "Spearman", "Kendell"]
     all_test = [stats.pearsonr, stats.spearmanr, stats.kendalltau]
-    fig, axes = plt.subplots(ncols=len(all_test), nrows=2, figsize=(20, 5))
+    num_test = len(test_name)
+    
+    fig, axes = plt.subplots(ncols=num_test, nrows=2, figsize=(20, 10))
     
     for name, test, ax in zip(test_name, all_test, axes.T): 
         ax_top, ax_bot = ax
@@ -185,282 +201,221 @@ def plot_correlation_all():
             for j, d2 in enumerate(data):
                 test_result = test(d1, d2)
                 correlation[i, j] = test_result[0]
-                is_correlated[i, j] = test_result[1] < 0.05
+                if i != j:
+                    is_correlated[i, j] = test_result[1] < 0.05
+                else:
+                    is_correlated[i, j] = False
         
         ax_top.set_title(name) 
         plot_heat_map(ax_top, correlation, names, names, xlabel="Commodities", ylabel="Commodities", round_acc=2)
         plt.setp(ax_top.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
 
-        plt.show()
-        assert False
+        num_note_to_date = {
+            i : names[i]
+            for i in range(10)
+        }
 
-
-    # plt.show()
-    # fig.tight_layout()
-
+        G = nx.from_numpy_matrix(is_correlated) 
+        options = {"edgecolors": "tab:gray", "node_size": 800, "alpha": 0.9}
+        pos = nx.spring_layout(G, k=0.5)
+        nx.draw(
+            G, with_labels=True, pos=pos,
+            node_color='orange', node_size=1500, 
+            edge_color='black', linewidths=1, 
+            font_size=5, ax=ax_bot, labels=num_note_to_date
+        )
+    
+    fig.tight_layout()
     return fig, ax
 
-def plot_graph_correlation():
-    data = [
-        load_transform_data(metal, 22)[1]["Price"]
-        for metal in metal_names
-    ]
-    names = [metal_to_display_name[metal] for metal in metal_names]
-    num_metals = len(metal_names) 
-        
-    test = stats.pearsonr
-    name = "Peason"
+@save_figure("figure/p_value_window_unrelated.pdf")
+def plot_window_unrelated():
+    return plot_window("natgas", "copper")
+
+@save_figure("figure/p_value_window_related.pdf")
+def plot_window_related():
+    return plot_window("nickel", "palladium")
+
+def plot_window(metal1, metal2):
+    _, data1 = load_transform_data(metal1, 22)
+    _, data2 = load_transform_data(metal2, 22)
+
+    title = f"Sliding Window ({metal_to_display_name[metal1]} vs {metal_to_display_name[metal2]})" 
+    fig, axes = plot_correlation_window(data1, data2, title=title, skip_size=1)
+    return fig, axes
+
+def plot_correlation_window(data_al, data_cu, 
+    window_size=260, skip_size=66, metric="CRPS", show_p_value=True, title="Sliding Window",
+    load_json_path="save-hyperparam/test-mlt-gp-window/all_result_window.json"):
     
-    is_correlated = np.zeros((num_metals, num_metals))
-    for i, d1 in enumerate(data):
-        for j, d2 in enumerate(data):
-            test_result = test(d1, d2)
-            is_correlated[i, j] = test_result[1] < 0.05
-        
-    G = nx.from_numpy_matrix(is_correlated) 
-
-    options = {"edgecolors": "tab:gray", "node_size": 800, "alpha": 0.9}
-    pos = nx.spring_layout(G, seed=48)
-
-    # nx.draw_networkx_nodes(G, pos, nodelist=list(range(10)), node_color="tab:red", **options)
-    # nx.draw_networkx_edges(G, pos, width=1.0, alpha=0.5)
-
-    # nx.draw_networkx_labels(G, pos, {i: n for i, n in enumerate(names)})
-    nx.draw(G, with_labels=True, node_color='orange', node_size=400, edge_color='black', linewidths=1, font_size=15)
-    plt.show()
-
-    pass
-        
-def explore_data_overall():
-  
-    def corr_test(list_a, list_b, is_verbose=False):
-        corr_value = []
-        p_value = []
-
-        # P-value is low, so they are correlated....
-        for n, test in zip(test_name, all_test):
-            r, p = test(list_a, list_b)
-            corr_value.append(r)
-            p_value.append(p)
-            if is_verbose:
-                print(f"{n}: {r:.5f} with P-Value: {p:.5f}")        
-        
-        return corr_value, p_value
- 
-    def plot_correlation_year(data_al, data_cu, 
-        start_year=2005, num_year_forward=16, month="05", show_p_value=True, 
-        load_json_path="save-hyperparam/test-mlt-gp/all_result.json"):
-
-        all_corr, all_p_val = [], []
-        years = [str(start_year + i) for i in range(num_year_forward+1)]
-        all_date = data_al["Date"].to_list()
-        for i in range(len(years)-1):
-            start_ind = find_sub_string(all_date, f"{years[i]}-{month}")
-            end_ind = find_sub_string(all_date, f"{years[i+1]}-{month}")
-
-            al_data = data_al.iloc[start_ind:end_ind]
-            cu_data = data_cu.iloc[start_ind:end_ind]
-
-            corr, p_val = corr_test(al_data["Price"], cu_data["Price"])
-            all_corr.append(corr)
-            all_p_val.append(p_val)
-        
-        def plot_graph(ax, value, y_label, title):
-            for color, n, result in zip(color_list, test_name, zip(*value)):
-                x_val = np.arange(len(result)*2, step=2)
-                ax.plot(x_val+1, result, label=n, linestyle="--", color=color, zorder=3)
-                ax.scatter(x_val+1, result, color=color, marker="s", zorder=3)
-            
-            ax.grid(zorder=0)
-            ax.legend()
-            ax.set_xticks(np.arange(len(years)*2, step=2))
-            ax.set_xticklabels([f"{y}-{month}"for y in years])
-            ax.xaxis.set_major_locator(ticker.MultipleLocator(2.0))
-
-            ax.set_ylabel(y_label)
-            ax.set_title(title)
-        
-        def plot_bar(ax, type_eval="CRPS"):
-            results = load_json(load_json_path)
-
-            all_methods = list(results.keys())
-            all_metric = list(results[all_methods[0]].keys())
-            num_years = len(results[all_methods[0]][all_metric[0]])
-
-            colors = ["#0074bf", "#f24a00", "#00db64"]
-
-            loc_list = np.arange(0, num_years*2, step=2)
-            width = 0.3
-            for i, loc in enumerate(loc_list):        
-                for j, method in enumerate(all_methods): 
-                    ax.bar(
-                        x=loc+width*(j-1.5)+width/2 + 1.0, 
-                        height=results[method][type_eval][i], 
-                        width=width, 
-                        label=None if i != 0 else method,
-                        color=colors[j], 
-                        edgecolor = "k",
-                        zorder=3,
-                    ) 
-            
-            ax.grid(zorder=0) 
-            ax.legend()
-        
-        fig, axes = plt.subplots(nrows=2, figsize=(15, 6), sharex=True)
-        plot_graph(axes[0], all_corr, y_label="Correlation", title="Correlation and Years")
-
-        if not show_p_value:
-            plot_bar(axes[1])
-        else:
-            plot_graph(axes[1], all_p_val, y_label="P-Value", title="P-Value and Years")
-
-        axes[-1].set_xlabel("Years")
-        axes[-1].set_ylabel("CRPS Error")
-        
-        plt.show()
-    
-    def plot_correlation_window(data_al, data_cu, 
-        window_size=260, skip_size=66, metric="CRPS", show_p_value=True, 
-        load_json_path="save-hyperparam/test-mlt-gp-window/all_result_window.json"):
-
-        total_len = (len(data_al)-window_size) // skip_size
-        print(total_len)
-
-        all_corr, all_p_val, all_date = [], [], []
-        for i in range(total_len):
-            start_ind = i*skip_size
-            data_al_wind = data_al.iloc[start_ind:start_ind+window_size]
-            data_cu_wind = data_cu.iloc[start_ind:start_ind+window_size]
-
-            test_al, test_cu = data_al_wind["Price"], data_cu_wind["Price"]
-            corr, p_val = corr_test(test_al, test_cu)
-            all_corr.append(corr)
-            all_p_val.append(p_val)
-
-            start_day = datetime.strptime(data_al_wind.iloc[0]["Date"], '%Y-%m-%d')
-            end_day = datetime.strptime(data_al_wind.iloc[-1]["Date"], '%Y-%m-%d')
-            middle = start_day + (end_day - start_day)/2
-            all_date.append(np.datetime64(middle.strftime('%Y-%m-%d')))
-            
-        fig, axes = plt.subplots(nrows=2, figsize=(15, 6), sharex=True)
-
-        for color, n, result, result2 in zip(color_list, test_name, zip(*all_corr), zip(*all_p_val)):
-            axes[0].plot(all_date, result, label=n, linestyle="-", color=color, zorder=3)
-            plot_axis_date(axes[0], all_date, month_interval=18)
-            if show_p_value:
-                axes[1].plot(all_date, result2, label=n, linestyle="-", color=color, zorder=3)
-                plot_axis_date(axes[1], all_date, month_interval=18)
-        
-        if not show_p_value:
-            results = load_json(load_json_path)
-            all_methods = list(results.keys())
-            all_metric = list(results[all_methods[0]].keys())
-            num_windows = len(results[all_methods[0]][all_metric[0]])
-
-            assert num_windows == total_len
-
-            color_list2 = ["#0074bf", "#f24a00", "#00db64"]
-
-            for i, method in enumerate(all_methods):
-                axes[1].plot(
-                    all_date, 
-                    results[method][metric], 
-                    linestyle="-", zorder=3, color=color_list2[i],
-                    label=method
-                )
-                plot_axis_date(axes[1], all_date, month_interval=18)
-            axes[1].set_ylabel(f"{metric} Over Windows")
-        else:
-            axes[1].axhline(0.05, color="#1a1a1a")
-            axes[1].set_ylabel("P-Value")
-        
-        axes[0].grid(zorder=0)
-        axes[0].legend()
-        axes[0].set_ylabel("Correlation")
-        
-        axes[1].grid(zorder=0)
-        axes[1].legend()
-        axes[1].set_xlabel("Middle Date")
-
-        axes[0].set_title("Sliding Window")
-
-        plt.show()
-    
-    def plot_corr_window_feat():
-        # Finding Non NaN-Data
-        data = load_metal_data("aluminium")
-        data = data.dropna()
-
-        start_not_na = data.index[0]
-        end_not_na = data.index[-1]
-
-        data_al_feat = data_al[start_not_na:end_not_na+1]
-        data_cu_feat = data_cu[start_not_na:end_not_na+1]
-
-        plot_correlation_window(
-            data_al_feat, data_cu_feat, 
-            skip_size=11, show_p_value=False, 
-            load_json_path="save-hyperparam/test-mlt-gp-feature-window/all_result_window.json")
-    
-    def plot_corr_year_feat(): 
-        data = load_metal_data("aluminium")
-        data = data.dropna()
-
-        start_not_na = data.index[0]
-        end_not_na = data.index[-1]
-
-        data_al_feat = data_al[start_not_na:end_not_na+1]
-        data_cu_feat = data_cu[start_not_na:end_not_na+1]
-        print(data_al_feat["Date"].iloc[0])
-        print(data_al_feat["Date"].iloc[-1])
-
-        plot_correlation_year(
-            data_al_feat, data_cu_feat, 
-            start_year=2018, num_year_forward=3, 
-            month="02", show_p_value=False, 
-            load_json_path="save-hyperparam/test-mlt-gp-feature/all_result_feature.json"
-        )
-
-
-    metal = "aluminium"
-    _, data_al = load_transform_data(metal, 22)
-    
-    metal = "copper"
-    _, data_cu = load_transform_data(metal, 22)
-
     all_test = [stats.pearsonr, stats.spearmanr, stats.kendalltau]
     test_name = ["Peason", "Spearman", "Kendell"]
     color_list = ["#ff7500", "#0062b8", "#d6022a"]
- 
-    plot_correlation_window(data_al, data_cu, show_p_value=False)
-    # start_ind = find_sub_string(data_al["Date"].to_list(), f"2005-05")
-    # end_ind = find_sub_string(data_al["Date"].to_list(), f"2005-07")
-    # print(end_ind - start_ind)
-    # plot_correlation_year()
-    # plot_corr_window_feat()
-    # plot_corr_year_feat()
-    # plot_correlation_year(data_al, data_cu, show_p_value=False)
+    color_list2 = ["#0074bf", "#f24a00", "#00db64"]
 
-def check_data():
-    metal = "aluminium"
-    raw_metal = load_metal_data(metal)
-    data = raw_metal.dropna()
+    total_len = (len(data_al)-window_size) // skip_size
 
-    metal = "copper"
-    raw_metal1 = load_metal_data(metal)
-    data1 = raw_metal1.dropna()
+    all_corr, all_p_val, all_date = [], [], []
+    for i in range(total_len):
+        start_ind = i*skip_size
+        data_al_wind = data_al.iloc[start_ind:start_ind+window_size]
+        data_cu_wind = data_cu.iloc[start_ind:start_ind+window_size]
 
-    # Confirm that they are the same
-    print(data["Date"].to_list() == data1["Date"].to_list())
+        test_al, test_cu = data_al_wind["Price"], data_cu_wind["Price"]
+        corr, p_val = corr_test(test_al, test_cu, test_name, all_test)
+        all_corr.append(corr)
+        all_p_val.append(p_val)
+
+        start_day = datetime.strptime(data_al_wind.iloc[0]["Date"], '%Y-%m-%d')
+        end_day = datetime.strptime(data_al_wind.iloc[-1]["Date"], '%Y-%m-%d')
+        middle = start_day + (end_day - start_day)/2
+        all_date.append(np.datetime64(middle.strftime('%Y-%m-%d')))
+        
+    fig, axes = plt.subplots(nrows=2, figsize=(15, 6), sharex=True)
+
+    for i, (color, n, result, result2) in enumerate(zip(color_list, test_name, zip(*all_corr), zip(*all_p_val))):
+        axes[0].plot(all_date, result, label=n, linestyle="-", color=color, zorder=3)
+        plot_axis_date(axes[0], all_date, month_interval=18)
+        if show_p_value:
+            axes[1].plot(all_date, result2, label=n, linestyle="-", color=color_list2[i], zorder=3)
+            plot_axis_date(axes[1], all_date, month_interval=18)
     
-    # Confirm that there is no missing entry
-    print(data.index.to_list() == list(range(data.index[0], data.index[-1]+1)))
+    if not show_p_value:
+        results = load_json(load_json_path)
+        all_methods = list(results.keys())
+        all_metric = list(results[all_methods[0]].keys())
+        num_windows = len(results[all_methods[0]][all_metric[0]])
+
+        assert num_windows == total_len
+
+        for i, method in enumerate(all_methods):
+            axes[1].plot(
+                all_date, 
+                results[method][metric], 
+                linestyle="-", zorder=3, color=color_list2[i],
+                label=method
+            )
+            plot_axis_date(axes[1], all_date, month_interval=18)
+        axes[1].set_ylabel(f"{metric} Over Windows")
+    else:
+        axes[0].axhline(0.0, color="#1a1a1a")
+        axes[1].axhline(0.05, color="#1a1a1a")
+        axes[1].set_ylabel("P-Value")
+    
+    axes[0].grid(zorder=0)
+    axes[0].legend()
+    axes[0].set_ylabel("Correlation")
+    
+    axes[1].grid(zorder=0)
+    axes[1].legend()
+    axes[1].set_xlabel("Middle Date")
+
+    axes[0].set_title(title)
+    return fig, axes
+
+@save_figure("figure/p_value_year_unrelated.pdf")
+def plot_year_unrelated():
+    return plot_years_correlation("natgas", "copper")
+
+@save_figure("figure/p_value_year_related.pdf")
+def plot_year_related():
+    return plot_years_correlation("nickel", "palladium")
+
+def plot_years_correlation(metal1, metal2):
+    _, data1 = load_transform_data(metal1, 22)
+    _, data2 = load_transform_data(metal2, 22)
+
+    title = f"Correlation Years ({metal_to_display_name[metal1]} vs {metal_to_display_name[metal2]})" 
+    fig, axes = plot_correlation_year(data1, data2, title=title)
+    return fig, axes
+
+def plot_correlation_year(data_al, data_cu, 
+    start_year=2009, num_year_forward=12, month="05", show_p_value=True, title="Correlation Years",
+    load_json_path="save-hyperparam/test-mlt-gp/all_result.json"):
+    
+    test_name = ["Peason", "Spearman", "Kendell"]
+    all_test = [stats.pearsonr, stats.spearmanr, stats.kendalltau]
+    color_list = ["#ff7500", "#0062b8", "#d6022a"]
+    color_list2 = ["#0074bf", "#f24a00", "#00db64"]
+
+    all_corr, all_p_val = [], []
+    years = [str(start_year + i) for i in range(num_year_forward+1)]
+    all_date = data_al["Date"].to_list()
+    for i in range(len(years)-1):
+        start_ind = find_sub_string(all_date, f"{years[i]}-{month}")
+        end_ind = find_sub_string(all_date, f"{years[i+1]}-{month}")
+
+        al_data = data_al.iloc[start_ind:end_ind]
+        cu_data = data_cu.iloc[start_ind:end_ind]
+
+        corr, p_val = corr_test(
+            al_data["Price"], cu_data["Price"], 
+            test_name, all_test
+        )
+        all_corr.append(corr)
+        all_p_val.append(p_val)
+    
+    def plot_graph(ax, value, y_label, title, color_list):
+        for color, n, result in zip(color_list, test_name, zip(*value)):
+            x_val = np.arange(len(result)*2, step=2)
+            ax.plot(x_val+1, result, label=n, linestyle="--", color=color, zorder=3)
+            ax.scatter(x_val+1, result, color=color, marker="s", zorder=3)
+        
+        ax.grid(zorder=0)
+        ax.legend()
+        ax.set_xticks(np.arange(len(years)*2, step=2))
+        ax.set_xticklabels([f"{y}-{month}"for y in years])
+        ax.xaxis.set_major_locator(ticker.MultipleLocator(2.0))
+
+        ax.set_ylabel(y_label)
+        ax.set_title(title)
+    
+    def plot_bar(ax, type_eval="CRPS"):
+        results = load_json(load_json_path)
+
+        all_methods = list(results.keys())
+        all_metric = list(results[all_methods[0]].keys())
+        num_years = len(results[all_methods[0]][all_metric[0]])
+
+        colors = ["#0074bf", "#f24a00", "#00db64"]
+
+        loc_list = np.arange(0, num_years*2, step=2)
+        width = 0.3
+        for i, loc in enumerate(loc_list):        
+            for j, method in enumerate(all_methods): 
+                ax.bar(
+                    x=loc+width*(j-1.5)+width/2 + 1.0, 
+                    height=results[method][type_eval][i], 
+                    width=width, 
+                    label=None if i != 0 else method,
+                    color=colors[j], 
+                    edgecolor = "k",
+                    zorder=3,
+                ) 
+        
+        ax.grid(zorder=0) 
+        ax.legend()
+    
+    fig, axes = plt.subplots(nrows=2, figsize=(15, 6), sharex=True)
+    plot_graph(axes[0], all_corr, y_label="Correlation", title="Correlation and Years", color_list=color_list)
+
+    if not show_p_value:
+        plot_bar(axes[1])
+    else:
+        plot_graph(axes[1], all_p_val, y_label="P-Value", title="P-Value and Years", color_list=color_list2)
+
+    axes[-1].set_xlabel("Years")
+    axes[-1].set_ylabel("CRPS Error")
+    axes[1].axhline(0.05, color="#1a1a1a")
+    axes[0].set_title(title)
+
+    return fig, axes
+
 
 def main():
     # explore_data_overall()
     # check_data()
-    print("HERE")
-    print(pd.read_csv("data/aluminium/aluminium_raw_prices.csv"))
+    pass
 
 
 if __name__ == '__main__':
