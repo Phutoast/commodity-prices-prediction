@@ -19,6 +19,7 @@ from statsmodels.tsa.vector_ar.vecm import coint_johansen
 from sklearn.decomposition import PCA
 import scipy.stats as stats
 from tabulate import tabulate
+import networkx as nx
 
 # Ordered in a Group
 metal_names = [
@@ -169,30 +170,66 @@ def plot_correlation_all():
     ]
 
     names = [metal_to_display_name[metal] for metal in metal_names]
-
     num_metals = len(metal_names) 
     
     test_name = ["Peason", "Spearman", "Kendell"]
     all_test = [stats.pearsonr, stats.spearmanr, stats.kendalltau]
-
-    fig, axes = plt.subplots(ncols=len(all_test), figsize=(20, 5))
-
-    for name, test, ax in zip(test_name, all_test, axes):
-        
+    fig, axes = plt.subplots(ncols=len(all_test), nrows=2, figsize=(20, 5))
+    
+    for name, test, ax in zip(test_name, all_test, axes.T): 
+        ax_top, ax_bot = ax
         correlation = np.zeros((num_metals, num_metals))
+        is_correlated = np.zeros((num_metals, num_metals))
+
         for i, d1 in enumerate(data):
             for j, d2 in enumerate(data):
-                correlation[i, j] = test(d1, d2)[0]
+                test_result = test(d1, d2)
+                correlation[i, j] = test_result[0]
+                is_correlated[i, j] = test_result[1] < 0.05
         
-        ax.set_title(name)
-        
-        plot_heat_map(ax, correlation, names, names, xlabel="Commodities", ylabel="Commodities", round_acc=2)
-        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
-    
-    plt.show()
-    fig.tight_layout()
+        ax_top.set_title(name) 
+        plot_heat_map(ax_top, correlation, names, names, xlabel="Commodities", ylabel="Commodities", round_acc=2)
+        plt.setp(ax_top.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+
+        plt.show()
+        assert False
+
+
+    # plt.show()
+    # fig.tight_layout()
 
     return fig, ax
+
+def plot_graph_correlation():
+    data = [
+        load_transform_data(metal, 22)[1]["Price"]
+        for metal in metal_names
+    ]
+    names = [metal_to_display_name[metal] for metal in metal_names]
+    num_metals = len(metal_names) 
+        
+    test = stats.pearsonr
+    name = "Peason"
+    
+    is_correlated = np.zeros((num_metals, num_metals))
+    for i, d1 in enumerate(data):
+        for j, d2 in enumerate(data):
+            test_result = test(d1, d2)
+            is_correlated[i, j] = test_result[1] < 0.05
+        
+    G = nx.from_numpy_matrix(is_correlated) 
+
+    options = {"edgecolors": "tab:gray", "node_size": 800, "alpha": 0.9}
+    pos = nx.spring_layout(G, seed=48)
+
+    # nx.draw_networkx_nodes(G, pos, nodelist=list(range(10)), node_color="tab:red", **options)
+    # nx.draw_networkx_edges(G, pos, width=1.0, alpha=0.5)
+
+    # nx.draw_networkx_labels(G, pos, {i: n for i, n in enumerate(names)})
+    nx.draw(G, with_labels=True, node_color='orange', node_size=400, edge_color='black', linewidths=1, font_size=15)
+    plt.show()
+
+    pass
         
 def explore_data_overall():
   

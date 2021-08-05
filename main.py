@@ -91,7 +91,7 @@ def main():
 if __name__ == '__main__':
     # print("HERE")
     # save_date_common("raw_data", "data")
-    explore_data.plot_correlation_all()
+    explore_data.plot_graph_correlation()
     # main()
     # plot_hyperparam_search("save-hyperparam/hyper_search/final_result.json")
     # common_compress = CompressMethod(
