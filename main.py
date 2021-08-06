@@ -99,7 +99,8 @@ if __name__ == '__main__':
     # explore_data.plot_years_correlation("natgas", "copper")
     # explore_data.plot_cf_and_acf()
     # explore_data.distance_between_time_series()
-    explore_data.clustering_dataset(num_cluster=4, is_verbose=True)
+    # explore_data.clustering_dataset(num_cluster=4, is_verbose=True)
+    explore_data.clustering_dataset()
 
     # main()
     # plot_hyperparam_search("save-hyperparam/hyper_search/final_result.json")

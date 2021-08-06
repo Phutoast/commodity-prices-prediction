@@ -446,12 +446,82 @@ def plot_correlation_year(data_al, data_cu,
 
     return fig, axes
 
-def distance_between_time_series():
+
+class CacheSoftDTW(object):
+    def __init__(self, data, len_data=10, memory=None):
+        if memory is None:
+            self.memory = np.ones((len_data, len_data)) * -1
+        else:
+            self.memory = memory
+        self.data = data
+    
+    def __call__(self, ind1, ind2, gamma=0.1):
+        
+        if self.memory[ind1, ind2] == -1:
+            result = tslearn.metrics.soft_dtw(
+                self.data[ind1], self.data[ind2], gamma=gamma
+            )
+            self.memory[ind1, ind2] = float(result)
+            self.memory[ind2, ind1] = float(result)
+            return result
+        else:
+            return self.memory[ind1, ind2]
+ 
+    def save_data(self, path):
+        np.save(path, self.memory)
+
+@save_figure("figure/distance_time_series.pdf")
+def distance_between_time_series(all_data=True, is_show=True, pre_computed_data=None):
     data = [
-        get_data(metal).to_numpy() 
+        get_data(metal, is_feat=not all_data).to_numpy() 
         for metal in metal_names
     ]
-    print(tslearn.metrics.soft_dtw(data[0], data[0], gamma=0.01))
+    
+    soft_dtw = CacheSoftDTW(data, len(data), pre_computed_data)
+
+    def soft_dtw_divergence(ind1, ind2, gamma=0.1):
+        part1 = soft_dtw(ind1, ind2, gamma=gamma)
+        part2 = soft_dtw(ind1, ind1, gamma=gamma)
+        part3 = soft_dtw(ind2, ind2, gamma=gamma)
+        return part1 - 0.5*(part2 + part3)
+         
+    def euclidean(ind1, ind2):
+        return np.sqrt(np.sum((data[ind1] - data[ind2])**2))
+    
+    def dtw(ind1, ind2):
+        return tslearn.metrics.dtw(data[ind1], data[ind2])
+    
+    name = ["Euclidean", "DTW", "Soft-DTW Divergence"]
+    all_test = [euclidean, dtw, soft_dtw_divergence]
+
+    num_metals = len(data)
+    
+    all_distances = []
+    for test in all_test: 
+        distance = np.zeros((num_metals, num_metals))
+        for i, d1 in enumerate(data):
+            for j, d2 in enumerate(data):
+                distance[i, j] = test(i, j)
+        
+        all_distances.append(distance)
+
+    create_folder("result/distance")
+    soft_dtw.save_data("result/distance/result.npy")
+
+    if is_show: 
+        fig, axes = plt.subplots(ncols=3, figsize=(15, 5))
+        names = [metal_to_display_name[metal] for metal in metal_names]
+
+        for ax, matrix, n in zip(axes, all_distances, name):
+            plot_heat_map(ax, matrix, names, names, xlabel="Commodities", ylabel="Commodities", round_acc=2)
+            plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+
+        fig.tight_layout()
+        plt.show()
+
+        return fig, axes
+    else:
+        return all_distances
 
 
 def clustering_dataset(is_side_by_side=True, num_cluster=4, is_verbose=True, use_all_data=False):
@@ -485,48 +555,56 @@ def clustering_dataset(is_side_by_side=True, num_cluster=4, is_verbose=True, use
             curr_csize = len(cluster_to_index[i]) 
             max_csize = curr_csize if max_csize < curr_csize else max_csize
             all_data.append(cluster_metal_name)
-        
+         
         padded = [data + [None] * (max_csize - len(data)) for data in all_data]
         all_data = np.array(padded).T.tolist()
 
         return all_data, cluster_to_index
+    
+    def run_cluster(test_name, list_distance_matrix):
+        all_tables, all_headers = [], []
+        for name, distance_matrix in zip(test_name, list_distance_matrix):
+            spectral_cluster = SpectralClustering(
+                n_clusters=num_cluster, assign_labels="discretize", 
+                random_state=48, affinity="precomputed"
+            )
+            cluster = spectral_cluster.fit(distance_matrix)
+            labels = cluster.labels_
 
+            all_data, cluster_to_index = prepare_table(labels) 
+            all_tables.append(all_data)
+
+            header = [f"Cluster {i+1}" for i in range(len(cluster_to_index))]
+            all_headers.append(header)
+
+            result.update({name.lower(): labels.tolist()})
+
+            if not is_side_by_side and is_verbose:
+                print(f"{name} Test")
+                print(tabulate(all_data, headers=header, tablefmt="grid"))
+                print()
+                print()
+        
+        if is_side_by_side and is_verbose:
+            print_tables_side_by_side(all_tables, all_headers, [f"{n} Test"for n in test_name], spacing=6)
+    
     all_test = [stats.pearsonr, stats.spearmanr, stats.kendalltau]
     test_name = ["Peason", "Spearman", "Kendell"]
     list_correlation, _ = correlation_over_dataset(test_name, all_test)
+    run_cluster(test_name, [np.abs(c) for c in list_correlation])
 
-    all_tables, all_headers = [], []
-    for name, corr_matrix in zip(test_name, list_correlation):
-        distance_matrix = np.abs(corr_matrix)
-        spectral_cluster = SpectralClustering(
-            n_clusters=num_cluster, assign_labels="discretize", 
-            random_state=48, affinity="precomputed"
-        )
-        cluster = spectral_cluster.fit(distance_matrix)
-        labels = cluster.labels_
+    precomputed_data = np.load("result/distance/result.npy")
 
-        all_data, cluster_to_index = prepare_table(labels) 
-        all_tables.append(all_data)
-
-        header = [f"Cluster {i+1}" for i in range(len(cluster_to_index))]
-        all_headers.append(header)
-
-        result.update({name.lower(): labels.tolist()})
-
-        if not is_side_by_side and is_verbose:
-            print(f"{name} Test")
-            print(tabulate(all_data, headers=header, tablefmt="grid"))
-            print()
-            print()
-     
-    if is_side_by_side and is_verbose:
-        print_tables_side_by_side(all_tables, all_headers, [f"{n} Test"for n in test_name], spacing=6)
+    list_distance = distance_between_time_series(
+        all_data=use_all_data, is_show=False, 
+        pre_computed_data=precomputed_data
+    )
+    run_cluster(
+        ["Euclidean", "DTW", "Soft-DTW Divergence"], 
+        list_distance
+    )
 
     is_feat = not use_all_data
-    # data = [
-    #     get_data(metal, is_feat=is_feat).to_list()
-    #     for metal in metal_names
-    # ]
     data = [
         load_price_feature(metal)
         for metal in metal_names
@@ -538,7 +616,6 @@ def clustering_dataset(is_side_by_side=True, num_cluster=4, is_verbose=True, use
     all_tables, all_headers = [], []
     for metric in metric_names:
         params = {"gamma": .05} if metric == "softdtw" else None
-        print(metric)
 
         kmean = TimeSeriesKMeans(
             n_clusters=num_cluster, metric=metric, max_iter=5,
@@ -567,7 +644,6 @@ def clustering_dataset(is_side_by_side=True, num_cluster=4, is_verbose=True, use
     all_tables, all_headers = [], []
     gak_km = KShape(n_clusters=num_cluster, n_init=3, random_state=48)
     labels = gak_km.fit_predict(all_dataset)
-    print("HERE")
 
     all_data, cluster_to_index = prepare_table(labels)
     all_tables.append(all_data)

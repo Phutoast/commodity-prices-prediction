@@ -135,9 +135,14 @@ def save_figure(save_path):
     def actual_decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            fig, ax = func(*args, **kwargs)
-            if save_path is not None:
-                fig.savefig(save_path)
-            return fig, ax
+            out = func(*args, **kwargs)
+
+            if isinstance(out, tuple):
+                fig, ax = out
+                if save_path is not None:
+                    fig.savefig(save_path)
+                return fig, ax
+            
+            return out
         return wrapper
     return actual_decorator
