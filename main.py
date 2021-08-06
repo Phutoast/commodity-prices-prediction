@@ -12,6 +12,7 @@ from run_experiments import gen_task_list
 from utils.data_visualization import plot_hyperparam_search
 from utils.data_preprocessing import GlobalModifier, load_metal_data, save_date_common
 from utils import explore_data
+from utils.data_structure import DatasetTaskDesc
 
 import warnings
 # warnings.filterwarnings("ignore")
@@ -57,6 +58,10 @@ def main():
             optim_iter=num_train_iter,
             len_inp=10
         ),
+        "ARIMAModel": algo_dict.encode_params(
+            "arima", is_verbose=False, 
+            is_test=is_test, order=(2, 0, 5)
+        ),
     }
 
     common_compress = CompressMethod(
@@ -70,11 +75,83 @@ def main():
     }
 
     # Getting the first one and the actual content
-    exp_setting2 = gen_task_list(
-        ["GPMultiTaskIndex"], "metal", all_modifiers, 
-        None, algo_config, len_dataset=-1, len_train_show=(100, 32 + 20)
-    )[0][1]
+    # exp_setting2 = gen_task_list(
+    #     ["GPMultiTaskIndex"], "time", all_modifiers, 
+    #     "copper", algo_config, len_dataset=-1, len_train_show=(100, 32 + 20)
+    # )
+    # exp_setting2 = gen_task_list(
+    #     ["ARIMAModel"], "metal", all_modifiers, 
+    #     ["copper", "lldpe"], algo_config, len_dataset=-1, len_train_show=(100, 32 + 20)
+    # )
     
+    # name, exp_setting2 = exp_setting2[0]
+
+    # Expected Interface
+    # gen_task_list(
+    #     ["GPMultiTaskIndex", "IndependentGP"], "metal", all_modifiers,
+    #     [["copper", "lldpe"], ["carbon"]], algo_config, len_dataset=-1, len_train_show=(100, 32 + 20)
+    # )
+    
+    # gen_task_list(
+    #     ["GPMultiTaskIndex"], "time", all_modifiers,
+    #     "copper", algo_config, len_dataset=-1, len_train_show=(100, 32 + 20)
+    # )
+
+
+    exp_setting2 = {
+        "task": {
+            "sub_model": [
+                ['v-gp_multi_task-Composite_1', 'v-gp_multi_task-Composite_1'], ['arima-2,0,5']
+            ],
+            "dataset": [
+                [
+                    DatasetTaskDesc(
+                        inp_metal_list=["copper"],
+                        out_feature="copper.Price",
+                        out_feat_tran_lag=(22, 0, 'id'),
+                        is_drop_nan= False,
+                        len_dataset= -1, 
+                        metal_modifier=[
+                            CompressMethod(compress_dim=3, method='pca', info={})
+                        ],
+                        use_feature=['Date', 'copper.Feature1', 'copper.Feature2', 'copper.Feature3'],
+                        use_feat_tran_lag=[None, None, None, None]
+                    ),
+                    DatasetTaskDesc(
+                        inp_metal_list=["lldpe"],
+                        out_feature="lldpe.Price",
+                        out_feat_tran_lag=(22, 0, 'id'),
+                        is_drop_nan= False,
+                        len_dataset= -1, 
+                        metal_modifier=[
+                            CompressMethod(compress_dim=3, method='pca', info={})
+                        ],
+                        use_feature=['Date', 'lldpe.Feature1', 'lldpe.Feature2', 'lldpe.Feature3'],
+                        use_feat_tran_lag=[None, None, None, None]
+                    ),
+                ],
+                [
+                    DatasetTaskDesc(
+                        inp_metal_list=["carbon"],
+                        out_feature="carbon.Price",
+                        out_feat_tran_lag=(22, 0, 'id'),
+                        is_drop_nan= False,
+                        len_dataset= -1, 
+                        metal_modifier=[
+                            CompressMethod(compress_dim=3, method='pca', info={})
+                        ],
+                        use_feature=['Date', 'carbon.Feature1', 'carbon.Feature2', 'carbon.Feature3'],
+                        use_feat_tran_lag=[None, None, None, None]
+                    ),
+                ]
+            ],
+            "len_pred_show": 130,
+            "len_train_show":(100, 52)
+        },
+        "algo": ["GPMultiTaskIndex", "IndependentMultiModel"],
+        "using_first": [False, False]
+    }
+
     if test_type == "f":
         example_plot_all_algo_lag(
             exp_setting2, is_save=False, is_load=False,
@@ -100,13 +177,7 @@ if __name__ == '__main__':
     # explore_data.plot_cf_and_acf()
     # explore_data.distance_between_time_series()
     # explore_data.clustering_dataset(num_cluster=4, is_verbose=True)
-    explore_data.clustering_dataset()
+    # explore_data.clustering_dataset()
 
-    # main()
-    # plot_hyperparam_search("save-hyperparam/hyper_search/final_result.json")
-    # common_compress = CompressMethod(
-    #     3, "pca"
-    # )
-    # modifier = GlobalModifier(common_compress)
-    # all_data = load_metal_data("carbon", global_modifier=modifier)
+    main()
 

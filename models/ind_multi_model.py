@@ -30,6 +30,10 @@ class IndependentMultiModel(object):
         self.num_model = len(list_config)
         self.using_first = using_first
 
+        self.list_train_data = list_train_data
+        self.list_config = list_config
+        self.using_first = using_first
+
         if using_first != self.expect_using_first:
             warnings.warn(UserWarning(f"To gain the best performance, we requires using_first to be {self.expect_using_first}"))
 
@@ -74,27 +78,23 @@ class IndependentMultiModel(object):
         """
 
         # self.num_model == 0 when we are loading a model
-        if self.num_model != 0:
-            assert all(
-                len(a) == self.num_model 
-                for a in [list_test_data, list_step_ahead, list_all_date]
-            )
-        else:
-            assert all(
-                len(a) == len(list_test_data)
-                for a in [list_test_data, list_step_ahead, list_all_date]
-            )
+        target_num_model = self.num_model if num_model != 0 else len(list_test_data)
+
+        assert all(
+            len(a) == target_num_model
+            for a in [list_test_data, list_step_ahead, list_all_date]
+        )
         
         if self.using_first:
             list_test_data = data_preprocessing.replace_dataset(list_test_data)
 
         return [
-            # WE have to follow the first one, so we will ignore the actual dataset.
+            # We have to follow the first one, so we will ignore the actual dataset.
             self.models[i].predict(
                 list_test_data[i], list_step_ahead[i], list_all_date[i], 
                 ci=ci, is_sample=is_sample
             )
-            for i in range(self.num_model)
+            for i in range(target_num_model)
         ]
     
     def save(self, base_path):

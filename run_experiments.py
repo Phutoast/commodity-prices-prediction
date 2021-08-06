@@ -30,18 +30,9 @@ def gen_task_list(all_algo, type_task, modifier, metal_type,
             if algo in algo_dict.using_out_only:
 
                 get_type_using_out = lambda x: "drop" if x in ["pca", "drop"] else "id"
-                cu_modi = modifier["copper"]
-                al_modi = modifier["aluminium"]
-
                 new_modi = {
-                    "copper": CompressMethod(
-                        0, get_type_using_out(cu_modi), 
-                        cu_modi.info
-                    ), 
-                    "aluminium": CompressMethod(
-                        0, get_type_using_out(al_modi), 
-                        al_modi.info
-                    )
+                    k : CompressMethod(0, get_type_using_out(v.method), v.info)
+                    for k, v in modifier.items()
                 }
                 if type_task == "time":
                     dataset = list_dataset.gen_datasets(

@@ -114,6 +114,8 @@ def gen_prepare_task(len_inp, len_out,
 
 def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=False, load_path=None, save_path="save/"):
 
+    assert False
+
     def prepare_model_train(exp_setting):
         train_dataset_list = []
         algo_hyper_class_list = []

@@ -24,6 +24,10 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
             "list_config": list_config, "using_first": using_first
         }
 
+        self.list_train_data = list_train_data
+        self.list_config = list_config
+        self.using_first = using_first
+
         if self.hyperparam["is_gpu"]:
             self.likelihood = self.likelihood.cuda()
     

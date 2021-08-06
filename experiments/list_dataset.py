@@ -2,7 +2,6 @@ from utils.data_structure import DatasetTaskDesc, CompressMethod
 from utils.others import find_all_metal_names
 
 def gen_datasets(type_task="time", modifier=None, metal_type="aluminium", len_dataset=794):
-
     def cal_modifier_feature(inp_metal_list):
         metal_modifier, additional_features = [], []
         for metal in inp_metal_list:
@@ -25,8 +24,9 @@ def gen_datasets(type_task="time", modifier=None, metal_type="aluminium", len_da
         }
     elif not isinstance(modifier, dict):
         raise TypeError("Modifier has to be passed as Dict")
-
+    
     if type_task == "time": 
+        assert isinstance(metal_type, str)
         inp_metal_list = [metal_type]
         metal_modifier, additional_features = cal_modifier_feature(inp_metal_list)
         all_time_step = [22, 44, 66]
@@ -46,13 +46,11 @@ def gen_datasets(type_task="time", modifier=None, metal_type="aluminium", len_da
         return dataset
 
     elif type_task == "metal":
-        # all_metals = ["aluminium", "copper"] 
         assert isinstance(metal_type, list) or metal_type is None
 
         if metal_type is not None:
             all_metals = metal_type
-
-
+        
         list_compose = [
             cal_modifier_feature([metal])
             for metal in all_metals
