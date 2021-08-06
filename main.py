@@ -103,7 +103,7 @@ def main():
     exp_setting2 = {
         "task": {
             "sub_model": [
-                ['v-gp_multi_task-Composite_1-100-10', 'v-gp_multi_task-Composite_1-100-10'], ['arima-2,0,5']
+                [f'v-gp_multi_task-Composite_1-{num_train_iter}-10', f'v-gp_multi_task-Composite_1-{num_train_iter}-10'], ['arima-2,0,5']
             ],
             "dataset": [
                 [
@@ -148,7 +148,7 @@ def main():
                 ]
             ],
             "len_pred_show": 130,
-            "len_train_show":(100, 52)
+            "len_train_show":(200, 100)
         },
         "algo": ["GPMultiTaskMultiOut", "IndependentMultiModel"],
         "using_first": [True, False]
@@ -156,14 +156,14 @@ def main():
 
     if test_type == "f":
         example_plot_all_algo_lag(
-            {}, is_save=True, is_load=False,
+            exp_setting2, is_save=True, is_load=False,
             load_path="GP-Multi",
             # load_path="08-06-21-22-42-41-08-06-21-22-28-50-GP-Multi"
         )
     elif test_type == "w":
         print("Mean")
-        assert False, "Under Construction"
-        example_plot_walk_forward(exp_setting2, "Mean",
+        example_plot_walk_forward(
+            exp_setting2, "Mean",
             is_save=True, is_load=False, is_show=True,
             load_path="Mean"
         )

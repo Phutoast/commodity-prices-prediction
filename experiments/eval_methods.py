@@ -6,6 +6,7 @@ import itertools
 from utils.data_structure import TrainingPoint, FoldWalkForewardResult
 from utils.data_preprocessing import parse_series_time
 from experiments.calculation import PerformanceMetric
+from models.cluster_multi_model import HardClusterMultiModel
 
 def prepare_dataset(X, first_day, y, len_inp, 
             len_out=22, return_lag=22, is_padding=False, convert_date=True, offset=1, is_show_progress=False, num_dataset=-1):
@@ -104,10 +105,42 @@ def transpose_list(list_mat):
         result.append(temp)
     
     return result
-    
 
-def walk_forward(all_data, task_setting, multi_model_class, size_train, 
-            size_test, train_offset, return_lag_list, convert_date, using_first,
+def three_d_list_manipulate(tensor):
+    # test_arr = [
+    #     [[1, 4], [2, 5], [3, 6]], 
+    #     [[7], [8], [9]]
+    # ]
+
+    # target_arr = [
+    #     [[1, 4], [7]],
+    #     [[2, 5], [8]],
+    #     [[3, 6], [9]]
+    # ]
+
+    # assert three_d_list_manipulate(test_arr) == target_arr
+
+    num_cluster = len(tensor)
+
+    # Should be the same
+    num_fold = len(tensor[0])
+    num_task = [len(t[0]) for t in tensor]
+
+    full_data = []
+    for fold in range(num_fold):
+        within_fold = []
+        for cluster in range(num_cluster):
+            within_cluster = []
+            for task in range(num_task[cluster]):
+                within_cluster.append(tensor[cluster][fold][task])
+            
+            within_fold.append(within_cluster)
+        full_data.append(within_fold)
+
+    return full_data
+    
+def walk_forward(clus_all_data, clus_task_setting, clus_algo, size_train, 
+            size_test, train_offset, clus_using_first,
             is_train_pad=True, is_test_pad=False):
     """
     Performing walk forward testing (k-fold like) of the models
@@ -160,29 +193,37 @@ def walk_forward(all_data, task_setting, multi_model_class, size_train,
         fold_result_list: Performance of model + Model
     """
 
-    task_list_all = []
-    for X, y, _, algo_class in all_data:
-        model_hyperparam, model_class = algo_class
+    clus_fold_list = []
+    for all_data in clus_all_data:
+        task_list_all = []
+        for X, y, _, algo_class in all_data:
+            model_hyperparam, model_class = algo_class
 
-        len_inp = model_hyperparam["len_inp"]
-        len_out = model_hyperparam["len_out"]
-        size_subset = len_inp + len_out
-        assert size_subset <= size_test and size_subset <= size_train
+            len_inp = model_hyperparam["len_inp"]
+            len_out = model_hyperparam["len_out"]
+            size_subset = len_inp + len_out
+            assert size_subset <= size_test and size_subset <= size_train
 
-        first_day = X["Date"][0]
-        fold = prepare_dataset(X, first_day, y, size_train, 
-                    len_out=size_test, convert_date=True, 
-                    offset=size_test, return_lag=0, 
-                    is_padding=False) 
-        task_list_all.append(fold)
+            first_day = X["Date"][0]
+            fold = prepare_dataset(X, first_day, y, size_train, 
+                        len_out=size_test, convert_date=True, 
+                        offset=size_test, return_lag=0, 
+                        is_padding=False) 
+            task_list_all.append(fold)
+        
+        # In a cluser the fold has to have the same thoughout
+        assert all(len(fold) == len(task_list_all[0]) for fold in task_list_all)
+        clus_fold_list.append(transpose_list(task_list_all))
     
-    assert all(len(fold) == len(task_list_all[0]) for fold in task_list_all)
-
-    fold_list_task = transpose_list(task_list_all)
+    # All Cluster have same fold !!
+    assert all(len(f) == len(clus_fold_list[0]) for f in clus_fold_list)
     
-    fold_result_list = []
-    for i, all_task_data in enumerate(fold_list_task):
-        print("At fold", i+1, "/", len(fold_list_task))
+    clus_fold_list = three_d_list_manipulate(clus_fold_list)
+     
+    def prepare_model_data(task_setting, all_data, using_first, task_data):
+        """
+        Within Cluster
+        """
 
         train_dataset_list = []
         algo_hyper_class_list = []
@@ -195,9 +236,8 @@ def walk_forward(all_data, task_setting, multi_model_class, size_train,
         missing_data_list = []
         algo_prop_list = []
 
-        for j, (X_train, y_train, X_test, y_test) in enumerate(all_task_data):
-            _, _, convert_date, algo_class = all_data[j]
-            model_hyperparam, model_class = algo_class
+        for j, (X_train, y_train, X_test, y_test) in enumerate(task_data):
+            _, _, convert_date, (model_hyperparam, model_class) = all_data[j]
             model_hyperparam["using_first"] = using_first
 
             len_inp = model_hyperparam["len_inp"]
@@ -253,26 +293,47 @@ def walk_forward(all_data, task_setting, multi_model_class, size_train,
             true_pred_list.append((true_date, true_price))
             missing_data_list.append(missing_data)
             algo_prop_list.append((len_inp, len_out, return_lag))
-
-        model = multi_model_class(
-            train_dataset_list, 
-            algo_hyper_class_list,
-            using_first
+        
+        construct_model = (
+            train_dataset_list, algo_hyper_class_list
         )
+        
+        prediction = (
+            pred_dataset_list, 
+            len_pred_list, date_pred_list
+        )
+        plotting = (
+            true_pred_list, missing_data_list, algo_prop_list
+        )
+        
+        return construct_model, prediction, plotting
+     
+    fold_result_list = []
+    for fold_num, within_fold_clus in enumerate(clus_fold_list):
+        print("At fold", fold_num+1, "/", len(clus_fold_list))
+
+        model_inp, pred_inp, plotting_data = zip(*[
+            prepare_model_data(
+                clus_task_setting[clus_num], clus_all_data[clus_num], 
+                clus_using_first[clus_num], clus_data
+            )
+            for clus_num, clus_data in enumerate(within_fold_clus)
+        ])
+
+        model = HardClusterMultiModel(*zip(*model_inp), clus_using_first, clus_algo)
         model.train()
-        all_task_pred = model.predict(
-            pred_dataset_list, 
-            len_pred_list, 
-            date_pred_list, 
-            ci=0.9
-        )
-        all_task_sample = model.predict(
-            pred_dataset_list, 
-            len_pred_list, 
-            date_pred_list, 
-            ci=0.9, is_sample=True
-        )
 
+        pred = model.predict(*zip(*pred_inp))
+        all_task_pred = list(itertools.chain(*pred))
+
+        sample = model.predict(*zip(*pred_inp), is_sample=True)
+        all_task_sample = list(itertools.chain(*sample))
+
+        clus_true_pred_list, clus_missing, clus_algo_prop = zip(*plotting_data)
+        true_pred_list = itertools.chain(*clus_true_pred_list)
+        missing_data_list = itertools.chain(*clus_missing)
+        algo_prop_list = itertools.chain(*clus_algo_prop)
+        
         summary_iter = enumerate(zip(
             all_task_pred, all_task_sample, 
             true_pred_list, missing_data_list, algo_prop_list
@@ -296,7 +357,6 @@ def walk_forward(all_data, task_setting, multi_model_class, size_train,
         fold_result_list.append(task_result_list)
 
     return transpose_list(fold_result_list)
-
 
 def cal_walk_forward_result(pred, true_date, 
     true_price, len_inp, len_out, return_lag, task_sample):
@@ -339,3 +399,42 @@ def cal_walk_forward_result(pred, true_date,
     
     return pred, loss_detail
 
+def create_legacy_exp_setting(all_exp, is_task_only=False):
+    """
+    Things can gone wrong and I don't want to debug so, 
+        i will chop up the current setting and transfrom 
+        to normal legacy setting
+    """
+        
+    task_info = all_exp["task"] 
+    len_pred_show = task_info["len_pred_show"]
+    len_train_show = task_info["len_train_show"]
+
+    if not is_task_only:
+        num_cluster = len(all_exp["algo"])
+
+        all_cluster_list = [
+            task_info["sub_model"], task_info["dataset"], 
+            all_exp["algo"], all_exp["using_first"]
+        ]
+
+        assert all(len(l) == len(all_cluster_list[0]) for l in all_cluster_list)
+
+        all_exp_setting = [
+            {
+                "task": {
+                    "sub_model": sub_model,
+                    "dataset": dataset,
+                    "len_pred_show": len_pred_show,
+                    "len_train_show": len_train_show
+                },
+                "algo": algo, "using_first": using_first
+            }
+            for sub_model, dataset, algo, using_first in zip(*all_cluster_list)
+        ]
+        return all_exp_setting
+    else:
+        all_cluster_list = [
+            task_info["sub_model"], task_info["dataset"]
+        ]
+        return None
