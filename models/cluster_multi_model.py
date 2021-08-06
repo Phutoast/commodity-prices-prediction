@@ -62,12 +62,12 @@ class HardClusterMultiModel(object):
     
     def save(self, base_path):
         others.create_folder(base_path)
-        others.dump_json(f"{base_path}/config.json", self.list_config_json)
+        others.dump_json(f"{base_path}/config_cluster.json", self.list_config_json)
 
         for clus_ind in range(self.num_cluster):
             cluster_path = base_path + f"/cluster_{clus_ind}/"
             others.create_folder(cluster_path)
-            self.all_mult_model[clus_ind].save(cluster_path + "mtl_model")
+            self.all_mult_model[clus_ind].save(cluster_path)
     
     def load(self, path):
         # list_sub_model = sorted([f.path for f in os.scandir(path) if f.is_dir()])
@@ -80,7 +80,7 @@ class HardClusterMultiModel(object):
     
     @classmethod
     def load_from_path(cls, path):
-        data = others.load_json(f"{path}/config.json") 
+        data = others.load_json(f"{path}/config_cluster.json") 
         cluster_info = data["cluster_info"]
         mtl_model_name = data["mtl_model"]
 
@@ -96,7 +96,7 @@ class HardClusterMultiModel(object):
         list_loaded_model_class = []
 
         for i, model_name in enumerate(mtl_model_name):
-            model_path = f"{path}/cluster_{i}/mtl_model"
+            model_path = f"{path}/cluster_{i}"
 
             model_class = algo_dict.multi_task_algo[model_name] 
             loaded = model_class.load_from_path(model_path)

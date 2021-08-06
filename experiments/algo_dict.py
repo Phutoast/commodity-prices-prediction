@@ -36,6 +36,15 @@ multi_task_algo = {
     "GPMultiTaskIndex": GPMultiTaskIndex
 }
 
+class_name_to_display = {
+    "ARIMAModel": "ARIMA",
+    "IIDDataModel": "IID",
+    "IndependentGP": "Independent GP",
+    "IndependentMultiModel": "Independent Multi-Model",
+    "GPMultiTaskMultiOut": "Multi-Task GP Output",
+    "GPMultiTaskIndex": "Multi-Task GP Index"
+}
+
 algo_is_using_first = {k: v.expect_using_first for k, v in multi_task_algo.items()}
 using_first_algo = [k for k, v in algo_is_using_first.items() if v]
 using_out_only = [k for k, v in class_name.items() if issubclass(v, FullARModel)]

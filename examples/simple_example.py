@@ -11,9 +11,11 @@ from utils.data_visualization import visualize_time_series, visualize_walk_forwa
 from utils.others import create_folder, save_fold_data, load_fold_data, create_name, dump_json, load_json  
 from utils.data_structure import DatasetTaskDesc
 from utils.data_preprocessing import load_dataset_from_desc
+from utils.explore_data import metal_to_display_name
 
-from experiments.algo_dict import algorithms_dic, multi_task_algo
+from experiments.algo_dict import algorithms_dic, multi_task_algo, class_name_to_display
 from experiments.eval_methods import prepare_dataset, walk_forward
+from models.cluster_multi_model import HardClusterMultiModel
 
 class SkipLookUp(object):
     def __init__(self, skip, all_date):
@@ -112,9 +114,41 @@ def gen_prepare_task(len_inp, len_out,
     helper = prepare_task(task, len_inp, return_lag, plot_gap)
     return (task, helper)
 
-def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=False, load_path=None, save_path="save/"):
+def example_plot_all_algo_lag(all_exp_setting, 
+    plot_gap=True, is_save=True, is_load=False, load_path=None, save_path="save/"):
 
-    assert False
+    def create_legacy_exp_setting(all_exp):
+        """
+        Things can gone wrong and I don't want to debug so, 
+            i will chop up the current setting and transfrom 
+            to normal legacy setting
+        """
+        num_cluster = len(all_exp["algo"])
+
+        task_info = all_exp["task"] 
+        len_pred_show = task_info["len_pred_show"]
+        len_train_show = task_info["len_train_show"]
+
+        all_cluster_list = [
+            task_info["sub_model"], task_info["dataset"], 
+            all_exp["algo"], all_exp["using_first"]
+        ]
+
+        assert all(len(l) == len(all_cluster_list[0]) for l in all_cluster_list)
+
+        all_exp_setting = [
+            {
+                "task": {
+                    "sub_model": sub_model,
+                    "dataset": dataset,
+                    "len_pred_show": len_pred_show,
+                    "len_train_show": len_train_show
+                },
+                "algo": algo, "using_first": using_first
+            }
+            for sub_model, dataset, algo, using_first in zip(*all_cluster_list)
+        ]
+        return all_exp_setting
 
     def prepare_model_train(exp_setting):
         train_dataset_list = []
@@ -200,69 +234,120 @@ def example_plot_all_algo_lag(exp_setting, plot_gap=True, is_save=True, is_load=
             full_feature_list.append(full_feature)
             log_prices_train_list.append(log_prices_train)
             missing_data_list.append(missing_data)
-        
-        model = multi_task_algo[exp_setting["algo"]](
-            train_dataset_list, 
-            algo_hyper_class_list,
-            exp_setting["using_first"]
-        )
 
-        return model, (
-            num_task, pred_dataset_list, 
-            len_pred_list, date_pred_list, 
-            full_feature_list, log_prices_train_list, 
+        construct_model = (
+            train_dataset_list, algo_hyper_class_list, 
+            exp_setting["using_first"], multi_task_algo[exp_setting["algo"]]
+        )
+        prediction = (
+            pred_dataset_list, 
+            len_pred_list, date_pred_list
+        )
+        plotting = (
+            num_task, full_feature_list, log_prices_train_list, 
             true_pred_list, missing_data_list, first_day_list
         )
+
+        return construct_model, prediction, plotting
+    
+ 
+    def build_model_pred(all_setting):
+        model_inp, pred_inp, plotting_data = zip(*[
+            prepare_model_train(exp_setting)
+            for exp_setting in create_legacy_exp_setting(all_setting)
+        ])
+
+        model = HardClusterMultiModel(*zip(*model_inp))
+
+        # Redo the zipping
+        all_plot = [
+            sum(i) if isinstance(i[0], int) else list(itertools.chain(*i))
+            for i in zip(*plotting_data)
+        ]
+
+        return model, pred_inp, all_plot
+    
+    def train_model(all_exp_setting, is_save=False, is_train=True):
+        model, pred_inp, useful_info = build_model_pred(all_exp_setting)
+        if is_train:
+            model.train()
+        if is_save:
+            base_name = create_name(save_path, load_path)
+            model.save(base_name)
+            dump_json(base_name + "/exp_setting.json", all_exp_setting)
+
+        return model, pred_inp, useful_info
     
     if load_path is not None:
         if is_load:
-            exp_setting = load_json(f"{save_path}{load_path}/exp_setting.json")
-            exp_setting["task"]["dataset"] = [DatasetTaskDesc(**d) for d in exp_setting["task"]["dataset"]]
-            _, useful_info = prepare_model_train(exp_setting)
-            model = multi_task_algo[exp_setting["algo"]].load_from_path(f"{save_path}{load_path}")
+            load_base = save_path + load_path
+            all_exp_setting = load_json(f"{load_base}/exp_setting.json")
+            all_exp_setting["task"]["dataset"] = [
+                [DatasetTaskDesc(**d) for d in clus_desc]
+                for clus_desc in all_exp_setting["task"]["dataset"]
+            ]
+            _, pred_inp, useful_info = train_model(all_exp_setting, is_train=False)
+            model = HardClusterMultiModel.load_from_path(load_base)
         elif is_save:
-            model, useful_info = prepare_model_train(exp_setting)
-            model.train()
-            base_name = create_name(save_path, load_path)
-            model.save(base_name)
-            dump_json(base_name + "/exp_setting.json", exp_setting)
+            model, pred_inp, useful_info = train_model(all_exp_setting, is_save=True)
         else:
-            model, useful_info = prepare_model_train(exp_setting)
-            model.train()
+            model, pred_inp, useful_info = train_model(all_exp_setting)
     else:
-        model, useful_info = prepare_model_train(exp_setting)
-        model.train()
+        model, pred_inp, useful_info = train_model(all_exp_setting)
     
-    (num_task, pred_dataset_list, len_pred_list, date_pred_list, 
-        full_feature_list, log_prices_train_list, 
+    (num_task, full_feature_list, log_prices_train_list, 
         true_pred_list, missing_data_list, first_day_list) = useful_info
-    
-    pred = model.predict(
-        pred_dataset_list, 
-        len_pred_list, 
-        date_pred_list, 
-        ci=0.9
-    )
+
+    pred = model.predict(*zip(*pred_inp))
+    pred = list(itertools.chain(*pred))
 
     fig, axes = plt.subplots(nrows=num_task, figsize=(15, 6))
-    for i in range(num_task):
-        all_task = exp_setting["task"]
-        curr_dataset = all_task["dataset"][i]
 
-        display_name = all_task["sub_model"][i] + " " + curr_dataset.gen_name()
+    # Generating Names
+    all_task = all_exp_setting["task"]
+    is_all_independent = all(len(sub_model) == 1 for sub_model in all_task["sub_model"])
+    is_all_joint = len(all_task["sub_model"]) == 1
+
+    clus_num = list(itertools.chain(*[
+        [i+1]*len(task) 
+        for i, task in enumerate(all_task["sub_model"])
+    ]))
+
+    output_name = [
+        metal_to_display_name[desc["out_feature"].split(".")[0]]
+        for desc in itertools.chain(*all_task["dataset"])
+    ]
+        
+    method_name = []
+    for i, sub_model in enumerate(itertools.chain(*all_task["sub_model"])):
+        base_method = algorithms_dic[sub_model][1] 
+
+        # Mean that it is not independent
+        if base_method is None:
+            name = all_exp_setting["algo"][clus_num[i]-1]
+        else:
+            name = base_method.__name__
+
+        method_name.append(class_name_to_display[name])
+
+    for i in range(num_task):
         model_pred = DisplayPrediction(
-            pred[i], name=display_name, color="p", is_bridge=False
+            pred[i], name=method_name[i], color="p", is_bridge=False
         )
+
+        is_show_cluster = not (is_all_independent or is_all_joint)
+        additional = f"on Cluster {clus_num[i]}" if is_show_cluster else ""
 
         fig, ax1 = visualize_time_series(
             (fig, axes[i]), 
             ((full_feature_list[i], log_prices_train_list[i]), [true_pred_list[i], model_pred]), 
-            "k", missing_data_list[i], "o", first_day_list[i], title="Log Lag over Time"
+            "k", missing_data_list[i], "o", first_day_list[i], 
+            title=f"Prediction Results: {output_name[i]} " + additional
         )
 
     fig.tight_layout()        
     plt.show()
-
+    
 def example_plot_walk_forward(exp_setting, model_name, load_path, 
     is_save=False, is_load=True, is_show=True, save_path="save/"):
 

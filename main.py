@@ -64,6 +64,8 @@ def main():
         ),
     }
 
+    
+
     common_compress = CompressMethod(
         # 0, "id", info={"range_index": (0, 260)}
         3, "pca"
@@ -101,7 +103,7 @@ def main():
     exp_setting2 = {
         "task": {
             "sub_model": [
-                ['v-gp_multi_task-Composite_1', 'v-gp_multi_task-Composite_1'], ['arima-2,0,5']
+                ['v-gp_multi_task-Composite_1-100-10', 'v-gp_multi_task-Composite_1-100-10'], ['arima-2,0,5']
             ],
             "dataset": [
                 [
@@ -138,28 +140,29 @@ def main():
                         is_drop_nan= False,
                         len_dataset= -1, 
                         metal_modifier=[
-                            CompressMethod(compress_dim=3, method='pca', info={})
+                            CompressMethod(compress_dim=0, method='drop', info={})
                         ],
-                        use_feature=['Date', 'carbon.Feature1', 'carbon.Feature2', 'carbon.Feature3'],
-                        use_feat_tran_lag=[None, None, None, None]
+                        use_feature=["Date"],
+                        use_feat_tran_lag=[None]
                     ),
                 ]
             ],
             "len_pred_show": 130,
             "len_train_show":(100, 52)
         },
-        "algo": ["GPMultiTaskIndex", "IndependentMultiModel"],
-        "using_first": [False, False]
+        "algo": ["GPMultiTaskMultiOut", "IndependentMultiModel"],
+        "using_first": [True, False]
     }
 
     if test_type == "f":
         example_plot_all_algo_lag(
-            exp_setting2, is_save=False, is_load=False,
+            {}, is_save=True, is_load=False,
             load_path="GP-Multi",
-            # load_path="07-19-21-17-29-31-GP-Multi"
+            # load_path="08-06-21-22-42-41-08-06-21-22-28-50-GP-Multi"
         )
     elif test_type == "w":
         print("Mean")
+        assert False, "Under Construction"
         example_plot_walk_forward(exp_setting2, "Mean",
             is_save=True, is_load=False, is_show=True,
             load_path="Mean"

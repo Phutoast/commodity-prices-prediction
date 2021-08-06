@@ -78,7 +78,7 @@ class IndependentMultiModel(object):
         """
 
         # self.num_model == 0 when we are loading a model
-        target_num_model = self.num_model if num_model != 0 else len(list_test_data)
+        target_num_model = self.num_model if self.num_model != 0 else len(list_test_data)
 
         assert all(
             len(a) == target_num_model
