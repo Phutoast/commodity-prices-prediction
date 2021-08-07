@@ -599,7 +599,18 @@ def clustering_dataset(is_side_by_side=True, num_cluster=4, is_verbose=True, use
         all_data=use_all_data, is_show=False, 
         pre_computed_data=precomputed_data
     )
-    run_cluster(
+
+    def rbf_affinity(matrix, delta=1.0):
+        return np.exp(- matrix ** 2 / (2. * delta ** 2))
+
+    normalize_score = [2, 1, 20]
+    
+    list_distance = [
+        rbf_affinity(l/n) 
+        for l, n in zip(list_distance, normalize_score)
+    ]
+
+    run_cluster(    
         ["Euclidean", "DTW", "Soft-DTW Divergence"], 
         list_distance
     )

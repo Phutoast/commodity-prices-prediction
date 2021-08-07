@@ -62,9 +62,7 @@ def main():
             "arima", is_verbose=False, 
             is_test=is_test, order=(2, 0, 5)
         ),
-    }
-
-    
+    } 
 
     common_compress = CompressMethod(
         # 0, "id", info={"range_index": (0, 260)}
@@ -179,8 +177,8 @@ if __name__ == '__main__':
     # explore_data.plot_years_correlation("natgas", "copper")
     # explore_data.plot_cf_and_acf()
     # explore_data.distance_between_time_series()
-    # explore_data.clustering_dataset(num_cluster=4, is_verbose=True)
+    explore_data.clustering_dataset(num_cluster=4, is_verbose=True)
     # explore_data.clustering_dataset()
 
-    main()
+    # main()
 
