@@ -155,15 +155,16 @@ def main():
     if test_type == "f":
         example_plot_all_algo_lag(
             exp_setting2, is_save=True, is_load=False,
-            load_path="GP-Multi",
+            load_path="Hard_Cluster",
             # load_path="08-06-21-22-42-41-08-06-21-22-28-50-GP-Multi"
         )
     elif test_type == "w":
         print("Mean")
         example_plot_walk_forward(
             exp_setting2, "Mean",
-            is_save=True, is_load=False, is_show=True,
-            load_path="Mean"
+            is_save=False, is_load=True, is_show=True,
+            # load_path="Hard_Cluster"
+            load_path="08-07-21-22-35-52-Hard_Cluster"
         )
         
 if __name__ == '__main__':
@@ -177,8 +178,8 @@ if __name__ == '__main__':
     # explore_data.plot_years_correlation("natgas", "copper")
     # explore_data.plot_cf_and_acf()
     # explore_data.distance_between_time_series()
-    explore_data.clustering_dataset(num_cluster=4, is_verbose=True)
+    # explore_data.clustering_dataset(num_cluster=4, is_verbose=True)
     # explore_data.clustering_dataset()
 
-    # main()
+    main()
 

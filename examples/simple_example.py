@@ -113,6 +113,44 @@ def gen_prepare_task(len_inp, len_out,
     )
     helper = prepare_task(task, len_inp, return_lag, plot_gap)
     return (task, helper)
+
+def get_display_data(all_exp_setting):
+    all_task = all_exp_setting["task"]
+    is_all_independent = all(len(sub_model) == 1 for sub_model in all_task["sub_model"])
+    is_all_joint = len(all_task["sub_model"]) == 1
+
+    clus_num = list(itertools.chain(*[
+        [i+1]*len(task) 
+        for i, task in enumerate(all_task["sub_model"])
+    ]))
+
+    output_name = [
+        metal_to_display_name[desc["out_feature"].split(".")[0]]
+        for desc in itertools.chain(*all_task["dataset"])
+    ]
+        
+    method_name = []
+    for i, sub_model in enumerate(itertools.chain(*all_task["sub_model"])):
+        base_method = algorithms_dic[sub_model][1] 
+
+        # Mean that it is not independent
+        if base_method is None:
+            name = all_exp_setting["algo"][clus_num[i]-1]
+        else:
+            name = base_method.__name__
+
+        method_name.append(class_name_to_display[name])
+    
+    is_show_cluster = not (is_all_independent or is_all_joint)
+    return clus_num, output_name, method_name, is_show_cluster
+
+def loading_all_exp_setting(setting_path):
+    all_exp_setting = load_json(setting_path)
+    all_exp_setting["task"]["dataset"] = [
+        [DatasetTaskDesc(**d) for d in clus_desc]
+        for clus_desc in all_exp_setting["task"]["dataset"]
+    ]
+    return all_exp_setting
     
 def example_plot_all_algo_lag(all_exp_setting, 
     plot_gap=True, is_save=True, is_load=False, load_path=None, save_path="save/"):
@@ -248,12 +286,10 @@ def example_plot_all_algo_lag(all_exp_setting,
     if load_path is not None:
         if is_load:
             load_base = save_path + load_path
-            all_exp_setting = load_json(f"{load_base}/exp_setting.json")
-            all_exp_setting["task"]["dataset"] = [
-                [DatasetTaskDesc(**d) for d in clus_desc]
-                for clus_desc in all_exp_setting["task"]["dataset"]
-            ]
-            _, pred_inp, useful_info = train_model(all_exp_setting, is_train=False)
+            loading_all_exp_setting(f"{load_base}/exp_setting.json")
+            _, pred_inp, useful_info = train_model(
+                all_exp_setting, is_train=False
+            )
             model = HardClusterMultiModel.load_from_path(load_base)
         elif is_save:
             model, pred_inp, useful_info = train_model(all_exp_setting, is_save=True)
@@ -271,38 +307,13 @@ def example_plot_all_algo_lag(all_exp_setting,
     fig, axes = plt.subplots(nrows=num_task, figsize=(15, 6))
 
     # Generating Names
-    all_task = all_exp_setting["task"]
-    is_all_independent = all(len(sub_model) == 1 for sub_model in all_task["sub_model"])
-    is_all_joint = len(all_task["sub_model"]) == 1
-
-    clus_num = list(itertools.chain(*[
-        [i+1]*len(task) 
-        for i, task in enumerate(all_task["sub_model"])
-    ]))
-
-    output_name = [
-        metal_to_display_name[desc["out_feature"].split(".")[0]]
-        for desc in itertools.chain(*all_task["dataset"])
-    ]
-        
-    method_name = []
-    for i, sub_model in enumerate(itertools.chain(*all_task["sub_model"])):
-        base_method = algorithms_dic[sub_model][1] 
-
-        # Mean that it is not independent
-        if base_method is None:
-            name = all_exp_setting["algo"][clus_num[i]-1]
-        else:
-            name = base_method.__name__
-
-        method_name.append(class_name_to_display[name])
+    clus_num, output_name, method_name, is_show_cluster = get_display_data(all_exp_setting)  
 
     for i in range(num_task):
         model_pred = DisplayPrediction(
             pred[i], name=method_name[i], color="p", is_bridge=False
         )
 
-        is_show_cluster = not (is_all_independent or is_all_joint)
         additional = f"on Cluster {clus_num[i]}" if is_show_cluster else ""
 
         fig, ax1 = visualize_time_series(
@@ -341,33 +352,61 @@ def example_plot_walk_forward(all_exp_setting, model_name, load_path,
 
         return all_data
     
-    task_all_data = [
-        (full_model_running(exp_setting), exp_setting["task"])
-        for exp_setting in create_legacy_exp_setting(all_exp_setting)
-    ]
+    def running_experiment(all_exp_setting, is_train=True):
+        task_all_data = [
+            (full_model_running(exp_setting), exp_setting["task"])
+            for exp_setting in create_legacy_exp_setting(all_exp_setting)
+        ]
 
-    list_all_data, clus_task_setting = zip(*task_all_data)
+        list_all_data, clus_task_setting = zip(*task_all_data)
+        
+        if not is_train:
+            return list_all_data
+        
+        run_fold = lambda: walk_forward(
+            list(list_all_data), list(clus_task_setting),
+            clus_algo=[
+                multi_task_algo[algo]
+                for algo in all_exp_setting["algo"]
+            ],
+            size_train=size_train, size_test=size_test, 
+            train_offset=1, 
+            clus_using_first=all_exp_setting["using_first"],
+            is_train_pad=True, 
+            is_test_pad=False 
+        )
+        fold_result = run_fold()
+        return list_all_data, fold_result
+    
 
+    if load_path is not None:
+        if is_load:
+            loading_all_exp_setting(save_path + load_path  + "/all_exp_setting.json")
+            list_all_data = running_experiment(all_exp_setting, is_train=False)
+            fold_result = load_fold_data(
+                load_path, "Hard_Cluster", HardClusterMultiModel, 
+                save_path=save_path
+            )
+
+        elif is_save:
+            list_all_data, fold_result = running_experiment(all_exp_setting)
+            base_folder = create_name(save_path, "Hard_Cluster")
+            save_fold_data(fold_result, "Hard_Cluster", base_folder)
+            dump_json(base_folder + "/all_exp_setting.json", all_exp_setting)
+        else:
+            list_all_data, fold_result = running_experiment(all_exp_setting)
+ 
+    else:
+        list_all_data, fold_result = running_experiment(all_exp_setting)
     
-    run_fold = lambda: walk_forward(
-        list(list_all_data), list(clus_task_setting),
-        clus_algo=[
-            multi_task_algo[algo]
-            for algo in all_exp_setting["algo"]
-        ],
-        size_train=size_train, size_test=size_test, 
-        train_offset=1, 
-        clus_using_first=all_exp_setting["using_first"],
-        is_train_pad=True, 
-        is_test_pad=False 
-    )
-    fold_result = run_fold()
-    
-    assert False
-     
+    clus_num, output_name, method_name, is_show_cluster = get_display_data(all_exp_setting)  
+
+    total_num_task = len(clus_num)
+    flatten_all_data = itertools.chain(*list_all_data)
+
     if is_show:
-        for task_number in range(len(all_data)):
-            test_features, test_log_prices, test_convert_date, _ = all_data[task_number]
+        for task_number, all_data in enumerate(flatten_all_data):
+            test_features, test_log_prices, test_convert_date, _ = all_data
             fig, ax = visualize_walk_forward(
                 test_features, test_log_prices, fold_result[task_number], test_convert_date,
                 lag_color="o", pred_color="b", below_err="r",
@@ -376,26 +415,6 @@ def example_plot_walk_forward(all_exp_setting, model_name, load_path,
             fig.savefig(f"img/walk_forward_task_{model_name}_task_{task_number}")
         plt.show()
     
+    assert False
+    
     return show_result_fold(fold_result, exp_setting)
-
-
-# if load_path is not None:
-#     if is_load:
-#         exp_setting = load_json(save_path + load_path  + "/exp_setting.json")
-#         exp_setting["task"]["dataset"] = [DatasetTaskDesc(**d) for d in exp_setting["task"]["dataset"]]
-#         _, all_data = full_model_running(exp_setting)
-#         fold_result = load_fold_data(
-#             load_path, model_name, multi_task_algo[exp_setting["algo"]], save_path=save_path
-#         )
-#     elif is_save:
-#         run_fold, all_data = full_model_running(exp_setting)
-#         base_folder = create_name(save_path, model_name)
-#         fold_result = run_fold()
-#         save_fold_data(fold_result, model_name, base_folder)
-#         dump_json(base_folder + "/exp_setting.json", exp_setting)
-#     else:
-#         run_fold, all_data = full_model_running(exp_setting)
-#         fold_result = run_fold()
-# else:
-#     run_fold, all_data = full_model_running(exp_setting)
-#     fold_result = run_fold()
