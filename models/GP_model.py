@@ -34,7 +34,7 @@ class MultioutputGP(gpytorch.models.ExactGP):
             gpytorch.means.ConstantMean(), num_tasks=num_out
         )
         self.covar_module = gpytorch.kernels.MultitaskKernel(
-            kernel, num_tasks=num_out, rank=2
+            kernel, num_tasks=num_out, rank=min(2, num_out)
         )
     
     def forward(self, x):

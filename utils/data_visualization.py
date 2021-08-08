@@ -355,10 +355,10 @@ def show_result_fold(fold_results, all_exp_setting, other_details):
 
         num_round = 7
 
-        cluster_text = f" Cluster {clus_num[i]}\n " if is_show_cluster else ""
+        cluster_text = f"(Cluster {clus_num[i]})\n " if is_show_cluster else ""
 
         table.append([
-            f"Task {i+1} \n" + cluster_text + f"Algorithm: {method_name[i]}\n Commodity:{output_name[i]}\n Lag:{task_prop[0]}", 
+            f"Task {i+1} " + cluster_text + f"  Algorithm: {method_name[i]}\n   Commodity: {output_name[i]}\n   Lag: {task_prop[0]}", 
             f"{time_step_mean:.{num_round}} ± {time_step_std:.{num_round}}", 
             f"{crps_mean:.{num_round}} ± {crps_std:.{num_round}}", 
             f"{intv_mean:.{num_round}} ± {intv_std:.{num_round}}"

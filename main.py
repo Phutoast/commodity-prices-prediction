@@ -2,17 +2,19 @@ import numpy as np
 import random
 import argparse
 import torch
+import json
 
 from examples.simple_example import example_plot_all_algo_lag, example_plot_walk_forward
 from utils.others import create_folder, find_all_metal_names
 
 from utils.data_structure import CompressMethod
 from experiments import algo_dict, list_dataset
-from run_experiments import gen_task_list
+from run_experiments import gen_task_list, gen_task_cluster
 from utils.data_visualization import plot_hyperparam_search
 from utils.data_preprocessing import GlobalModifier, load_metal_data, save_date_common
 from utils import explore_data
 from utils.data_structure import DatasetTaskDesc
+from experiments import gen_experiment
 
 import warnings
 # warnings.filterwarnings("ignore")
@@ -73,30 +75,28 @@ def main():
         metal: common_compress
         for metal in find_all_metal_names("data")
     }
-
-    # Getting the first one and the actual content
-    # exp_setting2 = gen_task_list(
-    #     ["GPMultiTaskIndex"], "time", all_modifiers, 
-    #     "copper", algo_config, len_dataset=-1, len_train_show=(100, 32 + 20)
-    # )
-    # exp_setting2 = gen_task_list(
-    #     ["ARIMAModel"], "metal", all_modifiers, 
-    #     ["copper", "lldpe"], algo_config, len_dataset=-1, len_train_show=(100, 32 + 20)
-    # )
     
-    # name, exp_setting2 = exp_setting2[0]
-
-    # Expected Interface
-    # gen_task_list(
-    #     ["GPMultiTaskIndex", "IndependentGP"], "metal", all_modifiers,
-    #     [["copper", "lldpe"], ["carbon"]], algo_config, len_dataset=-1, len_train_show=(100, 32 + 20)
-    # )
+    task = gen_task_cluster(
+        all_algo=["GPMultiTaskMultiOut", "ARIMAModel"], 
+        type_task="metal", 
+        modifier=all_modifiers, 
+        clus_metal_desc=[["copper", "lldpe"], ["carbon", "nickel"]],
+        clus_time_desc=None,
+        algo_config=algo_config,
+        len_dataset=-1, 
+        len_train_show=(200, 100)
+    )
     
-    # gen_task_list(
-    #     ["GPMultiTaskIndex"], "time", all_modifiers,
-    #     "copper", algo_config, len_dataset=-1, len_train_show=(100, 32 + 20)
-    # )
-
+    task = gen_task_cluster(
+        all_algo=["GPMultiTaskMultiOut", "ARIMAModel"], 
+        type_task="time", 
+        modifier=all_modifiers, 
+        clus_metal_desc="copper",
+        clus_time_desc=[[66], [22, 44]],
+        algo_config=algo_config,
+        len_dataset=-1, 
+        len_train_show=(200, 100)
+    )
 
     exp_setting2 = {
         "task": {
@@ -160,11 +160,14 @@ def main():
         )
     elif test_type == "w":
         example_plot_walk_forward(
-            exp_setting2, "Hard_Cluster",
-            is_save=False, is_load=True, is_show=False,
-            # load_path="Hard_Cluster"
-            load_path="08-07-21-22-35-52-Hard_Cluster"
+            {}, "Hard_Cluster_Walk_Forward",
+            is_save=False, is_load=True, is_show=True,
+            # load_path="Hard_Cluster_Walk_Forward"
+            load_path="08-08-21-09-48-19-Hard_Cluster"
         )
+    elif test_type == "r":
+        # result = gen_experiment.run_experiments(task, save_path="abc")
+        print(result)
         
 if __name__ == '__main__':
     # print("HERE")

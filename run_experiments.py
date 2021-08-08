@@ -21,8 +21,48 @@ is_test = True
 multi_task_algo = ["GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex"]
 metric = ["MSE", "CRPS"]
 
-def gen_task_list(all_algo, type_task, modifier, metal_type, 
+def gen_task_cluster(all_algo, type_task, modifier, clus_metal_desc, clus_time_desc,
     algo_config, len_dataset=794, len_train_show=(274, 130)):
+
+    all_result = []
+    for curr_algo in all_algo:
+
+        # Can be extended to having multiple algorithms in multiple cluster
+        # To make things simplier we won't do it.
+        merge_task_algo = {
+            "task": {
+                "sub_model": [],
+                "dataset": [],
+                "len_pred_show": len_dataset,
+                "len_train_show": len_train_show
+            },
+            "algo": [],
+            "using_first": []
+        }
+
+        iterator_now = {
+            "metal": clus_metal_desc,
+            "time": clus_time_desc,
+        }[type_task.lower()]
+
+        for clus in iterator_now:
+            if type_task.lower() == "metal":
+                clus_task = gen_task_list([curr_algo], type_task, modifier, clus, algo_config)[0][1]
+            elif type_task.lower() == "time":
+                clus_task = gen_task_list([curr_algo], type_task, modifier, clus_metal_desc, algo_config, all_time_step=clus)[0][1]
+
+            merge_task_algo["task"]["sub_model"].append(clus_task["task"]["sub_model"])
+            merge_task_algo["task"]["dataset"].append(clus_task["task"]["dataset"])
+            merge_task_algo["algo"].append(clus_task["algo"])
+            merge_task_algo["using_first"].append(clus_task["using_first"])
+
+        all_result.append((curr_algo, merge_task_algo))
+
+    return all_result
+
+
+def gen_task_list(all_algo, type_task, modifier, metal_type, 
+    algo_config, len_dataset=794, len_train_show=(274, 130), all_time_step=[22, 44, 66]):
 
     def gen_list(dataset, algo_list):
         multi_task_dataset = []
@@ -39,14 +79,16 @@ def gen_task_list(all_algo, type_task, modifier, metal_type,
                         type_task, 
                         new_modi,
                         metal_type,
-                        len_dataset=len_dataset
+                        len_dataset=len_dataset,
+                        all_time_step=all_time_step
                     )
                 else:
                     dataset = list_dataset.gen_datasets(
                         type_task, 
                         new_modi,
                         metal_type,
-                        len_dataset=len_dataset
+                        len_dataset=len_dataset,
+                        all_time_step=all_time_step
                     )[0]
 
             multi_task_dataset.append(
@@ -55,12 +97,18 @@ def gen_task_list(all_algo, type_task, modifier, metal_type,
         return multi_task_dataset
 
     if type_task == "time":
-        dataset = list_dataset.gen_datasets("time", modifier, metal_type, len_dataset=len_dataset)
+        dataset = list_dataset.gen_datasets(
+            "time", modifier, metal_type, 
+            len_dataset=len_dataset,
+            all_time_step=all_time_step
+        )
         time_multi_task = gen_list(dataset, all_algo)
         return time_multi_task
 
     elif type_task == "metal":
-        commo, commo_first = list_dataset.gen_datasets("metal", modifier, metal_type, len_dataset=len_dataset)
+        commo, commo_first = list_dataset.gen_datasets(
+            "metal", modifier, metal_type, len_dataset=len_dataset
+        )
         metal_multi_task = gen_list(
             commo_first, 
             list(filter(lambda x : x in algo_dict.using_first_algo, all_algo))

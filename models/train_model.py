@@ -114,6 +114,7 @@ class BaseTrainMultiTask(BaseTrainModel):
         else:
             if using_first != self.expect_using_first:
                 warnings.warn(UserWarning(f"To gain the best performance, we requires using_first to be {self.expect_using_first}"))
+                raise ValueError(f"To gain the best performance, we requires using_first to be {self.expect_using_first}")
 
         # We don't care about the model as we will define here.
         hyperparam = list_config[0][0]

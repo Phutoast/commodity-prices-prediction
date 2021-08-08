@@ -286,7 +286,7 @@ def example_plot_all_algo_lag(all_exp_setting,
     if load_path is not None:
         if is_load:
             load_base = save_path + load_path
-            loading_all_exp_setting(f"{load_base}/exp_setting.json")
+            all_exp_setting = loading_all_exp_setting(f"{load_base}/exp_setting.json")
             _, pred_inp, useful_info = train_model(
                 all_exp_setting, is_train=False
             )
@@ -329,8 +329,6 @@ def example_plot_all_algo_lag(all_exp_setting,
 def example_plot_walk_forward(all_exp_setting, model_name, load_path, 
     is_save=False, is_load=True, is_show=True, save_path="save/"):
     
-    size_train, size_test = all_exp_setting["task"]["len_train_show"]
-
     def full_model_running(exp_setting):
         all_data = []
         return_lag = []
@@ -363,6 +361,8 @@ def example_plot_walk_forward(all_exp_setting, model_name, load_path,
         if not is_train:
             return list_all_data
         
+        size_train, size_test = all_exp_setting["task"]["len_train_show"]
+        
         run_fold = lambda: walk_forward(
             list(list_all_data), list(clus_task_setting),
             clus_algo=[
@@ -381,17 +381,17 @@ def example_plot_walk_forward(all_exp_setting, model_name, load_path,
 
     if load_path is not None:
         if is_load:
-            loading_all_exp_setting(save_path + load_path  + "/all_exp_setting.json")
+            all_exp_setting = loading_all_exp_setting(save_path + load_path  + "/all_exp_setting.json")
             list_all_data = running_experiment(all_exp_setting, is_train=False)
             fold_result = load_fold_data(
-                load_path, "Hard_Cluster", HardClusterMultiModel, 
+                load_path, model_name, HardClusterMultiModel, 
                 save_path=save_path
             )
 
         elif is_save:
             list_all_data, fold_result = running_experiment(all_exp_setting)
-            base_folder = create_name(save_path, "Hard_Cluster")
-            save_fold_data(fold_result, "Hard_Cluster", base_folder)
+            base_folder = create_name(save_path, model_name)
+            save_fold_data(fold_result, model_name, base_folder)
             dump_json(base_folder + "/all_exp_setting.json", all_exp_setting)
         else:
             list_all_data, fold_result = running_experiment(all_exp_setting)
