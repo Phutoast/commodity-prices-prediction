@@ -8,13 +8,12 @@ from examples.simple_example import example_plot_all_algo_lag, example_plot_walk
 from utils.others import create_folder, find_all_metal_names
 
 from utils.data_structure import CompressMethod
-from experiments import algo_dict, list_dataset
 from run_experiments import gen_task_list, gen_task_cluster
 from utils.data_visualization import plot_hyperparam_search
 from utils.data_preprocessing import GlobalModifier, load_metal_data, save_date_common
 from utils import explore_data
 from utils.data_structure import DatasetTaskDesc
-from experiments import gen_experiment
+from experiments import gen_experiment, algo_dict
 
 import warnings
 # warnings.filterwarnings("ignore")
@@ -92,7 +91,7 @@ def main():
         type_task="time", 
         modifier=all_modifiers, 
         clus_metal_desc="copper",
-        clus_time_desc=[[66], [22, 44]],
+        clus_time_desc=[[22, 44, 66]],
         algo_config=algo_config,
         len_dataset=-1, 
         len_train_show=(200, 100)
@@ -166,7 +165,7 @@ def main():
             load_path="08-08-21-09-48-19-Hard_Cluster"
         )
     elif test_type == "r":
-        # result = gen_experiment.run_experiments(task, save_path="abc")
+        result = gen_experiment.run_experiments(task, save_path="abc")
         print(result)
         
 if __name__ == '__main__':

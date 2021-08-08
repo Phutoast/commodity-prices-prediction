@@ -11,7 +11,7 @@ from utils.data_visualization import visualize_time_series, visualize_walk_forwa
 from utils.others import create_folder, save_fold_data, load_fold_data, create_name, dump_json, load_json, create_legacy_exp_setting
 from utils.data_structure import DatasetTaskDesc
 from utils.data_preprocessing import load_dataset_from_desc
-from utils.explore_data import metal_to_display_name
+from experiments.metal_desc import metal_to_display_name, metal_names
 
 from experiments.algo_dict import algorithms_dic, multi_task_algo, class_name_to_display
 from experiments.eval_methods import prepare_dataset, walk_forward
@@ -416,6 +416,8 @@ def example_plot_walk_forward(all_exp_setting, model_name, load_path,
 
             if is_show_cluster:
                 added_str = f" of Cluster ({clus_num[task_number]})"
+            else:
+                added_str = ""
 
             test_features, test_log_prices, test_convert_date, _ = all_data
             visualize_walk_forward(

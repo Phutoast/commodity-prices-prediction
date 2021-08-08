@@ -70,6 +70,7 @@ class BaseModel(object):
             second = all_float(data_point.label_inp, "C")
             third = all_float(data_point.data_out, "C")
             forth = all_float(data_point.label_out, "F")
+            
             if not is_full_AR:
                 if is_label:
                     return np.concatenate([first, second, third, forth])

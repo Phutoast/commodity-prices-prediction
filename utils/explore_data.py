@@ -6,14 +6,15 @@ import torch
 from collections import Counter
 import matplotlib.ticker as ticker
 import copy
+from datetime import datetime
 
 from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, parse_series_time, cal_lag_return, GlobalModifier, load_dataset_from_desc
 from utils.data_structure import DatasetTaskDesc
 from utils.data_visualization import plot_axis_date, plot_heat_map, cluster_label_to_dict, print_tables_side_by_side
 from utils.others import find_sub_string, load_json, find_all_metal_names, create_folder, save_figure, dump_json
 from utils.data_structure import CompressMethod
-from experiments.list_dataset import gen_datasets
-from datetime import datetime
+from experiments.gen_experiment import gen_datasets
+from experiments.metal_desc import metal_to_display_name, metal_names
 
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
@@ -30,25 +31,6 @@ import tslearn
 
 import json
 
-
-# Ordered in a Group
-metal_names = [
-    "aluminium", "copper", "nickel", 
-    "palladium", "platinum", "lldpe", 
-    "pvc", "natgas", "carbon", "wheat"
-]
-metal_to_display_name = {
-    "aluminium": "Aluminium",
-    "carbon": "Carbon Credits",
-    "copper": "Copper",
-    "lldpe": "LLDPE",
-    "natgas": "Natural Gas",
-    "palladium": "Palladium",
-    "platinum": "Platinum",
-    "pvc": "PVC",
-    "wheat": "Wheat",
-    "nickel": "Nickel"
-}
 
 def get_data(metal, is_feat=True, is_price_only=True):
 
