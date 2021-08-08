@@ -17,6 +17,8 @@ from datetime import timedelta
 
 from collections import OrderedDict
 
+import itertools
+
 color = {
     "o": "#ff7500",
     "p": "#5a08bf",
@@ -42,7 +44,7 @@ def plot_axis_date(ax, data_date, month_interval=3):
 
     # Round to nearest years.
     datemin = np.datetime64(data_date[0], 'Y')
-    datemax = np.datetime64(data_date[-1], 'Y') + np.timedelta64(12, 'M')
+    datemax = np.datetime64(data_date[-1], 'Y') + np.timedelta64(6, 'M')
     ax.set_xlim(datemin, datemax)
 
     # Format the coords message box, i.e. the numbers displayed as the cursor moves
@@ -168,8 +170,8 @@ def plot_area(axs, x, y, miss, start_ind, end_ind, lag_color):
     )
 
 
-def visualize_walk_forward(full_data_x, full_data_y, 
-    fold_result, convert_date_dict, lag_color="o", pred_color="p", below_err="g", title="Walk Forward Validation Loss Visualization"):
+def visualize_walk_forward(fig, axs, full_data_x, full_data_y, 
+    fold_result, convert_date_dict, lag_color="o", pred_color="p", below_err="g", title="Walk Forward Validation Loss Visualization", true_value_name="Commodity", method_name="Regressor"):
 
     convert_date = lambda x: x["Date"].to_list()
     convert_price = lambda x: x["Output"].to_list()
@@ -196,16 +198,17 @@ def visualize_walk_forward(full_data_x, full_data_y,
             0, 0, miss_x[0], x.index(miss_x[0])
         )
 
-    fig = plt.figure(figsize=(15, 5))
-    gs = fig.add_gridspec(nrows=2, hspace=0)
-    axs = gs.subplots(sharex=True, sharey=False)
+    # fig = plt.figure(figsize=(15, 5))
+    # gs = fig.add_gridspec(nrows=2, hspace=0)
+    # axs = gs.subplots(sharex=True, sharey=False)
     fig.suptitle(title)
 
     if is_missing:
         axs[0].plot(
             x[day_plot[1]:day_plot[3]], 
             y[day_plot[1]:day_plot[3]], 
-            color=color["k"], linestyle='-'
+            color=color["k"], linestyle='-',
+            label=true_value_name
         )
 
 
@@ -262,7 +265,11 @@ def visualize_walk_forward(full_data_x, full_data_y,
                 color="grey", alpha=0.1
             )
 
-        plot_bound(axs[0], pred, pred_x, color[pred_color], "Test")
+        plot_bound(
+            axs[0], pred, pred_x, 
+            color[pred_color], 
+            method_name if i == 0 else None
+        )
         
         axs[1].axvline(first_day, color=color["grey"])
         axs[1].axvline(last_day, color=color["grey"])
@@ -293,10 +300,11 @@ def visualize_walk_forward(full_data_x, full_data_y,
     plot_axis_date(axs[0], x, month_interval=3)
     plot_axis_date(axs[1], x, month_interval=3)
     axs[0].grid()
+    axs[0].legend()
 
     return fig, axs
 
-def show_result_fold(fold_results, exp_setting):
+def show_result_fold(fold_results, all_exp_setting, other_details):
     """
     Printing out the Result of the fold data
 
@@ -309,6 +317,14 @@ def show_result_fold(fold_results, exp_setting):
 
     all_time_step_loss = []
     all_crps_loss = []
+    list_exp_setting = others.create_legacy_exp_setting(all_exp_setting)
+
+    flatten_dataset = list(itertools.chain(*[
+        exp_setting["task"]["dataset"]
+        for exp_setting in list_exp_setting 
+    ]))
+    clus_num, output_name, method_name, is_show_cluster = other_details
+
 
     for i, fold_result in enumerate(fold_results):
         all_error_ind, all_error_intv = [], []
@@ -320,10 +336,10 @@ def show_result_fold(fold_results, exp_setting):
                 loss for _, _, loss in loss_detail["intv_loss"]
             ]
             all_error_crps.append(loss_detail["all_crps"])
-        
-        task_setting = exp_setting["task"]
-        task_prop = task_setting["dataset"][i]["out_feat_tran_lag"]
-        metal = task_setting["dataset"][i].gen_name()
+
+        dataset = flatten_dataset[i]
+        task_prop = dataset["out_feat_tran_lag"]
+        metal = dataset.gen_name()
 
         cal_mean_std = lambda x: (
             np.mean(x), np.std(x)/np.sqrt(len(x))
@@ -339,8 +355,10 @@ def show_result_fold(fold_results, exp_setting):
 
         num_round = 7
 
+        cluster_text = f" Cluster {clus_num[i]}\n " if is_show_cluster else ""
+
         table.append([
-            f"Task {i+1} (Metal={metal}, Lag={task_prop[0]}, Step ahead={task_prop[1]})", 
+            f"Task {i+1} \n" + cluster_text + f"Algorithm: {method_name[i]}\n Commodity:{output_name[i]}\n Lag:{task_prop[0]}", 
             f"{time_step_mean:.{num_round}} ± {time_step_std:.{num_round}}", 
             f"{crps_mean:.{num_round}} ± {crps_std:.{num_round}}", 
             f"{intv_mean:.{num_round}} ± {intv_std:.{num_round}}"

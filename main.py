@@ -159,10 +159,9 @@ def main():
             # load_path="08-06-21-22-42-41-08-06-21-22-28-50-GP-Multi"
         )
     elif test_type == "w":
-        print("Mean")
         example_plot_walk_forward(
-            exp_setting2, "Mean",
-            is_save=False, is_load=True, is_show=True,
+            exp_setting2, "Hard_Cluster",
+            is_save=False, is_load=True, is_show=False,
             # load_path="Hard_Cluster"
             load_path="08-07-21-22-35-52-Hard_Cluster"
         )

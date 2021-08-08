@@ -132,7 +132,7 @@ class DatasetTaskDesc(dict):
                 generated_name = metal_names
             else:
                 modifier = "*".join(map(lambda x: f"{x[1].upper()}({x[0]})", self["metal_modifier"]))
-                generated_name = metal_names + " + " + modifier
+                generated_name = metal_names + "+" + modifier
             
             return generated_name
         

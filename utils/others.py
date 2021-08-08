@@ -146,3 +146,37 @@ def save_figure(save_path):
             return out
         return wrapper
     return actual_decorator
+
+def create_legacy_exp_setting(all_exp):
+    """
+    Things can gone wrong and I don't want to debug so, 
+        i will chop up the current setting and transfrom 
+        to normal legacy setting
+    """
+        
+    task_info = all_exp["task"] 
+    len_pred_show = task_info["len_pred_show"]
+    len_train_show = task_info["len_train_show"]
+
+    num_cluster = len(all_exp["algo"])
+
+    all_cluster_list = [
+        task_info["sub_model"], task_info["dataset"], 
+        all_exp["algo"], all_exp["using_first"]
+    ]
+
+    assert all(len(l) == len(all_cluster_list[0]) for l in all_cluster_list)
+
+    all_exp_setting = [
+        {
+            "task": {
+                "sub_model": sub_model,
+                "dataset": dataset,
+                "len_pred_show": len_pred_show,
+                "len_train_show": len_train_show
+            },
+            "algo": algo, "using_first": using_first
+        }
+        for sub_model, dataset, algo, using_first in zip(*all_cluster_list)
+    ]
+    return all_exp_setting

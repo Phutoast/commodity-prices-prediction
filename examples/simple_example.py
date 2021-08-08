@@ -8,13 +8,13 @@ import copy
 from utils.data_preprocessing import load_transform_data, parse_series_time
 from utils.data_structure import DisplayPrediction
 from utils.data_visualization import visualize_time_series, visualize_walk_forward, show_result_fold, pack_result_data
-from utils.others import create_folder, save_fold_data, load_fold_data, create_name, dump_json, load_json  
+from utils.others import create_folder, save_fold_data, load_fold_data, create_name, dump_json, load_json, create_legacy_exp_setting
 from utils.data_structure import DatasetTaskDesc
 from utils.data_preprocessing import load_dataset_from_desc
 from utils.explore_data import metal_to_display_name
 
 from experiments.algo_dict import algorithms_dic, multi_task_algo, class_name_to_display
-from experiments.eval_methods import prepare_dataset, walk_forward, create_legacy_exp_setting
+from experiments.eval_methods import prepare_dataset, walk_forward
 from models.cluster_multi_model import HardClusterMultiModel
 
 class SkipLookUp(object):
@@ -399,22 +399,35 @@ def example_plot_walk_forward(all_exp_setting, model_name, load_path,
     else:
         list_all_data, fold_result = running_experiment(all_exp_setting)
     
-    clus_num, output_name, method_name, is_show_cluster = get_display_data(all_exp_setting)  
+    display_data = get_display_data(all_exp_setting)  
+
+    clus_num, output_name, method_name, is_show_cluster = display_data
 
     total_num_task = len(clus_num)
     flatten_all_data = itertools.chain(*list_all_data)
 
     if is_show:
+
+        fig = plt.figure(figsize=(15, 5*len(clus_num)), constrained_layout=True)
+        subfigs = fig.subfigures(len(clus_num), 1)
+
         for task_number, all_data in enumerate(flatten_all_data):
+            axs = subfigs[task_number].subplots(2, 1, sharex=True, sharey=False)
+
+            if is_show_cluster:
+                added_str = f" of Cluster ({clus_num[task_number]})"
+
             test_features, test_log_prices, test_convert_date, _ = all_data
-            fig, ax = visualize_walk_forward(
-                test_features, test_log_prices, fold_result[task_number], test_convert_date,
+            visualize_walk_forward(
+                subfigs[task_number], axs, test_features, 
+                test_log_prices, fold_result[task_number], test_convert_date,
                 lag_color="o", pred_color="b", below_err="r",
-                title=f"Task {task_number+1}"
+                title=f"Walk Forward Validation Loss Visualization" + added_str,
+                true_value_name=output_name[task_number],
+                method_name=method_name[task_number]
             )
-            fig.savefig(f"img/walk_forward_task_{model_name}_task_{task_number}")
+
+        fig.savefig(f"img/walk_forward_task_{model_name}")
         plt.show()
     
-    assert False
-    
-    return show_result_fold(fold_result, exp_setting)
+    return show_result_fold(fold_result, all_exp_setting, other_details=display_data)
