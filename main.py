@@ -8,7 +8,6 @@ from examples.simple_example import example_plot_all_algo_lag, example_plot_walk
 from utils.others import create_folder, find_all_metal_names
 
 from utils.data_structure import CompressMethod
-from run_experiments import gen_task_list, gen_task_cluster
 from utils.data_visualization import plot_hyperparam_search
 from utils.data_preprocessing import GlobalModifier, load_metal_data, save_date_common
 from utils import explore_data
@@ -75,7 +74,7 @@ def main():
         for metal in find_all_metal_names("data")
     }
     
-    task = gen_task_cluster(
+    task = gen_experiment.gen_task_cluster(
         all_algo=["GPMultiTaskMultiOut", "ARIMAModel"], 
         type_task="metal", 
         modifier=all_modifiers, 
@@ -86,7 +85,7 @@ def main():
         len_train_show=(200, 100)
     )
     
-    task = gen_task_cluster(
+    task = gen_experiment.gen_task_cluster(
         all_algo=["GPMultiTaskMultiOut", "ARIMAModel"], 
         type_task="time", 
         modifier=all_modifiers, 
@@ -182,5 +181,6 @@ if __name__ == '__main__':
     # explore_data.clustering_dataset(num_cluster=4, is_verbose=True)
     # explore_data.clustering_dataset()
 
-    main()
+    # main()
+    gen_experiment.cluster_index_to_nested([0, 3, 0, 2, 3, 1, 1, 1, 2, 4])
 

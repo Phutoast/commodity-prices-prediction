@@ -3,7 +3,6 @@ from examples.simple_example import example_plot_walk_forward
 from experiments.algo_dict import using_out_only, using_first_algo
 from utils.others import find_all_metal_names
 from utils.data_structure import DatasetTaskDesc, CompressMethod
-from utils.others import find_all_metal_names
 
 def create_exp(dataset, algo, algo_config, len_train_show=(275, 130)):
     num_task = len(dataset)
@@ -260,3 +259,16 @@ def load_experiments(path_exp_len):
         all_results.append(out_result)
 
     return all_results
+
+def cluster_index_to_nested(indices, all_metals=find_all_metal_names()):
+    num_cluster = len(set(indices))
+
+    assert sorted(list(set(indices))) == list(range(num_cluster))
+    assert len(indices) == len(all_metals)
+
+    clusters = [
+        [metal for metal_i, metal in zip(indices, all_metals) if metal_i == i]
+        for i in range(num_cluster)
+    ]
+
+    return clusters

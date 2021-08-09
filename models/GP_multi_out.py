@@ -116,7 +116,7 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
         assert max(d.shape[0] for d in all_data_list) == max_size
         assert all(step_ahead <= data.shape[0] for step_ahead, data in zip(list_step_ahead, all_data_list))
 
-        with torch.no_grad(), gpytorch.settings.fast_pred_var():
+        with torch.no_grad(), gpytorch.settings.fast_pred_var(), gpytorch.settings.max_cg_iterations(2000):
             test_x = torch.from_numpy(all_data).float()
             if self.hyperparam["is_gpu"]:
                 test_x = test_x.cuda()

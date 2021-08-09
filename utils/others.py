@@ -131,22 +131,6 @@ def find_all_metal_names(folder="data"):
     # return list(filter(lambda x: os.path.isdir(x), os.listdir(folder)))
     return sorted([f for f in os.listdir(folder) if "." not in f])
 
-def save_figure(save_path):
-    def actual_decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            out = func(*args, **kwargs)
-
-            if isinstance(out, tuple):
-                fig, ax = out
-                if save_path is not None:
-                    fig.savefig(save_path)
-                return fig, ax
-            
-            return out
-        return wrapper
-    return actual_decorator
-
 def create_legacy_exp_setting(all_exp):
     """
     Things can gone wrong and I don't want to debug so, 

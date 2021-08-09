@@ -60,28 +60,29 @@ class BaseTrainModel(BaseModel):
 
     
     def train(self):
-        self.train_x, self.train_y = self.prepare_data()
-        self.model = self.build_training_model()
+        with gpytorch.settings.max_cg_iterations(10000):
+            self.train_x, self.train_y = self.prepare_data()
+            self.model = self.build_training_model()
 
-        if self.hyperparam["is_gpu"]:
-            self.model = self.model.cuda()
+            if self.hyperparam["is_gpu"]:
+                self.model = self.model.cuda()
 
-        self.optimizer, self.loss_obj = self.build_optimizer_loss()
+            self.optimizer, self.loss_obj = self.build_optimizer_loss()
 
-        num_iter = self.optim_iter
-        for i in range(num_iter):
-            self.optimizer.zero_grad()
-            output, loss = self.cal_train_loss()
+            num_iter = self.optim_iter
+            for i in range(num_iter):
+                self.optimizer.zero_grad()
+                output, loss = self.cal_train_loss()
 
-            if self.hyperparam["is_verbose"]:
-                if i%10 == 0:
-                    print(f"Loss {i}/{num_iter}", loss)
+                if self.hyperparam["is_verbose"]:
+                    if i%10 == 0:
+                        print(f"Loss {i}/{num_iter}", loss)
 
-            loss.backward()
-            self.optimizer.step()
+                loss.backward()
+                self.optimizer.step()
+            
+            self.after_training()
         
-        self.after_training()
-    
     def load_kernel(self, kernel_name):
         return copy.deepcopy(algo_dict.kernel_name[kernel_name])
     

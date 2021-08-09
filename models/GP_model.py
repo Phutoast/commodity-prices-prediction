@@ -47,7 +47,9 @@ class MultiTaskGPIndexModel(gpytorch.models.ExactGP):
         super(MultiTaskGPIndexModel, self).__init__(train_x, train_y, likelihood)
         self.mean_module = gpytorch.means.ConstantMean()
         self.covar_module = kernel
-        self.task_covar_module = gpytorch.kernels.IndexKernel(num_tasks=num_task, rank=2)
+        self.task_covar_module = gpytorch.kernels.IndexKernel(
+            num_tasks=num_task, rank=min(2, num_task)
+        )
     
     def forward(self, x, i):
         mean_x = self.mean_module(x)

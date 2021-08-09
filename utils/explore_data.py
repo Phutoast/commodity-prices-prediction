@@ -10,11 +10,11 @@ from datetime import datetime
 
 from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, parse_series_time, cal_lag_return, GlobalModifier, load_dataset_from_desc
 from utils.data_structure import DatasetTaskDesc
-from utils.data_visualization import plot_axis_date, plot_heat_map, cluster_label_to_dict, print_tables_side_by_side
-from utils.others import find_sub_string, load_json, find_all_metal_names, create_folder, save_figure, dump_json
+from utils.data_visualization import plot_axis_date, plot_heat_map, cluster_label_to_dict, print_tables_side_by_side, save_figure
+from utils.others import find_sub_string, load_json, find_all_metal_names, create_folder, dump_json
 from utils.data_structure import CompressMethod
 from experiments.gen_experiment import gen_datasets
-from experiments.metal_desc import metal_to_display_name, metal_names
+from experiments.metal_desc import metal_to_display_name
 
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
@@ -31,6 +31,7 @@ import tslearn
 
 import json
 
+metal_names = find_all_metal_names()
 
 def get_data(metal, is_feat=True, is_price_only=True):
 
@@ -617,7 +618,7 @@ def clustering_dataset(is_side_by_side=True, num_cluster=4, is_verbose=True, use
         )
         labels = kmean.fit_predict(all_dataset)
         
-        result.update({metric.lower(): labels.tolist()})
+        result.update({metric.lower() + " knn": labels.tolist()})
         
         all_data, cluster_to_index = prepare_table(labels) 
         all_tables.append(all_data)
@@ -648,9 +649,9 @@ def clustering_dataset(is_side_by_side=True, num_cluster=4, is_verbose=True, use
     result.update({"kshape": labels.tolist()})
 
     if num_cluster == 4:
-        expert_cluster = [0, 0, 0, 0, 0, 1, 1, 2, 3, 3]
+        expert_cluster = [0, 2, 0, 1, 2, 0, 0, 0, 1, 3]
     elif num_cluster == 5:
-        expert_cluster = [0, 0, 1, 1, 1, 2, 2, 3, 4, 4]
+        expert_cluster = [0, 3, 0, 2, 3, 1, 1, 1, 2, 4]
     
     result.update({"expert": expert_cluster})
 

@@ -11,7 +11,7 @@ from utils.data_visualization import visualize_time_series, visualize_walk_forwa
 from utils.others import create_folder, save_fold_data, load_fold_data, create_name, dump_json, load_json, create_legacy_exp_setting
 from utils.data_structure import DatasetTaskDesc
 from utils.data_preprocessing import load_dataset_from_desc
-from experiments.metal_desc import metal_to_display_name, metal_names
+from experiments.metal_desc import metal_to_display_name
 
 from experiments.algo_dict import algorithms_dic, multi_task_algo, class_name_to_display
 from experiments.eval_methods import prepare_dataset, walk_forward

@@ -138,3 +138,5 @@ experiment_archive/
 save-hyperparam/
 raw_data/
 result/
+grid_corr_plot/
+exp_result/

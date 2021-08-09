@@ -12,12 +12,16 @@ from utils import data_preprocessing
 from utils import others
 from scipy.interpolate import make_interp_spline
 
+from experiments import algo_dict
+from experiments.metal_desc import metal_to_display_name
+
 from datetime import datetime  
 from datetime import timedelta  
 
 from collections import OrderedDict
 
 import itertools
+import functools
 
 color = {
     "o": "#ff7500",
@@ -29,6 +33,22 @@ color = {
     "r": "#d6022a"
 }
 color = defaultdict(lambda:"#1a1a1a", color)
+
+def save_figure(save_path):
+    def actual_decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            out = func(*args, **kwargs)
+
+            if isinstance(out, tuple):
+                fig, ax = out
+                if save_path is not None:
+                    fig.savefig(save_path)
+                return fig, ax
+            
+            return out
+        return wrapper
+    return actual_decorator
     
 def plot_axis_date(ax, data_date, month_interval=3):
     # https://matplotlib.org/stable/gallery/text_labels_and_annotations/date.html
@@ -543,3 +563,25 @@ def print_tables_side_by_side(tables, headers, titles, spacing=3):
 
         final_line_string = "".join(line_each_table)
         print(final_line_string)
+
+@save_figure("figure/grid_error.pdf")
+def plot_grid_commodity(load_path):
+    load_details = others.load_json(load_path)
+    all_algo = [algo for algo in list(load_details.keys()) if algo != "metal_names"]
+    metal_names = load_details["metal_names"]
+    
+    fig, axes = plt.subplots(ncols=len(all_algo), nrows=1, figsize=(16, 8))
+
+    for i, algo in enumerate(all_algo):
+        result = np.array(load_details[algo], dtype=np.float32)
+        plot_heat_map(
+            axes[i], result, metal_names, 
+            metal_names, xlabel="Commodities", 
+            ylabel="Commodities", 
+            round_acc=3
+        )
+        plt.setp(axes[i].get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+     
+    fig.tight_layout()
+    plt.show()
+    return fig, axes

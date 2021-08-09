@@ -91,6 +91,15 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
     def after_training(self):
         self.model.eval()
         self.likelihood.eval()
+    
+    def clean_gpu_data(self):
+        clean_gpu = lambda x: x.detach().cpu()
+        self.train_x = clean_gpu(self.train_x)
+        self.train_y  = clean_gpu(self.train_y)
+        self.mean_x = clean_gpu(self.mean_x)
+        self.std_x = clean_gpu(self.std_x)
+        self.train_ind = clean_gpu(self.train_ind)
+        torch.cuda.empty_cache()
 
     def predict_step_ahead(self, list_test_data, list_step_ahead, list_all_date, ci=0.9, is_sample=False):
         self.model.eval()
@@ -105,7 +114,7 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
             all_data = all_data[:, :-1]
         assert all(step_ahead <= all_data.shape[0] for step_ahead in list_step_ahead)
         
-        with torch.no_grad(), gpytorch.settings.fast_pred_var():
+        with torch.no_grad(), gpytorch.settings.fast_pred_var(), gpytorch.settings.max_cg_iterations(2000):
             test_x = torch.from_numpy(all_data).float()
             test_ind = torch.from_numpy(test_ind).float()
             if self.hyperparam["is_gpu"]:
@@ -123,6 +132,8 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
             else:
                 rv = self.model(test_x, test_ind)
                 rv = rv.sample(sample_shape=torch.Size([1000])).cpu().numpy()
+        
+        self.clean_gpu_data()
         
         if not is_sample:
             list_mean, list_lower, list_upper = [], [], [] 

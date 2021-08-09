@@ -1,8 +1,3 @@
-metal_names = [
-    "aluminium", "copper", "nickel", 
-    "palladium", "platinum", "lldpe", 
-    "pvc", "natgas", "carbon", "wheat"
-]
 metal_to_display_name = {
     "aluminium": "Aluminium",
     "carbon": "Carbon Credits",
@@ -14,4 +9,19 @@ metal_to_display_name = {
     "pvc": "PVC",
     "wheat": "Wheat",
     "nickel": "Nickel"
+}
+
+
+cluster_type_to_display_name = {
+    "peason": "Peason",
+    "spearman": "Spearman",
+    "kendell": "Kendel",
+    "euclidean": "Euclidean (Spectral)",
+    "dtw": "DTW (Spectral)",
+    "soft-dtw divergence": "Soft-DTW Divergence (Spectral)",
+    "euclidean knn": "Euclidean (KNN)",
+    "dtw knn": "DTW (KNN)",
+    "softdtw knn": "Soft-DTW (KNN)",
+    "kshape": "KShape",
+    "expert": "Expert",
 }
