@@ -276,8 +276,6 @@ def grid_compare_clusters(cluster_data_path, save_path, len_inp,
     cluster_dict = load_json(cluster_data_path)
     all_metal_name = find_all_metal_names()
 
-    display_test_name = []
-    
     pca_modifier = {
         metal: CompressMethod(int(pca_dim), "pca", info={})
         for metal in all_metal_name
@@ -286,16 +284,16 @@ def grid_compare_clusters(cluster_data_path, save_path, len_inp,
     all_results = {}
 
     for test_name, cluster_index in cluster_dict.items():
-        display_test_name.append(metal_desc.cluster_type_to_display_name[test_name])
+        curr_save_path = save_path + "/" + "-".join(test_name.split(" ")) + "/"
         error_results = run_multi_task_gp(
-            save_path, pca_modifier, 
+            curr_save_path, pca_modifier, 
             multi_task_desc=gen_experiment.cluster_index_to_nested(cluster_index), 
             len_inp=len_inp, 
             len_dataset=default_len_dataset, 
             len_train_show=default_len_train_show, 
             kernel=kernel, 
             is_test=is_test, is_verbose=is_verbose, 
-            multi_task_algo=multi_task_algo
+            multi_task_algo=["GPMultiTaskIndex", "GPMultiTaskMultiOut"]
         )
 
         all_results.update({
@@ -303,11 +301,30 @@ def grid_compare_clusters(cluster_data_path, save_path, len_inp,
                 k: v["CRPS"]
                 for k, v in error_results.items()
             }
-        })
-        break
+        }) 
+
+
+    # Running all
+    curr_save_path = save_path + "/full_model/"
+    error_results = run_multi_task_gp(
+        curr_save_path, pca_modifier, 
+        multi_task_desc=[all_metal_name], 
+        len_inp=len_inp, 
+        len_dataset=default_len_dataset, 
+        len_train_show=default_len_train_show, 
+        kernel=kernel, 
+        is_test=is_test, is_verbose=is_verbose, 
+        multi_task_algo=multi_task_algo
+    )
+    all_results.update({
+        "full_model": {
+            k: v["CRPS"]
+            for k, v in error_results.items()
+        }
+    })
+
 
     dump_json(f"{save_path}/compare_cluster.json", all_results) 
-
 
 def run_multi_task_range(all_results, start_ind, end_ind, save_name, compress_type="id"):
     common = CompressMethod(0, compress_type, info={"range_index": (start_ind, end_ind)})

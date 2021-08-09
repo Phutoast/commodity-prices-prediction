@@ -13,7 +13,7 @@ from utils import others
 from scipy.interpolate import make_interp_spline
 
 from experiments import algo_dict
-from experiments.metal_desc import metal_to_display_name
+from experiments.metal_desc import metal_to_display_name, cluster_type_to_display_name
 
 from datetime import datetime  
 from datetime import timedelta  
@@ -524,6 +524,46 @@ def plot_hyperparam_search(load_path):
     # print(all_metric)
     fig.tight_layout()
     plt.show()
+
+def plot_compare_cluster():
+    result_cluster = others.load_json("exp_result/cluster_compare/compare_cluster.json")
+
+    multi_task_gp = list(algo_dict.multi_task_algo.keys())
+    multi_task_gp.remove("IndependentMultiModel")
+
+    full_model_result = result_cluster["full_model"]
+    diff_result = {}
+
+    del result_cluster["full_model"]
+    num_cluster = len(result_cluster)
+    
+    fig, axes = plt.subplots(ncols=len(multi_task_gp), nrows=1, figsize=(10, 4), sharey=True)
+    all_cluster_names = []
+
+    for j, (mtl_gp, ax) in enumerate(zip(multi_task_gp, axes)):
+        for i, (test_name, result) in enumerate(result_cluster.items()):
+            if j == 0:
+                all_cluster_names.append(cluster_type_to_display_name[test_name])
+            diff = full_model_result[mtl_gp] - result[mtl_gp]  
+            ax.scatter(x=diff, y=i, color=color["r"] if diff < 0 else color["g"], s=40, zorder=3)
+    
+        ax.axvline(x=0.0, color=color["k"], linestyle="--")
+        ax.set_xlim(-0.3, 0.3)
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.grid(zorder=0)
+        ax.set_title(algo_dict.class_name_to_display[mtl_gp])
+        ax.set_xlabel("Differences")
+ 
+        if j == 0:
+            ax.set_yticklabels(all_cluster_names, rotation=0, fontsize=10)
+            ax.set_ylim(-1, num_cluster)
+            ax.set_yticks(np.arange(0, num_cluster))
+
+    fig.tight_layout()
+    plt.show()
+    
+    # print(diff_result)
+
 
 def cluster_label_to_dict(labels):
     num_cluster = len(set(labels))
