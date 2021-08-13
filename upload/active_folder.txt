@@ -4,4 +4,5 @@ experiments
 models
 utils
 main.py
-run_experiments.py
+list_experiments.py
+result

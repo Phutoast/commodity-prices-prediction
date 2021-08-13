@@ -66,6 +66,7 @@ def create_task(len_inp, len_out, len_pred_show, dataset_desc):
     features, log_prices, first_day, len_data, convert_date = get_data_example(
         dataset_desc
     )
+
     splitted_data = prepare_dataset(
         features, first_day, log_prices, 
         len_inp=len_data-len_pred_show, len_out=len_pred_show, return_lag=0, 

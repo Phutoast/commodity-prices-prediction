@@ -540,6 +540,9 @@ def plot_compare_cluster():
     fig, axes = plt.subplots(ncols=len(multi_task_gp), nrows=1, figsize=(10, 4), sharey=True)
     all_cluster_names = []
 
+    xlim_min = [-0.025, 0.15]
+    xlim = [0.025, 0.25]
+
     for j, (mtl_gp, ax) in enumerate(zip(multi_task_gp, axes)):
         for i, (test_name, result) in enumerate(result_cluster.items()):
             if j == 0:
@@ -548,11 +551,11 @@ def plot_compare_cluster():
             ax.scatter(x=diff, y=i, color=color["r"] if diff < 0 else color["g"], s=40, zorder=3)
     
         ax.axvline(x=0.0, color=color["k"], linestyle="--")
-        ax.set_xlim(-0.3, 0.3)
+        ax.set_xlim(xlim_min[j], xlim[j])
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.grid(zorder=0)
         ax.set_title(algo_dict.class_name_to_display[mtl_gp])
-        ax.set_xlabel("Differences")
+        ax.set_xlabel("Improvement")
  
         if j == 0:
             ax.set_yticklabels(all_cluster_names, rotation=0, fontsize=10)
@@ -561,6 +564,7 @@ def plot_compare_cluster():
 
     fig.tight_layout()
     plt.show()
+    return fig, ax
     
     # print(diff_result)
 

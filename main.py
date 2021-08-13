@@ -66,6 +66,7 @@ def main():
 
     common_compress = CompressMethod(
         # 0, "id", info={"range_index": (0, 260)}
+        # 0, "id", info={}
         3, "pca"
     )
 
@@ -74,32 +75,34 @@ def main():
         for metal in find_all_metal_names("data")
     }
     
-    task = gen_experiment.gen_task_cluster(
-        all_algo=["GPMultiTaskMultiOut", "ARIMAModel"], 
-        type_task="metal", 
-        modifier=all_modifiers, 
-        clus_metal_desc=[["copper", "lldpe"], ["carbon", "nickel"]],
-        clus_time_desc=None,
-        algo_config=algo_config,
-        len_dataset=-1, 
-        len_train_show=(200, 100)
-    )
+    # task = gen_experiment.gen_task_cluster(
+    #     all_algo=["GPMultiTaskMultiOut", "ARIMAModel"], 
+    #     type_task="metal", 
+    #     modifier=all_modifiers, 
+    #     clus_metal_desc=[["copper", "lldpe"], ["carbon", "nickel"]],
+    #     clus_time_desc=None,
+    #     algo_config=algo_config,
+    #     len_dataset=130, 
+    #     len_train_show=(200, 100)
+    # )
     
     task = gen_experiment.gen_task_cluster(
-        all_algo=["GPMultiTaskMultiOut", "ARIMAModel"], 
+        all_algo=["ARIMAModel"], 
         type_task="time", 
         modifier=all_modifiers, 
         clus_metal_desc="copper",
-        clus_time_desc=[[22, 44, 66]],
+        clus_time_desc=[[22]],
         algo_config=algo_config,
-        len_dataset=-1, 
-        len_train_show=(200, 100)
+        len_dataset=130, 
+        len_train_show=(274, 130)
     )
+    print(task[0][1])
+
 
     exp_setting2 = {
         "task": {
             "sub_model": [
-                [f'v-gp_multi_task-Composite_1-{num_train_iter}-10', f'v-gp_multi_task-Composite_1-{num_train_iter}-10'], ['arima-2,0,5']
+                [f'v-gp_multi_task-Composite_1-{num_train_iter}-10', f'v-gp_multi_task-Composite_1-{num_train_iter}-10'], ['arima-20,0,20']
             ],
             "dataset": [
                 [
@@ -183,5 +186,6 @@ if __name__ == '__main__':
 
     # main()
     # gen_experiment.cluster_index_to_nested([0, 3, 0, 2, 3, 1, 1, 1, 2, 4])
-    plot_compare_cluster()
+    # plot_compare_cluster()
+    main()
 

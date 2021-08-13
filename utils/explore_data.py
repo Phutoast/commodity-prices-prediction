@@ -8,7 +8,7 @@ import matplotlib.ticker as ticker
 import copy
 from datetime import datetime
 
-from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, parse_series_time, cal_lag_return, GlobalModifier, load_dataset_from_desc
+from utils.data_preprocessing import load_metal_data, parse_series_time, GlobalModifier, load_dataset_from_desc, get_data
 from utils.data_structure import DatasetTaskDesc
 from utils.data_visualization import plot_axis_date, plot_heat_map, cluster_label_to_dict, print_tables_side_by_side, save_figure
 from utils.others import find_sub_string, load_json, find_all_metal_names, create_folder, dump_json
@@ -32,20 +32,6 @@ import tslearn
 import json
 
 metal_names = find_all_metal_names()
-
-def get_data(metal, is_feat=True, is_price_only=True):
-
-    if is_feat:
-        global_modi = GlobalModifier(CompressMethod(3, "pca"))
-    else:
-        global_modi = GlobalModifier(CompressMethod(0, "id"))
-
-    data = load_transform_data(metal, 22, global_modifier=global_modi)[1]
-
-    if is_price_only:
-        return data["Price"]
-    else:
-        return data[["Date", "Price"]]
 
 def plot_frequency_features():
     metal_names = ["aluminium", "copper"]
@@ -101,8 +87,8 @@ def plot_feature_PCA():
 
         num_data_show = 300
 
-        x, y, z = reduced_data[:num_data_show, :].T
-        ax.scatter3D(x, y, z, c=price[:num_data_show], s=10.0, cmap=plt.cm.coolwarm)
+        x, y, z = reduced_data[num_data_show:, :].T
+        ax.scatter3D(x, y, z, c=price[num_data_show:], s=10.0, cmap=plt.cm.coolwarm)
         ax.view_init(20, -120)
         ax.set_title(metal_to_display_name[metal_name])
     
@@ -688,6 +674,15 @@ def plot_cf_and_acf(metal=None):
     
     return fig, axes
 
+def correlation_over_dataset(test_name, all_test):
+    list_correlation, list_is_correlated = [], []
+    names = [metal_to_display_name[metal] for metal in metal_names]
+    num_metals = len(metal_names) 
+    
+    data = [
+        get_data(metal)
+        for metal in metal_names
+    ]
 
 
 def main():

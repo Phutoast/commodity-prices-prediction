@@ -42,7 +42,7 @@ class ARIMAModel(FullARModel):
     
     def build_model(self):
         order = self.hyperparam["order"]
-        return ARIMA(np.squeeze(self.all_data), order=order).fit()
+        return ARIMA(np.squeeze(self.all_data), order=order).fit(method="innovations_mle")
 
     def save(self, path):
         self.model.save(path + ".pkl")

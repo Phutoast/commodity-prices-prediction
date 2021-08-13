@@ -8,8 +8,10 @@ import argparse
 from utils.others import create_folder, dump_json, load_json, find_sub_string, find_all_metal_names
 from utils.data_visualization import plot_latex, plot_grid_commodity
 from utils.data_structure import DatasetTaskDesc, CompressMethod
-from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, parse_series_time
+from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, get_data
 from experiments import algo_dict, gen_experiment, metal_desc
+from statsmodels.tsa.arima.model import ARIMA
+
 
 np.random.seed(48)
 random.seed(48)
@@ -211,7 +213,7 @@ def general_testing(is_verbose, is_test):
 
         return [task], ["All Metal"], how_to_plot
 
-    task_train, task_names, how_to_plot = test_all_metal()
+    task_train, task_names, how_to_plot = original_test()
 
     super_task = {}
     for task, name in zip(task_train, task_names):
@@ -431,7 +433,39 @@ def run_window_prediction_feature():
 
     dump_json("save/test-mlt-gp-feat/all_result_window.json", all_results)
 
-def main():
+def run_ARMA_param_search():
+    metal_names = find_all_metal_names()
+    all_output_data = [
+        get_data(metal, is_price_only=False, is_feat=False)
+        for metal in metal_names
+    ]
+    test = all_output_data[0]["Price"]
+
+    
+    result = {
+        metal: np.zeros((10, 11))
+        for metal in metal_names
+    }
+
+    create_folder("exp_result/hyper_param")
+
+    for metal in metal_names:
+        for i, s1 in enumerate(np.arange(2, 12, step=1)):
+            for j, s2 in enumerate(np.arange(2, 12, step=1)):
+                print(f"At {i} and {j} with metal {metal}")
+                try:
+                    model = ARIMA(test, order=(s1, 0, s2))
+                    model_fit = model.fit(method="innovations_mle")
+                    result[metal][i, j] = model_fit.aic 
+                except ValueError:
+                    print(f"Value Error At {s1}, {s2}")
+                    result[metal][i, j] = 10 
+
+                np.save(f"exp_result/hyper_param/{metal}.npy", result[metal])
+        
+
+
+def argument_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--test", help="Are we testing", dest='is_test', action='store_true')
     parser.add_argument("--train", help="Are we training", dest='is_test', action='store_false')
@@ -442,7 +476,10 @@ def main():
     parser.set_defaults(is_verbose=False)
 
     args = parser.parse_args()
+    return args
 
+def hyperparameter_search():
+    args = argument_parser()
     is_test=args.is_test
     is_verbose=args.is_verbose
     
@@ -453,20 +490,43 @@ def main():
     run_hyperparam_search("matern_periodic", "save_hyper", kernel="Composite_1", is_test=is_test, is_verbose=is_verbose)
     run_hyperparam_search("rbf_periodic", "save_hyper", kernel="Composite_2", is_test=is_test, is_verbose=is_verbose)
 
-    # run_years_prediction()
-    # run_window_prediction()
-    # run_years_prediction_feature()
-    # run_window_prediction_feature()
-    # general_testing()
+def general_test_run():
+    args = argument_parser()
+    is_test=args.is_test
+    is_verbose=args.is_verbose
+    general_testing(is_verbose, is_test)
 
 
-if __name__ == '__main__':
-    # grid_commodities_run("exp_result/grid_corr_plot", 1, 1, "Composite_1", is_test=True, is_verbose=True)
-    # plot_grid_commodity("grid_corr_plot/grid_result.json")
+def compare_cluster():
+    args = argument_parser()
+    is_test=args.is_test
+    is_verbose=args.is_verbose
+
     grid_compare_clusters(
         "result/cluster_result/feat_data/cluster_4.json", 
         "exp_result/cluster_compare", 
-        1, 1, "Composite_1", is_test=True, is_verbose=True
+        3, 3, "Composite_1", is_test=is_test, is_verbose=is_verbose
     )
-    # main()
+
+def grid_commodities():
+    args = argument_parser()
+    is_test=args.is_test
+    is_verbose=args.is_verbose
+    
+    grid_commodities_run(
+        "exp_result/grid_corr_plot/", 
+        1, 1, "Composite_1", 
+        is_test=is_test, is_verbose=is_verbose
+    )
+    plot_grid_commodity("grid_corr_plot/grid_result.json")
+
+
+def main():
+    # compare_cluster()
+    run_ARMA_param_search()
+    # general_test_run()
+
+
+if __name__ == '__main__':
+    main()
 
