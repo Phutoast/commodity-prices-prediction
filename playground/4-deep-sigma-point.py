@@ -54,7 +54,7 @@ class DSPPHHiddenLayer(CustomDSPPLayer):
             inducing_points = torch.randn(output_dims, num_inducing, input_dims)
             batch_shape = torch.Size([output_dims])
         
-        variational_distribution = MeanFieldVariationalDistribution(
+        variational_distribution = CholeskyVariationalDistribution(
             num_inducing_points=num_inducing,
             batch_shape=batch_shape
         )
@@ -164,7 +164,6 @@ class TwoLayerDSPP(DSPP):
         hidden_rep2 = self.second_layer(inputs) 
         output = self.last_layer(hidden_rep1, hidden_rep2)
         # output = self.last_layer(hidden_rep1)
-        print(output)
         return output
     
     def predict(self, loader):
