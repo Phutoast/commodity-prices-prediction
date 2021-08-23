@@ -54,10 +54,10 @@ class IndependentGP(BaseTrainModel):
         self.model.train()
         self.likelihood.train()
 
-        self.optimizer = torch.optim.Adam(
-            [{'params': self.model.parameters()}],
-            lr=self.hyperparam["lr"]
-        )
+        self.optimizer = torch.optim.Adam([
+            {'params': self.model.parameters()},
+        ], lr=self.hyperparam["lr"])
+
         self.loss_obj = gpytorch.mlls.ExactMarginalLogLikelihood(
             self.likelihood, self.model
         )

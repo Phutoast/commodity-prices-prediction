@@ -12,7 +12,6 @@ from utils.data_preprocessing import load_transform_data, parse_series_time, loa
 from experiments import algo_dict, gen_experiment, metal_desc
 from statsmodels.tsa.arima.model import ARIMA
 
-
 np.random.seed(48)
 random.seed(48)
 torch.manual_seed(48)
@@ -57,7 +56,8 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
         clus_metal_desc=multi_task_desc, 
         clus_time_desc=None,
         algo_config=multi_task_config,
-        len_dataset=len_dataset, len_train_show=len_train_show
+        len_dataset=len_dataset, 
+        len_train_show=len_train_show
     )
     output = gen_experiment.run_experiments(task, save_path=save_path)
     dump_json(f"{save_path}all_data.json", output) 
@@ -73,7 +73,7 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
     
     return summary
 
-def run_hyperparam_search(name, save_folder, kernel="Composite_1", is_test=False, is_verbose=False): 
+def run_hyperparam_search(name, save_folder, multi_task_algo, kernel="Composite_1", is_test=False, is_verbose=False): 
     num_inp = np.arange(2, 12, step=2)
     num_pca = np.arange(2, 7)
 
@@ -96,7 +96,8 @@ def run_hyperparam_search(name, save_folder, kernel="Composite_1", is_test=False
                 len_inp=int(len_inp), 
                 kernel=kernel, 
                 is_test=is_test, 
-                is_verbose=is_verbose
+                is_verbose=is_verbose,
+                multi_task_algo=multi_task_algo
             )
             for algo in multi_task_algo:
                 for met in metric:
@@ -213,7 +214,8 @@ def general_testing(is_verbose, is_test):
 
         return [task], ["All Metal"], how_to_plot
 
-    task_train, task_names, how_to_plot = original_test()
+    # task_train, task_names, how_to_plot = original_test()
+    task_train, task_names, how_to_plot = test_all_metal()
 
     super_task = {}
     for task, name in zip(task_train, task_names):
@@ -462,8 +464,6 @@ def run_ARMA_param_search():
                     result[metal][i, j] = 10 
 
                 np.save(f"exp_result/hyper_param/{metal}.npy", result[metal])
-        
-
 
 def argument_parser():
     parser = argparse.ArgumentParser()
@@ -485,10 +485,30 @@ def hyperparameter_search():
     
     create_folder("save")
 
-    run_hyperparam_search("matern", "save_hyper",kernel="Matern", is_test=is_test, is_verbose=is_verbose)
-    run_hyperparam_search("rbf", "save_hyper", kernel="RBF", is_test=is_test, is_verbose=is_verbose)
-    run_hyperparam_search("matern_periodic", "save_hyper", kernel="Composite_1", is_test=is_test, is_verbose=is_verbose)
-    run_hyperparam_search("rbf_periodic", "save_hyper", kernel="Composite_2", is_test=is_test, is_verbose=is_verbose)
+    run_hyperparam_search(
+        "matern", "save_hyper_out", 
+        multi_task_algo=["GPMultiTaskMultiOut"] , 
+        kernel="Matern", is_test=is_test, 
+        is_verbose=is_verbose
+    )
+    run_hyperparam_search(
+        "rbf", "save_hyper_out", 
+        multi_task_algo=["GPMultiTaskMultiOut"], 
+        kernel="RBF", is_test=is_test, 
+        is_verbose=is_verbose
+    )
+    run_hyperparam_search(
+        "matern_periodic", "save_hyper_out", 
+        multi_task_algo=["GPMultiTaskMultiOut"],
+        kernel="Composite_1", is_test=is_test, 
+        is_verbose=is_verbose
+    )
+    run_hyperparam_search(
+        "rbf_periodic", "save_hyper_out", 
+        multi_task_algo=["GPMultiTaskMultiOut"],
+        kernel="Composite_2", is_test=is_test, 
+        is_verbose=is_verbose
+    )
 
 def general_test_run():
     args = argument_parser()
@@ -523,8 +543,9 @@ def grid_commodities():
 
 def main():
     # compare_cluster()
-    run_ARMA_param_search()
-    # general_test_run()
+    # hyperparameter_search()
+    # run_ARMA_param_search()
+    general_test_run()
 
 
 if __name__ == '__main__':
