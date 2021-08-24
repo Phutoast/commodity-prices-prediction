@@ -75,23 +75,15 @@ for i in range(150):
     if i % 10 == 0:
         print(i, loss)
 
-# Set into eval mode
 model.eval()
 likelihood.eval()
 
-# Initialize plots
 f, (y1_ax, y2_ax) = plt.subplots(1, 2, figsize=(8, 3))
 
-# Test points every 0.02 in [0,1]
 test_x = torch.linspace(0, 1, 51)
 test_i_task1 = torch.full((test_x.shape[0],1), dtype=torch.long, fill_value=0)
 test_i_task2 = torch.full((test_x.shape[0],1), dtype=torch.long, fill_value=1)
 
-# Make predictions - one task at a time
-# We control the task we cae about using the indices
-
-# The gpytorch.settings.fast_pred_var flag activates LOVE (for fast variances)
-# See https://arxiv.org/abs/1803.06058
 with torch.no_grad(), gpytorch.settings.fast_pred_var():
     observed_pred_y1 = likelihood(model(test_x, all_ind=torch.cat([ind_index, test_i_task1], axis=0)))
     observed_pred_y2 = likelihood(model(test_x, all_ind=torch.cat([ind_index, test_i_task2], axis=0)))
