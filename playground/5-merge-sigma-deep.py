@@ -10,8 +10,8 @@ from torch.utils.data import TensorDataset, DataLoader
 from utils.deep_config import create_deep_gp_config, create_dspp_config
 
 num_inducing = 128
-num_quad_site = 3
 hidden_layer_size = 2
+num_quad_site = 3
 
 curr_config = create_deep_gp_config(num_inducing)
 

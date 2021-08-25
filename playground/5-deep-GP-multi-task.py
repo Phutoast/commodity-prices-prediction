@@ -22,8 +22,8 @@ num_inducing = 128
 num_quad_site = 3
 hidden_layer_size = 2
 
-curr_config = create_dspp_config(num_inducing, num_quad_site)
-# curr_config = create_deep_gp_config(num_inducing)
+# curr_config = create_dspp_config(num_inducing, num_quad_site)
+curr_config = create_deep_gp_config(num_inducing)
 
 class MultitaskDeepGP(curr_config["class_type"]):
     def __init__(self, train_x_shape):
@@ -61,7 +61,7 @@ objective = curr_config["objective"](
     num_data=train_y.size(0)
 )
 
-for i in range(200):
+for i in range(10):
     optimizer.zero_grad()
     output = model(train_x)
     loss = -objective(output, train_y)

@@ -1,32 +1,18 @@
-import numpy as np
-import pandas as pd
-import json
-
 import torch
 import gpytorch
 from models.train_model import BaseTrainMultiTask
 from models.GP_model import MultioutputGP
-from models.GP import IndependentGP
 from utils.data_structure import Hyperparameters
 
-from experiments import algo_dict
 from utils import others
-
-import matplotlib.pyplot as plt
-import pandas as pd
-from utils import data_visualization
-
-import copy
 
 class GPMultiTaskMultiOut(BaseTrainMultiTask):
 
     expect_using_first = True
+    is_external_likelihood = True
 
     def __init__(self, list_train_data, list_config, using_first):
         super().__init__(list_train_data, list_config, using_first)
-        self.likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
-            num_tasks=self.num_task
-        )
         self.list_config_json = {
             "list_config": list_config, "using_first": using_first
         }
@@ -35,10 +21,15 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
         self.list_train_data = list_train_data
         self.list_config = list_config
         self.using_first = using_first
-        
-        if self.hyperparam["is_gpu"]:
-            self.likelihood = self.likelihood.cuda()
-    
+        self.name = "multi_GP"
+
+        if self.is_external_likelihood:
+            self.likelihood = gpytorch.likelihoods.MultitaskGaussianLikelihood(
+                num_tasks=self.num_task
+            )
+            if self.hyperparam["is_gpu"]:
+                self.likelihood = self.likelihood.cuda()
+         
     def prepare_data(self):
         all_data, self.train_y = self.pack_data_merge(
             self.train_data, self.hyperparam["is_past_label"], self.using_first
@@ -84,23 +75,8 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
     
     def merge_all_data(self, data_list, label_list):
         return data_list, label_list
-
-    def predict_step_ahead(self, list_test_data, list_step_ahead, list_all_date, ci=0.9, is_sample=False):
-        """
-        Predict multiple independent multi-model data
-
-        Args:
-            list_test_data: All testing for each models
-            list_step_ahead: All number step a head 
-                for each model
-            list_all_date: All the date used along side of prediction
-        
-        Returns:
-            list_prediction: List of all prediction for each models
-        """
-        self.model.eval()
-        self.likelihood.eval()
-        
+    
+    def prepare_predict(self, list_test_data, list_step_ahead):
         all_data_list, _ = self.pack_data_merge(
             list_test_data, self.hyperparam["is_past_label"], using_first=False
         )
@@ -116,6 +92,14 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
         assert max(d.shape[0] for d in all_data_list) == max_size
         assert all(step_ahead <= data.shape[0] for step_ahead, data in zip(list_step_ahead, all_data_list))
 
+        return all_data, max_size, all_data_list
+    
+    def pred_all(self, all_data, is_sample):
+
+        self.model.eval()
+        if self.is_external_likelihood:
+            self.likelihood.eval()
+
         with torch.no_grad(), gpytorch.settings.fast_pred_var(), gpytorch.settings.max_cg_iterations(2000):
             test_x = torch.from_numpy(all_data).float()
             if self.hyperparam["is_gpu"]:
@@ -128,11 +112,33 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
                 lower, upper = pred.confidence_region()
                 pred_lower = lower.detach().cpu().numpy()
                 pred_upper = upper.detach().cpu().numpy()
+                return pred_mean, pred_lower, pred_upper
             else:
                 rv = self.model(test_x)
                 rv = rv.sample(sample_shape=torch.Size([1000])).cpu().numpy()
+                return rv
+    
+    def predict_step_ahead(self, list_test_data, list_step_ahead, list_all_date, ci=0.9, is_sample=False):
+        """
+        Predict multiple independent multi-model data
 
+        Args:
+            list_test_data: All testing for each models
+            list_step_ahead: All number step a head 
+                for each model
+            list_all_date: All the date used along side of prediction
+        
+        Returns:
+            list_prediction: List of all prediction for each models
+        """
+        all_data, max_size, all_data_list = self.prepare_predict(
+            list_test_data, list_step_ahead
+        )
+
+        out = self.pred_all(all_data, is_sample)
+        
         if not is_sample:
+            pred_mean, pred_lower, pred_upper = out
             list_pred_mean = []        
             list_pred_lower = []
             list_pred_upper = []
@@ -148,6 +154,7 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
 
             return list_pred_mean, list_pred_lower, list_pred_upper, all_date
         else:
+            rv = out
             list_sample = []
             all_date = []
             for i in range(self.num_task):
@@ -160,7 +167,7 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
 
     def save(self, base_path):
         others.create_folder(base_path)
-        path = base_path + "/multi_GP/"
+        path = base_path + f"/{self.name}/"
         others.create_folder(path)
         path += "model"
 
@@ -172,13 +179,22 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
         
         others.dump_json(f"{base_path}/config.json", self.list_config_json)
     
+    def build_model_from_loaded(self, all_data, list_config, num_task):
+        (_, self.train_x, self.train_y, 
+            self.mean_x, self.std_x) = all_data
+        
+        self.model = MultioutputGP(
+            self.train_x, self.train_y, self.likelihood, 
+            self.load_kernel(list_config[0][0]["kernel"]), num_task
+        ) 
+    
     def load(self, base_path): 
         data = others.load_json(f"{base_path}/config.json")
         
         list_config = data["list_config"]
         num_task = len(list_config)
         
-        path = base_path + "/multi_GP/"
+        path = base_path + f"/{self.name}/"
         path += "model"
         
         all_ext = [".pth", "_x.pt", "_y.pt", "_mean_x.pt", "_std_x.pt"]
@@ -188,18 +204,12 @@ class GPMultiTaskMultiOut(BaseTrainMultiTask):
         else:
             all_data = [torch.load(path + ext, map_location=torch.device('cpu')) for ext in all_ext]
         
-        (state_dict, self.train_x, self.train_y, 
-            self.mean_x, self.std_x) = all_data
-        
-        self.model = MultioutputGP(
-            self.train_x, self.train_y, self.likelihood, 
-            self.load_kernel(list_config[0][0]["kernel"]), num_task
-        )
-        
+        self.build_model_from_loaded(all_data, list_config, num_task)
+ 
         if self.hyperparam["is_gpu"]:
             self.model.cuda()
 
-        self.model.load_state_dict(state_dict)
+        self.model.load_state_dict(all_data[0])
  
     @classmethod
     def load_from_path(cls, path):

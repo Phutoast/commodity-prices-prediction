@@ -87,6 +87,9 @@ def main():
     )
     print(task[0][1])
 
+    # [f'v-deep_gp-Matern-{num_train_iter}-10', f'v-deep_gp-Matern-{num_train_iter}-10'], ['arima-8,1,10']
+                
+    # [f'v-gp_multi_task-Composite_1-{num_train_iter}-10', f'v-gp_multi_task-Composite_1-{num_train_iter}-10'], ['arima-8,1,10']
 
     exp_setting2 = {
         "task": {
@@ -139,14 +142,16 @@ def main():
             "len_train_show":(200, 100)
         },
         "algo": ["GPMultiTaskMultiOut", "IndependentMultiModel"],
+        # "algo": ["DeepGPMultiOut", "IndependentMultiModel"],
         "using_first": [True, False]
     }
 
     if test_type == "f":
         example_plot_all_algo_lag(
-            exp_setting2, is_save=True, is_load=False,
-            load_path="Hard_Cluster",
-            # load_path="08-06-21-22-42-41-08-06-21-22-28-50-GP-Multi"
+            {}, is_save=False, is_load=True,
+            # load_path="Hard_Cluster",
+            load_path="08-25-21-20-32-35-Hard_Cluster"
+            # load_path="08-25-21-20-39-50-Hard_Cluster"
         )
     elif test_type == "w":
         example_plot_walk_forward(
@@ -185,15 +190,11 @@ def fix_hyper_data():
 
         for inner_path in all_path:
             from_folder = path + "/" + inner_path + "/" + run_folder
-            # print(from_folder)
-
             for folder_content in get_all_folder(from_folder):
                 shutil.move(
                     from_folder + "/" + folder_content,
                     dest_folder
                 )
-                # print(f"Move From {from_folder + '/' + folder_content} to {dest_folder}")
-            
             all_data_path.append(from_folder + "/all_data.json")
             
         
@@ -229,9 +230,9 @@ if __name__ == '__main__':
     # explore_data.plot_correlation_all()
 
     # plot_hyperparam_search()
-    plot_arma_hyper_search("exp_result/hyper_param_arma")
+    # plot_arma_hyper_search("exp_result/hyper_param_arma")
     # plot_compare_cluster()
     
-    # main()
+    main()
     # gen_experiment.cluster_index_to_nested([0, 3, 0, 2, 3, 1, 1, 1, 2, 4])
 

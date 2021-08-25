@@ -7,7 +7,16 @@ from models.GP import IndependentGP
 from models.ind_multi_model import IndependentMultiModel
 from models.GP_multi_out import GPMultiTaskMultiOut
 from models.GP_multi_index import GPMultiTaskIndex
+from models.Deep_GP import DeepGPMultiOut
+
 from models.full_AR_model import FullARModel
+
+from models.deep_layers import DSPPHHiddenLayer, DeepGPHiddenLayer
+
+from gpytorch.mlls import DeepPredictiveLogLikelihood
+from gpytorch.mlls import DeepApproximateMLL, VariationalELBO
+from gpytorch.models.deep_gps.dspp import DSPP
+from gpytorch.models.deep_gps import DeepGP
 
 import numpy as np
 import copy
@@ -33,7 +42,8 @@ class_name = {
 multi_task_algo = {
     "IndependentMultiModel": IndependentMultiModel,
     "GPMultiTaskMultiOut": GPMultiTaskMultiOut,
-    "GPMultiTaskIndex": GPMultiTaskIndex
+    "GPMultiTaskIndex": GPMultiTaskIndex,
+    "DeepGPMultiOut": DeepGPMultiOut
 }
 
 class_name_to_display = {
@@ -42,7 +52,8 @@ class_name_to_display = {
     "IndependentGP": "Independent GP",
     "IndependentMultiModel": "Independent Multi-Model",
     "GPMultiTaskMultiOut": "Multi-Task GP Output",
-    "GPMultiTaskIndex": "Multi-Task GP Index"
+    "GPMultiTaskIndex": "Multi-Task GP Index",
+    "DeepGPMultiOut": "Deep 2 Layer GP"
 }
 
 algo_is_using_first = {k: v.expect_using_first for k, v in multi_task_algo.items()}
@@ -113,7 +124,7 @@ class AlgoDict(object):
 
         if "gp" in algo:
             curr_setting = self.step_modi_GP(desc[1:])
-            if algo == "gp_multi_task":
+            if algo == "gp_multi_task" or algo == "deep_gp":
                 return self.modify_return([curr_setting, None])
             else:
                 return self.modify_return([curr_setting, IndependentGP])
@@ -188,6 +199,25 @@ def encode_params(algo, is_verbose, is_test, **kwargs):
         list_text = [order_text, kwargs.get("len_out")]
 
     return text + encode_text(list_text)
+
+def dspp_ll(model, x_batch, y_batch):
+    base_batch_ll = model.likelihood.log_marginal(y_batch, model(x_batch))
+    deep_batch_ll = model.quad_weights.unsqueeze(-1) + base_batch_ll
+    batch_log_prob = deep_batch_ll.logsumexp(dim=0)
+    return batch_log_prob.cpu()
+
+
+def create_dspp_config(num_inducing, num_quad_site):
+    return {
+        "class_type": DSPP,
+        "hidden_layer_type": DSPPHHiddenLayer,
+        "objective": lambda likelihood, model, num_data : DeepPredictiveLogLikelihood(
+            likelihood, model, num_data, beta=0.5
+        ),
+        "hidden_info": {"num_inducing": num_inducing, "num_quad_sites": num_quad_site},
+        "class_init_info": {"num_quad_sites": num_quad_site},
+        "log_likelihood_cal": dspp_ll,
+    }
 
 
 

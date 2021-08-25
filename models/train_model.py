@@ -57,8 +57,18 @@ class BaseTrainModel(BaseModel):
         output = self.model(self.train_x)
         loss = -self.loss_obj(output, self.train_y)
         return output, loss
-
     
+    def training_loop(self, epoch, num_iter):
+        self.optimizer.zero_grad()
+        output, loss = self.cal_train_loss()
+
+        if self.hyperparam["is_verbose"]:
+            if epoch%10 == 0:
+                print(f"Loss {epoch}/{num_iter}", loss)
+
+        loss.backward()
+        self.optimizer.step()
+ 
     def train(self):
         with gpytorch.settings.max_cg_iterations(10000):
             self.train_x, self.train_y = self.prepare_data()
@@ -71,15 +81,7 @@ class BaseTrainModel(BaseModel):
 
             num_iter = self.optim_iter
             for i in range(num_iter):
-                self.optimizer.zero_grad()
-                output, loss = self.cal_train_loss()
-
-                if self.hyperparam["is_verbose"]:
-                    if i%10 == 0:
-                        print(f"Loss {i}/{num_iter}", loss)
-
-                loss.backward()
-                self.optimizer.step()
+                self.training_loop(i, num_iter)
             
             self.after_training()
         
