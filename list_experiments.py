@@ -463,7 +463,7 @@ def run_ARMA_param_search():
                     print(f"Value Error At {s1}, {s2}")
                     result[metal][i, j] = 10 
 
-                np.save(f"exp_result/hyper_param/{metal}.npy", result[metal])
+                np.save(f"exp_result/hyper_param_arma/{metal}.npy", result[metal])
 
 def argument_parser():
     parser = argparse.ArgumentParser()
@@ -486,26 +486,26 @@ def hyperparameter_search():
     create_folder("save")
 
     run_hyperparam_search(
-        "matern", "save_hyper_out", 
-        multi_task_algo=["GPMultiTaskMultiOut"] , 
+        "matern", "exp_result/save_hyper", 
+        multi_task_algo=["GPMultiTaskIndex", "GPMultiTaskMultiOut"],
         kernel="Matern", is_test=is_test, 
         is_verbose=is_verbose
     )
     run_hyperparam_search(
-        "rbf", "save_hyper_out", 
-        multi_task_algo=["GPMultiTaskMultiOut"], 
+        "rbf", "exp_result/save_hyper", 
+        multi_task_algo=["GPMultiTaskIndex", "GPMultiTaskMultiOut"],
         kernel="RBF", is_test=is_test, 
         is_verbose=is_verbose
     )
     run_hyperparam_search(
-        "matern_periodic", "save_hyper_out", 
-        multi_task_algo=["GPMultiTaskMultiOut"],
+        "matern_periodic", "exp_result/save_hyper", 
+        multi_task_algo=["GPMultiTaskIndex", "GPMultiTaskMultiOut"],
         kernel="Composite_1", is_test=is_test, 
         is_verbose=is_verbose
     )
     run_hyperparam_search(
-        "rbf_periodic", "save_hyper_out", 
-        multi_task_algo=["GPMultiTaskMultiOut"],
+        "rbf_periodic", "exp_result/save_hyper", 
+        multi_task_algo=["GPMultiTaskIndex", "GPMultiTaskMultiOut"],
         kernel="Composite_2", is_test=is_test, 
         is_verbose=is_verbose
     )
@@ -543,9 +543,9 @@ def grid_commodities():
 
 def main():
     # compare_cluster()
-    # hyperparameter_search()
+    hyperparameter_search()
     # run_ARMA_param_search()
-    general_test_run()
+    # general_test_run()
 
 
 if __name__ == '__main__':

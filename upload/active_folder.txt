@@ -6,3 +6,4 @@ utils
 main.py
 list_experiments.py
 result
+kernel_test

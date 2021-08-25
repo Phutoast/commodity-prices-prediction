@@ -519,9 +519,6 @@ def plot_hyperparam_search(load_path):
             curr_ax.set_title(f"{method} {metric}") 
             plot_heat_map(curr_ax, data, row_name, column_name)
 
-    # print(ax)
-    # print(all_methods)
-    # print(all_metric)
     fig.tight_layout()
     plt.show()
 
@@ -629,3 +626,7 @@ def plot_grid_commodity(load_path):
     fig.tight_layout()
     plt.show()
     return fig, axes
+
+def plot_arma_param_search():
+    loading_path = "exp_result/hyper_param_arma"
+    

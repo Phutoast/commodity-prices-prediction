@@ -10,7 +10,7 @@ from utils.others import create_folder, find_all_metal_names
 from utils.data_structure import CompressMethod
 from utils.data_visualization import plot_hyperparam_search, plot_compare_cluster
 from utils.data_preprocessing import GlobalModifier, load_metal_data, save_date_common
-from utils import explore_data
+from utils import explore_data, others
 from utils.data_structure import DatasetTaskDesc
 from experiments import gen_experiment, algo_dict
 
@@ -169,14 +169,68 @@ def main():
     elif test_type == "r":
         result = gen_experiment.run_experiments(task, save_path="abc")
         print(result)
+
+def fix_hyper_data():
+    import os, shutil
+    # path = "exp_result/hyper_param_gp/hyper_search_matern"
+    # path = "exp_result/hyper_param_gp/hyper_search_matern_periodic"
+    # path = "exp_result/hyper_param_gp/hyper_search_rbf"
+    path = "exp_result/hyper_param_gp/hyper_search_rbf_periodic"
+
+    get_all_folder = lambda path: sorted([f for f in os.listdir(path) if "." not in f])
+
+    all_path = get_all_folder(path)
+    all_run_folder = get_all_folder(path + "/" + all_path[0])
+
+    def merge_json(list_path):
+        data = {}
+        for path in list_path:
+            data.update(others.load_json(path))
+        return data
+
+    for run_folder in all_run_folder:
+        dest_folder = path + "/" + run_folder
+        create_folder(dest_folder)
+
+        all_data_path = []
+
+        for inner_path in all_path:
+            from_folder = path + "/" + inner_path + "/" + run_folder
+            # print(from_folder)
+
+            for folder_content in get_all_folder(from_folder):
+                shutil.move(
+                    from_folder + "/" + folder_content,
+                    dest_folder
+                )
+                # print(f"Move From {from_folder + '/' + folder_content} to {dest_folder}")
+            
+            all_data_path.append(from_folder + "/all_data.json")
+            
+        
+        others.dump_json(dest_folder + "/all_data.json", merge_json(all_data_path))
+            
+    all_final_result_path = []
+    for inner_path in all_path:
+        search_path = path + "/" + inner_path
+        file_path = sorted([f for f in os.listdir(search_path) if ".json" in f])[0]
+        search_path += "/" + file_path
+        all_final_result_path.append(search_path)
+    
+    others.dump_json(path + "/" + file_path, merge_json(all_final_result_path))
+    
         
 if __name__ == '__main__':
-    # print("HERE")
     # save_date_common("raw_data", "data")
+
+    # fix_hyper_data()
 
     # explore_data.plot_window_unrelated()
     # explore_data.plot_window_related()
+
     # explore_data.plot_correlation_all()
+    explore_data.plot_graph_hsic()
+
     # explore_data.plot_years_correlation("nickel", "copper")
     # explore_data.plot_years_correlation("natgas", "copper")
     # explore_data.plot_cf_and_acf()
@@ -184,8 +238,15 @@ if __name__ == '__main__':
     # explore_data.clustering_dataset(num_cluster=4, is_verbose=True)
     # explore_data.clustering_dataset()
 
+    # plot_hyperparam_search("exp_result/hyper_param_gp")
+
+    # explore_data.plot_correlation_all()
+
+    # from kernel_test.hsic import is_dependent_wild_HSIC, wild_bootstrap_HSIC
+    # from utils.kernel_examples import generate_time_series
+    
     # main()
     # gen_experiment.cluster_index_to_nested([0, 3, 0, 2, 3, 1, 1, 1, 2, 4])
     # plot_compare_cluster()
-    main()
+    # main()
 

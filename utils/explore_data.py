@@ -26,8 +26,10 @@ from tabulate import tabulate
 import networkx as nx
 from sklearn.cluster import SpectralClustering
 from tslearn.clustering import KernelKMeans, TimeSeriesKMeans, KShape
-
 import tslearn
+    
+from hyppo.time_series import DcorrX
+from kernel_test.hsic import wild_bootstrap_HSIC
 
 import json
 
@@ -162,46 +164,41 @@ def corr_test(list_a, list_b, test_name, all_test, is_verbose=False):
     
     return corr_value, p_value
 
-def correlation_over_dataset(test_name, all_test):
-    list_correlation, list_is_correlated = [], []
+def correlation_over_dataset(test_name, all_test, test_corr):
+    list_correlation, list_is_correlated, list_addi_info = [], [], []
     names = [metal_to_display_name[metal] for metal in metal_names]
     num_metals = len(metal_names) 
     
     data = [
-        get_data(metal)
+        np.expand_dims(get_data(metal).to_numpy(), axis=1)
         for metal in metal_names
     ]
 
     for name, test in zip(test_name, all_test): 
         correlation = np.zeros((num_metals, num_metals))
         is_correlated = np.zeros((num_metals, num_metals))
+        addi_info = np.zeros((num_metals, num_metals))
 
-        for i, d1 in enumerate(data):
-            for j, d2 in enumerate(data):
-                test_result = test(d1, d2)
-                correlation[i, j] = test_result[0]
-                if i != j:
-                    is_correlated[i, j] = test_result[1] < 0.05
-                else:
-                    is_correlated[i, j] = False
-    
+        for row in range(len(data)):
+            for col in range(row):
+                print(f"Running {row} and {col}")
+                stat, is_corr, addi_compare = test_corr(test, data[row], data[col])
+                correlation[row, col] = stat
+                addi_info[row, col] = addi_compare
+                is_correlated[row, col] = is_corr
+        
+        is_correlated = is_correlated + is_correlated.T
+        correlation = correlation + correlation.T
+        np.fill_diagonal(correlation, 1)
+
         list_correlation.append(correlation)
         list_is_correlated.append(is_correlated) 
-    
-    return list_correlation, list_is_correlated
+        list_addi_info.append(addi_info)
+ 
+    return list_correlation, list_is_correlated, list_addi_info
 
-@save_figure("figure/all_correlation.pdf")
-def plot_correlation_all():
-    names = [metal_to_display_name[metal] for metal in metal_names]
-    num_metals = len(metal_names) 
-    
-    test_name = ["Peason", "Spearman", "Kendell"]
-    all_test = [stats.pearsonr, stats.spearmanr, stats.kendalltau]
-    num_test = len(test_name)
-    
-    fig, axes = plt.subplots(ncols=num_test, nrows=2, figsize=(20, 10))
-    list_correlation, list_is_correlated = correlation_over_dataset(test_name, all_test)
-     
+def show_test_stat_graph(names, test_name, list_correlation, list_is_correlated, size=1500, k=0.5):
+    fig, axes = plt.subplots(ncols=len(test_name), nrows=2, figsize=(20, 10))
     for name, correlation, is_correlated, ax in zip(test_name, list_correlation, list_is_correlated, axes.T): 
         ax_top, ax_bot = ax
         ax_top.set_title(name) 
@@ -213,18 +210,81 @@ def plot_correlation_all():
             for i in range(10)
         }
 
+        np.save(f"exp_result/graph_result/{name.lower()}_test_graph.npy", is_correlated)
+
         G = nx.from_numpy_matrix(is_correlated) 
-        options = {"edgecolors": "tab:gray", "node_size": 800, "alpha": 0.9}
-        pos = nx.spring_layout(G, k=0.5)
+        pos = nx.spring_layout(G, k=k)
+        # pos = nx.circular_layout(G)
         nx.draw(
             G, with_labels=True, pos=pos,
-            node_color='orange', node_size=1500, 
+            node_color='orange', node_size=size, 
             edge_color='black', linewidths=1, 
             font_size=5, ax=ax_bot, labels=num_note_to_date
         )
     
     fig.tight_layout()
-    return fig, ax
+    return fig, axes
+
+@save_figure("figure/all_correlation.pdf")
+def plot_correlation_all():
+    create_folder("exp_result/graph_result")
+    names = [metal_to_display_name[metal] for metal in metal_names]
+    num_metals = len(metal_names) 
+    
+    test_name = ["Peason", "Spearman", "Kendell"]
+    all_test = [stats.pearsonr, stats.spearmanr, stats.kendalltau]
+    num_test = len(test_name)
+
+    def test_corr(test, d1, d2):
+        test_result = test(d1.flatten(), d2.flatten())
+        return test_result[0], test_result[1] < 0.05, -1
+    
+    list_correlation, list_is_correlated, _ = correlation_over_dataset(test_name, all_test, test_corr) 
+    return show_test_stat_graph(names, test_name, list_correlation, list_is_correlated)
+
+@save_figure("figure/hsic_graph.pdf")
+def plot_graph_hsic():
+    create_folder("exp_result/graph_result")
+    names = [metal_to_display_name[metal] for metal in metal_names]
+    num_metals = len(metal_names) 
+    
+    def run_hsic(X, Y):
+        threshold, stat = wild_bootstrap_HSIC(X, Y, 0.05, 1000)
+        return stat, threshold <= stat, -1
+    
+    def run_DcorrX(X, Y):
+        stat, p_val, optim_lag = DcorrX(max_lag=0).test(X, Y, reps=1000, workers=-1)
+        return stat, p_val < 0.05, optim_lag["opt_lag"]
+    
+    test_name = ["HSIC", "Distance Correlation"]
+    all_test = [run_hsic, run_DcorrX]
+
+    num_test = len(test_name)
+    is_save = False
+
+    if is_save:
+        list_test_stat, list_is_correlated, list_addi_info = correlation_over_dataset(
+            test_name, all_test, 
+            lambda test, d1, d2: test(d1, d2)
+        )
+
+        for name, test_stat, is_correlated, addi_info in zip(test_name, list_test_stat, list_is_correlated, list_addi_info):
+            np.save(f"exp_result/graph_result/{name.lower()}_test_graph.npy", is_correlated)
+            np.save(f"exp_result/graph_result/{name.lower()}_test_stat.npy", test_stat)
+            np.save(f"exp_result/graph_result/{name.lower()}_test_addi_info.npy", addi_info)
+    else:
+
+        list_test_stat = [
+            np.load(f"exp_result/graph_result/{name.lower()}_test_stat.npy")
+            for name in test_name
+        ]
+        
+        list_is_correlated = [
+            np.load(f"exp_result/graph_result/{name.lower()}_test_graph.npy")
+            for name in test_name
+        ]
+
+    return show_test_stat_graph(names, test_name, list_test_stat, list_is_correlated, size=1500, k=5)
 
 @save_figure("figure/p_value_window_unrelated.pdf")
 def plot_window_unrelated():
@@ -674,20 +734,10 @@ def plot_cf_and_acf(metal=None):
     
     return fig, axes
 
-def correlation_over_dataset(test_name, all_test):
-    list_correlation, list_is_correlated = [], []
-    names = [metal_to_display_name[metal] for metal in metal_names]
-    num_metals = len(metal_names) 
-    
-    data = [
-        get_data(metal)
-        for metal in metal_names
-    ]
-
-
 def main():
     # explore_data_overall()
     # check_data()
+    # plot_correlation_all()
     pass
 
 
