@@ -227,11 +227,11 @@ def general_testing(is_verbose, is_test):
 
     how_to_plot(super_task)
 
-def grid_commodities_run(save_path, len_inp, pca_dim, kernel, is_test=False, is_verbose=False):
+def grid_commodities_run(save_path, list_len_inp, list_pca_dim, kernel, is_test=False, is_verbose=False):
     all_metal_name = find_all_metal_names()
 
     num_metal = len(all_metal_name)
-    multi_task_algo = ["GPMultiTaskIndex", "GPMultiTaskMultiOut"]
+    multi_task_algo = ["GPMultiTaskMultiOut", "GPMultiTaskIndex"]
 
     pca_modifier = {
         metal: CompressMethod(int(pca_dim), "pca", info={})
@@ -274,61 +274,67 @@ def grid_commodities_run(save_path, len_inp, pca_dim, kernel, is_test=False, is_
     
     dump_json(f"{save_path}/grid_result.json", error_dict) 
 
-def grid_compare_clusters(cluster_data_path, save_path, len_inp, 
-    pca_dim, kernel, is_test=False, is_verbose=False):
+def grid_compare_clusters(cluster_data_path, save_path, list_len_inp, 
+    list_pca_dim, kernel, is_test=False, is_verbose=False):
 
     cluster_dict = load_json(cluster_data_path)
     all_metal_name = find_all_metal_names()
 
-    pca_modifier = {
-        metal: CompressMethod(int(pca_dim), "pca", info={})
-        for metal in all_metal_name
-    }
-
     all_results = {}
+    # list_algo = ["GPMultiTaskMultiOut"]
+    list_algo = ["GPMultiTaskMultiOut", "GPMultiTaskIndex"]
 
-    for test_name, cluster_index in cluster_dict.items():
-        curr_save_path = save_path + "/" + "-".join(test_name.split(" ")) + "/"
-        error_results = run_multi_task_gp(
-            curr_save_path, pca_modifier, 
-            multi_task_desc=gen_experiment.cluster_index_to_nested(cluster_index), 
-            len_inp=len_inp, 
-            len_dataset=default_len_dataset, 
-            len_train_show=default_len_train_show, 
-            kernel=kernel, 
-            is_test=is_test, is_verbose=is_verbose, 
-            multi_task_algo=["GPMultiTaskIndex", "GPMultiTaskMultiOut"]
-        )
+    for len_inp, pca_dim, curr_algo in zip(list_len_inp, list_pca_dim, list_algo):
 
-        all_results.update({
-            test_name: {
-                k: v["CRPS"]
-                for k, v in error_results.items()
+        for test_name, cluster_index in cluster_dict.items():
+            pca_modifier = {
+                metal: CompressMethod(int(pca_dim), "pca", info={})
+                for metal in all_metal_name
             }
-        }) 
+
+            curr_save_path = save_path + "/" + "-".join(test_name.split(" ")) + "/"
+            error_results = run_multi_task_gp(
+                curr_save_path, pca_modifier, 
+                multi_task_desc=gen_experiment.cluster_index_to_nested(cluster_index), 
+                len_inp=len_inp, 
+                len_dataset=default_len_dataset, 
+                len_train_show=default_len_train_show, 
+                kernel=kernel, 
+                is_test=is_test, is_verbose=is_verbose, 
+                multi_task_algo=[curr_algo]
+            )
+
+            all_results.update({
+                test_name: {
+                    k: v["CRPS"]
+                    for k, v in error_results.items()
+                }
+            }) 
+            
+            dump_json(f"{save_path}/compare_cluster.json", all_results) 
 
 
-    # Running all
-    curr_save_path = save_path + "/full_model/"
-    error_results = run_multi_task_gp(
-        curr_save_path, pca_modifier, 
-        multi_task_desc=[all_metal_name], 
-        len_inp=len_inp, 
-        len_dataset=default_len_dataset, 
-        len_train_show=default_len_train_show, 
-        kernel=kernel, 
-        is_test=is_test, is_verbose=is_verbose, 
-        multi_task_algo=multi_task_algo
-    )
-    all_results.update({
-        "full_model": {
-            k: v["CRPS"]
-            for k, v in error_results.items()
-        }
-    })
+            # Running all
+            curr_save_path = save_path + "/full_model/"
+            error_results = run_multi_task_gp(
+                curr_save_path, pca_modifier, 
+                multi_task_desc=[all_metal_name], 
+                len_inp=len_inp, 
+                len_dataset=default_len_dataset, 
+                len_train_show=default_len_train_show, 
+                kernel=kernel, 
+                is_test=is_test, is_verbose=is_verbose, 
+                multi_task_algo=[curr_algo]
+            )
 
+            all_results.update({
+                "full_model": {
+                    k: v["CRPS"]
+                    for k, v in error_results.items()
+                }
+            })
 
-    dump_json(f"{save_path}/compare_cluster.json", all_results) 
+            dump_json(f"{save_path}/compare_cluster.json", all_results) 
 
 def run_multi_task_range(all_results, start_ind, end_ind, save_name, compress_type="id"):
     common = CompressMethod(0, compress_type, info={"range_index": (start_ind, end_ind)})
@@ -435,7 +441,7 @@ def run_window_prediction_feature():
 
     dump_json("save/test-mlt-gp-feat/all_result_window.json", all_results)
 
-def run_ARMA_param_search():
+def run_ARMA_param_search(save_folder="exp_result/hyper_param_arma"):
     metal_names = find_all_metal_names()
     all_output_data = [
         get_data(metal, is_price_only=False, is_feat=False)
@@ -449,7 +455,7 @@ def run_ARMA_param_search():
         for metal in metal_names
     }
 
-    create_folder("exp_result/hyper_param")
+    create_folder(save_folder)
 
     for metal in metal_names:
         for i, s1 in enumerate(np.arange(2, 12, step=1)):
@@ -463,7 +469,7 @@ def run_ARMA_param_search():
                     print(f"Value Error At {s1}, {s2}")
                     result[metal][i, j] = 10 
 
-                np.save(f"exp_result/hyper_param_arma/{metal}.npy", result[metal])
+                np.save(f"{save_folder}/{metal}.npy", result[metal])
 
 def argument_parser():
     parser = argparse.ArgumentParser()
@@ -522,10 +528,16 @@ def compare_cluster():
     is_test=args.is_test
     is_verbose=args.is_verbose
 
+    # grid_compare_clusters(
+    #     "result/cluster_result/feat_data/cluster_4.json", 
+    #     "exp_result/cluster_compare", 
+    #     3, 3, "Composite_1", is_test=is_test, is_verbose=is_verbose
+    # )
+    
     grid_compare_clusters(
         "result/cluster_result/feat_data/cluster_4.json", 
         "exp_result/cluster_compare", 
-        3, 3, "Composite_1", is_test=is_test, is_verbose=is_verbose
+        [2, 2], [2, 10], "RBF", is_test=is_test, is_verbose=is_verbose
     )
 
 def grid_commodities():
@@ -535,7 +547,7 @@ def grid_commodities():
     
     grid_commodities_run(
         "exp_result/grid_corr_plot/", 
-        1, 1, "Composite_1", 
+        5, 5, "RBF", 
         is_test=is_test, is_verbose=is_verbose
     )
     plot_grid_commodity("grid_corr_plot/grid_result.json")
@@ -543,9 +555,10 @@ def grid_commodities():
 
 def main():
     # compare_cluster()
-    hyperparameter_search()
+    # hyperparameter_search()
     # run_ARMA_param_search()
     # general_test_run()
+    grid_commodities()
 
 
 if __name__ == '__main__':

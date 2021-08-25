@@ -22,6 +22,9 @@ from collections import OrderedDict
 
 import itertools
 import functools
+import os
+
+from experiments.metal_desc import metal_to_display_name
 
 color = {
     "o": "#ff7500",
@@ -503,24 +506,50 @@ def plot_heat_map(ax, matrix, row_name, column_name, xlabel="PCA", ylabel="Backw
     ax.set_ylabel(ylabel)
     return ax
 
-def plot_hyperparam_search(load_path):
-    results = others.load_json(load_path)
-    all_methods = list(results.keys())
-    all_metric = list(results[all_methods[0]].keys())
+def plot_hyperparam_search():
 
-    fig, ax = plt.subplots(ncols=len(all_methods), nrows=len(all_metric), figsize=(16, 8))
-    row_name = np.arange(2, 14, step=2).tolist()
-    column_name = np.arange(2, 8).tolist()
+    def plot_individual(result, axes):
+        row_name = np.arange(2, 12, step=2).tolist()
+        column_name = np.arange(2, 7).tolist()
 
-    for i, metric in enumerate(all_metric):
-        for j, method in enumerate(all_methods):
-            data = np.array(results[method][metric]) * 100
-            curr_ax = ax[i, j]
-            curr_ax.set_title(f"{method} {metric}") 
-            plot_heat_map(curr_ax, data, row_name, column_name)
+        for i, metric in enumerate(all_metric):
+            for j, method in enumerate(all_methods):
+                data = np.array(results[method][metric]) * 10
+                curr_ax = axes[i, j] 
+                curr_ax.set_title(f"{algo_dict.class_name_to_display[method]} {metric}") 
+                plot_heat_map(curr_ax, data, row_name, column_name)
 
-    fig.tight_layout()
-    plt.show()
+ 
+    fig = plt.figure(figsize=(15, 15), constrained_layout=True)
+    subfigs = fig.subfigures(2, 2)
+    
+    list_load_path = [
+        "exp_result/save_hyper/hyper_search_matern/final_result_matern.json",
+        "exp_result/save_hyper/hyper_search_matern_periodic/final_result_matern_periodic.json",
+        "exp_result/save_hyper/hyper_search_rbf/final_result_rbf.json",
+        "exp_result/save_hyper/hyper_search_rbf_periodic/final_result_rbf_periodic.json"
+    ]
+
+    list_name = [
+        "Matern", "Matern + Periodic", "RBF", "RBF + Periodic"
+    ]
+            
+    for i, (load_path, name) in enumerate(zip(list_load_path, list_name)):    
+        results = others.load_json(load_path)
+        all_methods = list(results.keys())
+        all_metric = list(results[all_methods[0]].keys())
+        # all_metric = ["CRPS"]
+
+        curr_subfig = subfigs.flatten()[i]
+        axes = curr_subfig.subplots(ncols=len(all_methods), nrows=len(all_metric))
+
+        if axes.ndim == 1:
+            axes = np.expand_dims(axes, axis=0)
+
+        plot_individual(results, axes)
+        curr_subfig.suptitle(name, fontsize=25)
+    
+    fig.savefig("figure/hyperparam.pdf")
 
 def plot_compare_cluster():
     result_cluster = others.load_json("exp_result/cluster_compare/compare_cluster.json")
@@ -565,6 +594,18 @@ def plot_compare_cluster():
     
     # print(diff_result)
 
+def plot_arma_hyper_search(main_path):
+    get_all_npy = lambda path: sorted([f for f in os.listdir(path) if ".npy" in f])
+    all_path = get_all_npy(main_path)
+
+    row_name = np.arange(2, 12, step=1)
+    col_name = np.arange(2, 12, step=1)
+
+    for path in all_path:
+        # fig, ax = plt.subplots(figsize=(10, 10))
+        data = np.load(main_path + "/" + path) * 0.00001
+        row, col = np.unravel_index(data.argmax(), data.shape)
+        print(f"For Metal {metal_to_display_name[path.split('.')[0]]}: Optimal Order: ({row_name[row]}, 0, {col_name[col]})")
 
 def cluster_label_to_dict(labels):
     num_cluster = len(set(labels))
@@ -622,6 +663,7 @@ def plot_grid_commodity(load_path):
             round_acc=3
         )
         plt.setp(axes[i].get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+        axes.set_title(algo_dict.class_name_to_display[algo])
      
     fig.tight_layout()
     plt.show()

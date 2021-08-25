@@ -284,6 +284,11 @@ def plot_graph_hsic():
             for name in test_name
         ]
 
+        list_addi_info = [
+            np.load(f"exp_result/graph_result/{name.lower()}_test_addi_info.npy")
+            for name in test_name
+        ]
+
     return show_test_stat_graph(names, test_name, list_test_stat, list_is_correlated, size=1500, k=5)
 
 @save_figure("figure/p_value_window_unrelated.pdf")

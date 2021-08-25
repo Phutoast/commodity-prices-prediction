@@ -8,7 +8,7 @@ from examples.simple_example import example_plot_all_algo_lag, example_plot_walk
 from utils.others import create_folder, find_all_metal_names
 
 from utils.data_structure import CompressMethod
-from utils.data_visualization import plot_hyperparam_search, plot_compare_cluster
+from utils.data_visualization import plot_hyperparam_search, plot_compare_cluster, plot_arma_hyper_search
 from utils.data_preprocessing import GlobalModifier, load_metal_data, save_date_common
 from utils import explore_data, others
 from utils.data_structure import DatasetTaskDesc
@@ -75,17 +75,6 @@ def main():
         for metal in find_all_metal_names("data")
     }
     
-    # task = gen_experiment.gen_task_cluster(
-    #     all_algo=["GPMultiTaskMultiOut", "ARIMAModel"], 
-    #     type_task="metal", 
-    #     modifier=all_modifiers, 
-    #     clus_metal_desc=[["copper", "lldpe"], ["carbon", "nickel"]],
-    #     clus_time_desc=None,
-    #     algo_config=algo_config,
-    #     len_dataset=130, 
-    #     len_train_show=(200, 100)
-    # )
-    
     task = gen_experiment.gen_task_cluster(
         all_algo=["ARIMAModel"], 
         type_task="time", 
@@ -102,7 +91,7 @@ def main():
     exp_setting2 = {
         "task": {
             "sub_model": [
-                [f'v-gp_multi_task-Composite_1-{num_train_iter}-10', f'v-gp_multi_task-Composite_1-{num_train_iter}-10'], ['arima-20,0,20']
+                [f'v-gp_multi_task-Composite_1-{num_train_iter}-10', f'v-gp_multi_task-Composite_1-{num_train_iter}-10'], ['arima-8,1,10']
             ],
             "dataset": [
                 [
@@ -229,7 +218,7 @@ if __name__ == '__main__':
     # explore_data.plot_window_related()
 
     # explore_data.plot_correlation_all()
-    explore_data.plot_graph_hsic()
+    # explore_data.plot_graph_hsic()
 
     # explore_data.plot_years_correlation("nickel", "copper")
     # explore_data.plot_years_correlation("natgas", "copper")
@@ -237,16 +226,12 @@ if __name__ == '__main__':
     # explore_data.distance_between_time_series()
     # explore_data.clustering_dataset(num_cluster=4, is_verbose=True)
     # explore_data.clustering_dataset()
-
-    # plot_hyperparam_search("exp_result/hyper_param_gp")
-
     # explore_data.plot_correlation_all()
 
-    # from kernel_test.hsic import is_dependent_wild_HSIC, wild_bootstrap_HSIC
-    # from utils.kernel_examples import generate_time_series
+    # plot_hyperparam_search()
+    plot_arma_hyper_search("exp_result/hyper_param_arma")
+    # plot_compare_cluster()
     
     # main()
     # gen_experiment.cluster_index_to_nested([0, 3, 0, 2, 3, 1, 1, 1, 2, 4])
-    # plot_compare_cluster()
-    # main()
 
