@@ -9,6 +9,7 @@ from models.GP_multi_out import GPMultiTaskMultiOut
 from models.GP_multi_index import GPMultiTaskIndex
 from models.Deep_GP import DeepGPMultiOut
 from models.DSPP_GP import DSPPMultiOut
+from models.Sparse_GP_index import SparseGPIndex
 
 from models.full_AR_model import FullARModel
 
@@ -38,7 +39,8 @@ multi_task_algo = {
     "GPMultiTaskMultiOut": GPMultiTaskMultiOut,
     "GPMultiTaskIndex": GPMultiTaskIndex,
     "DeepGPMultiOut": DeepGPMultiOut,
-    "DSPPMultiOut": DSPPMultiOut
+    "DSPPMultiOut": DSPPMultiOut, 
+    "SparseGPIndex": SparseGPIndex
 }
 
 class_name_to_display = {
@@ -49,7 +51,8 @@ class_name_to_display = {
     "GPMultiTaskMultiOut": "Multi-Task GP Output",
     "GPMultiTaskIndex": "Multi-Task GP Index",
     "DeepGPMultiOut": "2 Layer Deep GP",
-    "DSPPMultiOut": "2 Layer DSPP GP"
+    "DSPPMultiOut": "2 Layer DSPP GP",
+    "SparseGPIndex": "Sparse Multi-Task GP Index"
 }
 
 algo_is_using_first = {k: v.expect_using_first for k, v in multi_task_algo.items()}

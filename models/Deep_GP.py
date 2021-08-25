@@ -38,7 +38,8 @@ class DeepGPMultiOut(GPMultiTaskMultiOut):
     def build_training_model(self):
         self.model = create_deep_GP(
             self.create_funct, self.train_x.size(), 
-            self.num_task, self.hyperparam
+            self.num_task, self.hyperparam, 
+            num_inducing=self.train_x.size(0)//3
         ) 
 
         return self.model
@@ -55,8 +56,13 @@ class DeepGPMultiOut(GPMultiTaskMultiOut):
             num_data=self.train_y.size(0)
         )
 
-        train_dataset = TensorDataset(self.train_x, self.train_y)
-        self.train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+        train_dataset = TensorDataset(
+            self.train_x, self.train_y
+        )
+
+        self.train_loader = DataLoader(
+            train_dataset, batch_size=64, shuffle=True
+        )
 
         return self.optimizer, self.loss_obj
     
@@ -74,7 +80,7 @@ class DeepGPMultiOut(GPMultiTaskMultiOut):
             if j%5 == 0:
                 print(f"Loss At Epoch {epoch}/{num_iter} At Batch {j}/{num_batch}", loss)
             
-            break
+            # break
     
     def after_training(self):
         self.model.eval()
@@ -104,8 +110,8 @@ class DeepGPMultiOut(GPMultiTaskMultiOut):
                 return rv
 
     def build_model_from_loaded(self, all_data, list_config, num_task):
-        (_, self.train_x, self.train_y, 
-            self.mean_x, self.std_x) = all_data
+        (state_dict, self.train_x, self.train_y, 
+            self.mean_x, self.std_x, self.train_ind) = all_data
         
         self.model = create_deep_GP(
             self.create_funct, self.train_x.size(), 

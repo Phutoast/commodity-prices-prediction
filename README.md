@@ -3,6 +3,13 @@ Part of my master project, which includes the following algorithms
 
 - [x] ARIMA
 - [x] Gaussian Process
+- [x] Multi-Task Gaussian Process
+- [x] Multi-Task Index Gaussian Process (Use index of each task)
+- [x] Deep Gaussian Process with Multi-Task Output
+- [x] Deep Sigma Point Process with Multi-Task Output
+- [ ] Sparse Multi-Task Index Gaussian Process
+- [ ] Matern Graph Gaussian Process
+
 
 See `main.py` for examples. Running a Test for Data-Splitting Algorithm. The data should be stored in `data/{metal_name}`.
 

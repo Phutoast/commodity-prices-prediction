@@ -1,17 +1,12 @@
 import numpy as np
-import pandas as pd
-import json
 
 import torch
 import gpytorch
 from models.train_model import BaseTrainMultiTask
 from models.GP_model import MultiTaskGPIndexModel
 
-from experiments import algo_dict
 from utils import others
 from utils.data_structure import Hyperparameters
-
-import copy
 
 class GPMultiTaskIndex(BaseTrainMultiTask):
     
@@ -30,6 +25,8 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
 
         if self.hyperparam["is_gpu"]:
             self.likelihood = self.likelihood.cuda()
+        
+        self.name = "multi_index_GP"
     
     def merge_all_data(self, data_list, label_list):
         train_ind = [
@@ -100,11 +97,8 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
         self.std_x = clean_gpu(self.std_x)
         self.train_ind = clean_gpu(self.train_ind)
         torch.cuda.empty_cache()
-
-    def predict_step_ahead(self, list_test_data, list_step_ahead, list_all_date, ci=0.9, is_sample=False):
-        self.model.eval()
-        self.likelihood.eval() 
-        
+    
+    def prepare_predict(self, list_test_data, list_step_ahead):
         (all_data, test_ind), _ = self.pack_data_merge(
             list_test_data, self.hyperparam["is_past_label"], using_first=self.using_first
         )
@@ -114,6 +108,9 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
             all_data = all_data[:, :-1]
         assert all(step_ahead <= all_data.shape[0] for step_ahead in list_step_ahead)
         
+        return all_data, test_ind
+    
+    def pred_all(self, all_data, test_ind, is_sample):
         with torch.no_grad(), gpytorch.settings.fast_pred_var(), gpytorch.settings.max_cg_iterations(2000):
             test_x = torch.from_numpy(all_data).float()
             test_ind = torch.from_numpy(test_ind).float()
@@ -129,13 +126,25 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
                 pred_lower = lower.detach().cpu().numpy()
                 pred_upper = upper.detach().cpu().numpy()
                 test_ind = test_ind.detach().cpu()
+                return pred_mean, pred_lower, pred_upper, test_ind
             else:
                 rv = self.model(test_x, test_ind)
                 rv = rv.sample(sample_shape=torch.Size([1000])).cpu().numpy()
+                return rv
         
         self.clean_gpu_data()
-        
+
+    def predict_step_ahead(self, list_test_data, list_step_ahead, list_all_date, ci=0.9, is_sample=False):
+        self.model.eval()
+        self.likelihood.eval() 
+
+        all_data, test_ind = self.prepare_predict(
+            list_test_data, list_step_ahead
+        )
+        out = self.pred_all(all_data, test_ind, is_sample)
+         
         if not is_sample:
+            pred_mean, pred_lower, pred_upper, test_ind = out
             list_mean, list_lower, list_upper = [], [], [] 
             for i in range(self.num_task):
                 index_task = (test_ind == i).nonzero(as_tuple=True)[0].cpu().numpy()
@@ -145,6 +154,7 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
             
             return list_mean, list_lower, list_upper, list_all_date
         else:
+            rv = out
             list_sample = []
             for i in range(self.num_task):
                 index_task = (test_ind == i).nonzero(as_tuple=True)[0].cpu().numpy()
@@ -159,7 +169,7 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
 
     def save(self, base_path):
         others.create_folder(base_path)
-        path = base_path + "/multi_index_GP/"
+        path = base_path + f"/{self.name}/"
         others.create_folder(path)
         path += "model"
 
@@ -172,13 +182,22 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
 
         others.dump_json(f"{base_path}/config.json", self.list_config_json)
     
+    def build_model_from_loaded(self, all_data, list_config, num_task):
+        (state_dict, self.train_x, self.train_y, 
+            self.mean_x, self.std_x, self.train_ind) = all_data
+
+        self.model = MultiTaskGPIndexModel(
+            (self.train_x, self.train_ind), self.train_y, self.likelihood, 
+            self.load_kernel(list_config[0][0]["kernel"]), num_task
+        )
+     
     def load(self, base_path):  
         data = others.load_json(f"{base_path}/config.json")
         
         list_config = data["list_config"]
         num_task = len(list_config)
         
-        path = base_path + "/multi_index_GP/"
+        path = base_path + f"/{self.name}/"
         path += "model"
 
         all_ext = [".pth", "_x.pt", "_y.pt", "_mean_x.pt", "_std_x.pt", "_train_ind.pt"]
@@ -188,18 +207,13 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
         else:
             all_data = [torch.load(path + ext, map_location=torch.device("cpu")) for ext in all_ext]
         
-        (state_dict, self.train_x, self.train_y, 
-            self.mean_x, self.std_x, self.train_ind) = all_data
-
-        self.model = MultiTaskGPIndexModel(
-            (self.train_x, self.train_ind), self.train_y, self.likelihood, 
-            self.load_kernel(list_config[0][0]["kernel"]), num_task
-        )
+        
+        self.build_model_from_loaded(all_data, list_config, num_task) 
         
         if self.hyperparam["is_gpu"]:
             self.model.cuda()
 
-        self.model.load_state_dict(state_dict)
+        self.model.load_state_dict(all_data[0])
  
     @classmethod
     def load_from_path(cls, path):

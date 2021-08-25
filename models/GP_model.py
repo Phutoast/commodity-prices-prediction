@@ -1,6 +1,11 @@
-import gpytorch
 import torch
+import gpytorch
 from gpytorch.likelihoods import MultitaskGaussianLikelihood
+
+from gpytorch.models import ApproximateGP
+from gpytorch.variational import CholeskyVariationalDistribution
+from gpytorch.variational import VariationalStrategy
+
 
 class OneDimensionGP(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood, kernel):
@@ -60,10 +65,35 @@ class MultiTaskGPIndexModel(gpytorch.models.ExactGP):
         covar = covar_x.mul(covar_i)
 
         return gpytorch.distributions.MultivariateNormal(mean_x, covar)
+
+class MultitaskSparseGPIndex(ApproximateGP):
+    def __init__(self, ind_pts, kernel, num_task):
+        
+        var_dist = CholeskyVariationalDistribution(ind_pts.size(0))
+        var_strategy = VariationalStrategy(
+            self, ind_pts, var_dist, 
+            learn_inducing_locations=True
+        )
+        super(MultitaskSparseGPIndex, self).__init__(var_strategy)
+
+        self.mean_module = gpytorch.means.ConstantMean()
+        self.covar_module = kernel
+        self.task_covar_module = gpytorch.kernels.IndexKernel(
+            num_tasks=num_task, rank=min(2, num_task)
+        )
+
+    def forward(self, x, all_ind):
+        mean_x = self.mean_module(x)
+        covar_x = self.covar_module(x)
+
+        covar_i = self.task_covar_module(all_ind)
+        covar = covar_x.mul(covar_i)
+
+        return gpytorch.distributions.MultivariateNormal(mean_x, covar)    
         
 def create_deep_GP(
         create_config_funct, train_x_shape, num_tasks, hyperparameters, 
-        num_inducing=300, hidden_layer_size=32, num_quad_site=3
+        num_inducing=256, hidden_layer_size=32, num_quad_site=3
     ):
 
     curr_config = create_config_funct(num_inducing, num_quad_site)

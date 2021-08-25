@@ -35,6 +35,8 @@ class MultitaskSparseGPModel(ApproximateGP):
         self.task_covar_module = gpytorch.kernels.IndexKernel(num_tasks=2, rank=1)
 
     def forward(self, x, all_ind):
+        print(x)
+        assert False
         mean_x = self.mean_module(x)
 
         covar_x = self.covar_module(x)
