@@ -1,5 +1,5 @@
-from gpytorch.models.deep_gps.dspp import DSPP
 from utils.dspp_hidden import DSPPHHiddenLayer
+from gpytorch.models.deep_gps.dspp import DSPP
 from gpytorch.mlls import DeepPredictiveLogLikelihood
 
 from gpytorch.models.deep_gps import DeepGP

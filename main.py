@@ -94,7 +94,7 @@ def main():
     exp_setting2 = {
         "task": {
             "sub_model": [
-                [f'v-gp_multi_task-Composite_1-{num_train_iter}-10', f'v-gp_multi_task-Composite_1-{num_train_iter}-10'], ['arima-8,1,10']
+                [f'v-dspp_gp-Matern-{num_train_iter}-10', f'v-dspp_gp-Matern-{num_train_iter}-10'], ['arima-8,1,10']
             ],
             "dataset": [
                 [
@@ -141,17 +141,16 @@ def main():
             "len_pred_show": 130,
             "len_train_show":(200, 100)
         },
-        "algo": ["GPMultiTaskMultiOut", "IndependentMultiModel"],
+        # "algo": ["GPMultiTaskMultiOut", "IndependentMultiModel"],
         # "algo": ["DeepGPMultiOut", "IndependentMultiModel"],
+        "algo": ["DSPPMultiOut", "IndependentMultiModel"],
         "using_first": [True, False]
     }
 
     if test_type == "f":
         example_plot_all_algo_lag(
-            {}, is_save=False, is_load=True,
-            # load_path="Hard_Cluster",
-            load_path="08-25-21-20-32-35-Hard_Cluster"
-            # load_path="08-25-21-20-39-50-Hard_Cluster"
+            exp_setting2, is_save=True, is_load=False,
+            load_path="Hard_Cluster",
         )
     elif test_type == "w":
         example_plot_walk_forward(

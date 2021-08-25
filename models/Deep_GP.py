@@ -25,14 +25,19 @@ def create_deep_gp_config(num_inducing, num_quad_site):
 class DeepGPMultiOut(GPMultiTaskMultiOut):
     
     expect_using_first = True
+    is_external_likelihood = False
 
     def __init__(self, list_train_data, list_config, using_first):
         super().__init__(list_train_data, list_config, using_first)
         self.name = "deep_gp"
+        self.loss_class = lambda likelihood, model, num_data : DeepApproximateMLL(
+            VariationalELBO(likelihood, model, num_data)
+        )
+        self.create_funct = create_deep_gp_config
     
     def build_training_model(self):
         self.model = create_deep_GP(
-            create_deep_gp_config, self.train_x.size(), 
+            self.create_funct, self.train_x.size(), 
             self.num_task, self.hyperparam
         ) 
 
@@ -45,10 +50,10 @@ class DeepGPMultiOut(GPMultiTaskMultiOut):
             self.model.parameters(), 
             lr=self.hyperparam["lr"]
         )
-        self.loss_obj = DeepApproximateMLL(VariationalELBO(
+        self.loss_obj = self.loss_class(
             self.model.likelihood, self.model, 
             num_data=self.train_y.size(0)
-        ))
+        )
 
         train_dataset = TensorDataset(self.train_x, self.train_y)
         self.train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
@@ -103,6 +108,6 @@ class DeepGPMultiOut(GPMultiTaskMultiOut):
             self.mean_x, self.std_x) = all_data
         
         self.model = create_deep_GP(
-            create_deep_gp_config, self.train_x.size(), 
+            self.create_funct, self.train_x.size(), 
             self.num_task, self.hyperparam
         ) 
