@@ -131,14 +131,15 @@ def general_testing(is_verbose, is_test):
     
     all_algo = [
         "GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex", "IIDDataModel", "ARIMAModel", 
-        "DeepGPMultiOut", "DSPPMultiOut", "SparseGPIndex", 
+        "DeepGPMultiOut", "DSPPMultiOut", "SparseGPIndex", "DeepGraphMultiOutputGP"
         "SparseMaternGraphGP"
     ] 
     display_name_to_algo = dict(zip(
         all_algo,[
             "Multi-Task Out", "Independent GP", "Multi-Task Index", 
             "Mean", "ARIMA", "Deep GP", "DSPP", 
-            "Sparse Multi-Task Index", "Sparse Matern Graph GP"
+            "Sparse Multi-Task Index", "Sparse Matern Graph GP", 
+            "Deep Graph Multi Output GP"
         ],
     ))
     
@@ -147,6 +148,9 @@ def general_testing(is_verbose, is_test):
         "DeepGPMultiOut", "DSPPMultiOut", "SparseGPIndex", 
         "SparseMaternGraphGP"
     ] 
+
+    all_algo = ["DeepGraphMultiOutputGP"]
+    # all_algo = ["GPMultiTaskIndex"]
 
     base_multi_task_fast_lr = algo_dict.encode_params(
         "gp_multi_task", is_verbose=is_verbose, 
@@ -176,6 +180,7 @@ def general_testing(is_verbose, is_test):
         "DSPPMultiOut": base_multi_task_slow_lr,
         "SparseGPIndex": base_multi_task_slow_lr,
         "SparseMaternGraphGP": base_multi_task_slow_lr,
+        "DeepGraphMultiOutputGP": base_multi_task_slow_lr,
         "IndependentGP": algo_dict.encode_params(
             "gp", is_verbose=is_verbose, 
             is_test=is_test, 
@@ -503,28 +508,28 @@ def hyperparameter_search():
 
     run_hyperparam_search(
         "matern", "exp_result/save_hyper", 
-        multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut"],
+        multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"],
         kernel="Matern", is_test=is_test, 
         is_verbose=is_verbose
     )
     run_hyperparam_search(
         "rbf", "exp_result/save_hyper", 
-        multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut"],
+        multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"],
         kernel="RBF", is_test=is_test, 
         is_verbose=is_verbose
     )
-    run_hyperparam_search(
-        "matern_periodic", "exp_result/save_hyper", 
-        multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut"],
-        kernel="Composite_1", is_test=is_test, 
-        is_verbose=is_verbose
-    )
-    run_hyperparam_search(
-        "rbf_periodic", "exp_result/save_hyper", 
-        multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut"],
-        kernel="Composite_2", is_test=is_test, 
-        is_verbose=is_verbose
-    )
+    # run_hyperparam_search(
+    #     "matern_periodic", "exp_result/save_hyper", 
+    #     multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut"],
+    #     kernel="Composite_1", is_test=is_test, 
+    #     is_verbose=is_verbose
+    # )
+    # run_hyperparam_search(
+    #     "rbf_periodic", "exp_result/save_hyper", 
+    #     multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut"],
+    #     kernel="Composite_2", is_test=is_test, 
+    #     is_verbose=is_verbose
+    # )
 
 def general_test_run():
     args = argument_parser()
@@ -576,9 +581,9 @@ def main():
     # compare_cluster()
     # hyperparameter_search()
     # run_ARMA_param_search()
-    # general_test_run()
+    general_test_run()
     # grid_commodities()
-    grid_compare_graph()
+    # grid_compare_graph()
 
 
 if __name__ == '__main__':

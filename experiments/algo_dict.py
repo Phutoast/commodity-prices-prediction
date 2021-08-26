@@ -11,6 +11,7 @@ from models.Deep_GP import DeepGPMultiOut
 from models.DSPP_GP import DSPPMultiOut
 from models.Sparse_GP_index import SparseGPIndex
 from models.GP_Graph import SparseMaternGraphGP
+from models.Deep_Graph_GP import DeepGraphMultiOutputGP
 
 from models.full_AR_model import FullARModel
 
@@ -42,7 +43,8 @@ multi_task_algo = {
     "DeepGPMultiOut": DeepGPMultiOut,
     "DSPPMultiOut": DSPPMultiOut, 
     "SparseGPIndex": SparseGPIndex,
-    "SparseMaternGraphGP": SparseMaternGraphGP
+    "SparseMaternGraphGP": SparseMaternGraphGP,
+    "DeepGraphMultiOutputGP": DeepGraphMultiOutputGP
 }
 
 class_name_to_display = {
@@ -55,7 +57,8 @@ class_name_to_display = {
     "DeepGPMultiOut": "2 Layer Deep GP",
     "DSPPMultiOut": "2 Layer DSPP GP",
     "SparseGPIndex": "Sparse Multi-Task GP Index",
-    "SparseMaternGraphGP": "Sparse Matern Graph GP"
+    "SparseMaternGraphGP": "Sparse Matern Graph GP",
+    "DeepGraphMultiOutputGP": "Deep Graph Kernel GP"
 }
 
 algo_is_using_first = {k: v.expect_using_first for k, v in multi_task_algo.items()}
@@ -74,6 +77,8 @@ class AlgoDict(object):
             is_date=False, 
             is_past_label=True,
             kernel=None,
+            num_hidden_dim=32,
+            final_size=16,
             graph_path="exp_result/graph_result/kendell_test_graph.npy"
         )
 

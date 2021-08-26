@@ -102,9 +102,6 @@ class SparseGPIndex(GPMultiTaskIndex):
                 test_ind = test_ind.cuda()
             test_x = self.normalize_data(test_x, is_train=False)
 
-        rv = self.model(
-            test_x, all_ind=torch.cat([self.ind_index, test_ind], axis=0)
-        )
         if not is_sample:
             pred = self.likelihood(self.model(
                 test_x, all_ind=torch.cat([self.ind_index, test_ind], axis=0)

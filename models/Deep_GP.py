@@ -39,7 +39,8 @@ class DeepGPMultiOut(GPMultiTaskMultiOut):
         self.model = create_deep_GP(
             self.create_funct, self.train_x.size(), 
             self.num_task, self.hyperparam, 
-            num_inducing=self.train_x.size(0)//3
+            num_inducing=self.train_x.size(0)//3,
+            hidden_layer_size=self.hyperparam["num_hidden_dim"]
         ) 
 
         return self.model

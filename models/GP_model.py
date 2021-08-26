@@ -7,6 +7,7 @@ from gpytorch.models import ApproximateGP
 from gpytorch.variational import CholeskyVariationalDistribution
 from gpytorch.variational import VariationalStrategy
 
+from models.Conv_Graph_NN import CustomGCN
 
 class OneDimensionGP(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood, kernel):
@@ -41,7 +42,7 @@ class MultioutputGP(gpytorch.models.ExactGP):
             gpytorch.means.ConstantMean(), num_tasks=num_out
         )
         self.covar_module = gpytorch.kernels.MultitaskKernel(
-            kernel, num_tasks=num_out, rank=min(2, num_out)
+            kernel, num_tasks=num_out, rank=min(5, num_out)
         )
     
     def forward(self, x):
@@ -55,7 +56,7 @@ class MultiTaskGPIndexModel(gpytorch.models.ExactGP):
         self.mean_module = gpytorch.means.ConstantMean()
         self.covar_module = kernel
         self.task_covar_module = gpytorch.kernels.IndexKernel(
-            num_tasks=num_task, rank=min(2, num_task)
+            num_tasks=num_task, rank=min(5, num_task)
         )
     
     def forward(self, x, i):
@@ -80,7 +81,7 @@ class MultitaskSparseGPIndex(ApproximateGP):
         self.mean_module = gpytorch.means.ConstantMean()
         self.covar_module = kernel
         self.task_covar_module = gpytorch.kernels.IndexKernel(
-            num_tasks=num_task, rank=min(2, num_task)
+            num_tasks=num_task, rank=min(5, num_task)
         )
 
     def forward(self, x, all_ind):
@@ -237,3 +238,45 @@ class SparseGraphGP(ApproximateGP):
         covar = covar_x.mul(covar_i)
 
         return gpytorch.distributions.MultivariateNormal(mean_x, covar)    
+
+class TwoLayerGCN(torch.nn.Module):
+    def __init__(self, num_feature, hidden_channels, final_size):
+        super(TwoLayerGCN, self).__init__()
+        self.conv1 = CustomGCN(num_feature, hidden_channels)
+        self.conv3 = CustomGCN(hidden_channels, final_size)
+
+    def forward(self, x, graph_batch):
+        x = self.conv1(x, graph_batch)
+        x = x.relu()
+        x = self.conv3(x, graph_batch)
+        x = torch.mean(x, dim=1)
+
+        return x
+
+class DeepKernelMultioutputGP(gpytorch.models.ExactGP):
+    def __init__(self, train_x, train_y, 
+        likelihood, kernel, num_task, 
+        num_feature, graph_NN, graph_adj):
+
+        super(DeepKernelMultioutputGP, self).__init__(train_x, train_y, likelihood)
+        self.mean_module = gpytorch.means.MultitaskMean(
+            gpytorch.means.ConstantMean(), num_tasks=num_task
+        )
+        self.covar_module = gpytorch.kernels.MultitaskKernel(
+            kernel, num_tasks=num_task, rank=min(5, num_task)
+        )
+
+        self.num_task = num_task
+        self.num_feature = num_feature
+        self.graph_adj = graph_adj
+        
+        self.feature_extractor = graph_NN
+    
+    def forward(self, x):
+        x = x.view(-1, self.num_task, self.num_feature) 
+        x = self.feature_extractor(x, self.graph_adj)
+
+        mean_x = self.mean_module(x)
+        covar_x = self.covar_module(x)
+        return gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
+

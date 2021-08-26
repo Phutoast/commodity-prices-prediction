@@ -96,7 +96,7 @@ def main():
     exp_setting2 = {
         "task": {
             "sub_model": [
-                [f'v-gp_multi_task-Matern-{num_train_iter}-10', f'v-gp_multi_task-Matern-{num_train_iter}-10'], ['arima-8,1,10']
+                [f'v-gp_multi_task-Matern-{num_train_iter}-4', f'v-gp_multi_task-Matern-{num_train_iter}-4'], ['arima-8,1,10']
             ],
             "dataset": [
                 [
@@ -144,12 +144,13 @@ def main():
             "len_train_show":(200, 100)
         },
         # "algo": ["GPMultiTaskMultiOut", "IndependentMultiModel"],
-        "algo": ["DeepGPMultiOut", "IndependentMultiModel"],
+        # "algo": ["DeepGPMultiOut", "IndependentMultiModel"],
         # "algo": ["DSPPMultiOut", "IndependentMultiModel"],
         # "algo": ["GPMultiTaskIndex", "IndependentMultiModel"],
         # "algo": ["SparseGPIndex", "IndependentMultiModel"],
-        # "using_first": [False, False]
-        "using_first": [True, False]
+        "algo": ["DeepGraphGP", "IndependentMultiModel"],
+        "using_first": [False, False]
+        # "using_first": [True, False]
     }
 
     if test_type == "f":
@@ -238,8 +239,8 @@ if __name__ == '__main__':
     # plot_arma_hyper_search("exp_result/hyper_param_arma")
     # plot_compare_cluster()
 
-    plot_compare_graph()
+    # plot_compare_graph()
     
-    # main()
+    main()
     # gen_experiment.cluster_index_to_nested([0, 3, 0, 2, 3, 1, 1, 1, 2, 4])
 
