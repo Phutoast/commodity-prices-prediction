@@ -18,7 +18,7 @@ class DeepGraphMultiOutputGP(GPMultiTaskIndex):
         self.name = "deep_graph_gp"
         self.likelihood = MultitaskGaussianLikelihood(
                 num_tasks=self.num_task
-            )
+        )
     
     def repackage_data(self, data, data_ind, feat_size):  
         split_task = []

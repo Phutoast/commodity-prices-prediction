@@ -12,6 +12,7 @@ from models.DSPP_GP import DSPPMultiOut
 from models.Sparse_GP_index import SparseGPIndex
 from models.GP_Graph import SparseMaternGraphGP
 from models.Deep_Graph_GP import DeepGraphMultiOutputGP
+from models.Deep_InfoMax_GP import DeepGraphInfoMaxMultiOutputGP
 
 from models.full_AR_model import FullARModel
 
@@ -44,7 +45,8 @@ multi_task_algo = {
     "DSPPMultiOut": DSPPMultiOut, 
     "SparseGPIndex": SparseGPIndex,
     "SparseMaternGraphGP": SparseMaternGraphGP,
-    "DeepGraphMultiOutputGP": DeepGraphMultiOutputGP
+    "DeepGraphMultiOutputGP": DeepGraphMultiOutputGP,
+    "DeepGraphInfoMaxMultiOutputGP": DeepGraphInfoMaxMultiOutputGP
 }
 
 class_name_to_display = {
@@ -58,7 +60,8 @@ class_name_to_display = {
     "DSPPMultiOut": "2 Layer DSPP GP",
     "SparseGPIndex": "Sparse Multi-Task GP Index",
     "SparseMaternGraphGP": "Sparse Matern Graph GP",
-    "DeepGraphMultiOutputGP": "Deep Graph Kernel GP"
+    "DeepGraphMultiOutputGP": "Deep Graph GP",
+    "DeepGraphInfoMaxMultiOutputGP": "Deep Graph InfoMax GP"
 }
 
 algo_is_using_first = {k: v.expect_using_first for k, v in multi_task_algo.items()}

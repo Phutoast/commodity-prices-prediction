@@ -8,6 +8,8 @@ from gpytorch.variational import CholeskyVariationalDistribution
 from gpytorch.variational import VariationalStrategy
 
 from models.Conv_Graph_NN import CustomGCN
+import torch.nn.functional as F
+import torch.nn as nn
 
 class OneDimensionGP(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood, kernel):
@@ -243,16 +245,19 @@ class TwoLayerGCN(torch.nn.Module):
     def __init__(self, num_feature, hidden_channels, final_size):
         super(TwoLayerGCN, self).__init__()
         self.conv1 = CustomGCN(num_feature, hidden_channels)
-        self.conv3 = CustomGCN(hidden_channels, final_size)
+        self.conv2 = CustomGCN(hidden_channels, final_size)
+        self.leakyReLU = nn.LeakyReLU()
 
-    def forward(self, x, graph_batch):
+    def forward(self, x, graph_batch, is_summary=True):
         x = self.conv1(x, graph_batch)
-        x = x.relu()
-        x = self.conv3(x, graph_batch)
-        x = torch.mean(x, dim=1)
+        x = self.leakyReLU(x)
+        x = self.conv2(x, graph_batch)
+
+        if is_summary:
+            x = torch.mean(x, dim=1)
 
         return x
-
+    
 class DeepKernelMultioutputGP(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, 
         likelihood, kernel, num_task, 

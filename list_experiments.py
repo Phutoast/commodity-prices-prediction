@@ -22,13 +22,14 @@ np.seterr(invalid='raise')
 multi_task_algo = [
     "GPMultiTaskMultiOut", "GPMultiTaskIndex", "IndependentGP"
     "DeepGPMultiOut", "DSPPMultiOut", "SparseGPIndex", 
-    "SparseMaternGraphGP"
+    "SparseMaternGraphGP", "DeepGraphMultiOutputGP", 
+    "DeepGraphInfoMaxMultiOutputGP"
 ] 
 metric = ["MSE", "CRPS"]
 
 default_len_dataset = 794
 default_len_train_show = (274, 130)
-optim_iter=50
+optim_iter=25
 
 def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10, 
     len_dataset=default_len_dataset, len_train_show=default_len_train_show, 
@@ -131,15 +132,15 @@ def general_testing(is_verbose, is_test):
     
     all_algo = [
         "GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex", "IIDDataModel", "ARIMAModel", 
-        "DeepGPMultiOut", "DSPPMultiOut", "SparseGPIndex", "DeepGraphMultiOutputGP"
-        "SparseMaternGraphGP"
+        "DeepGPMultiOut", "DSPPMultiOut", "SparseGPIndex", "SparseMaternGraphGP", 
+        "DeepGraphMultiOutputGP", "DeepGraphInfoMaxMultiOutputGP"
     ] 
     display_name_to_algo = dict(zip(
         all_algo,[
             "Multi-Task Out", "Independent GP", "Multi-Task Index", 
             "Mean", "ARIMA", "Deep GP", "DSPP", 
             "Sparse Multi-Task Index", "Sparse Matern Graph GP", 
-            "Deep Graph Multi Output GP"
+            "Deep Graph Multi Output GP", "Deep Graph InfoMax"
         ],
     ))
     
@@ -149,7 +150,7 @@ def general_testing(is_verbose, is_test):
         "SparseMaternGraphGP"
     ] 
 
-    all_algo = ["DeepGraphMultiOutputGP"]
+    all_algo = ["DeepGraphInfoMaxMultiOutputGP"]
     # all_algo = ["GPMultiTaskIndex"]
 
     base_multi_task_fast_lr = algo_dict.encode_params(
@@ -181,6 +182,7 @@ def general_testing(is_verbose, is_test):
         "SparseGPIndex": base_multi_task_slow_lr,
         "SparseMaternGraphGP": base_multi_task_slow_lr,
         "DeepGraphMultiOutputGP": base_multi_task_slow_lr,
+        "DeepGraphInfoMaxMultiOutputGP": base_multi_task_slow_lr,
         "IndependentGP": algo_dict.encode_params(
             "gp", is_verbose=is_verbose, 
             is_test=is_test, 
