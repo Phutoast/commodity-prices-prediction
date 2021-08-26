@@ -7,3 +7,4 @@ main.py
 list_experiments.py
 result
 kernel_test
+exp_result/graph_result

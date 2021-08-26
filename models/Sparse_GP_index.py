@@ -38,6 +38,10 @@ class SparseGPIndex(GPMultiTaskIndex):
             self.train_x, self.num_task
         )
 
+        if self.hyperparam["is_gpu"]:
+            self.ind_index = self.ind_index.cuda()
+            self.ind_points = self.ind_points.cuda()
+
         self.model = MultitaskSparseGPIndex(
             self.ind_points, kernel, self.num_task
         )
@@ -84,8 +88,10 @@ class SparseGPIndex(GPMultiTaskIndex):
             loss.backward()
             self.optimizer.step()
             
-            if j%5 == 0 and self.hyperparam["is_verbose"]:
+            if epoch%10 == 0 and j%10 == 0 and self.hyperparam["is_verbose"]:
                 print(f"Loss At Epoch {epoch}/{num_iter} At Batch {j}/{num_batch}", loss)
+            
+            # break
             
     def pred_all(self, all_data, test_ind, is_sample):
         with torch.no_grad(), gpytorch.settings.fast_pred_var():

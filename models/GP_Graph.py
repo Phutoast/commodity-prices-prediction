@@ -28,6 +28,10 @@ class SparseMaternGraphGP(SparseGPIndex):
 
         self.eigen_val = eigen_val.float()
         self.eigen_vec = eigen_vec.float()
+
+        if self.hyperparam["is_gpu"]:
+            self.eigen_val = self.eigen_val.cuda()
+            self.eigen_vec = self.eigen_vec.cuda()
     
     def get_eigen_pairs(self, adj_matrix):
         laplacian = torch.diag(
@@ -47,6 +51,10 @@ class SparseMaternGraphGP(SparseGPIndex):
         self.ind_index, self.ind_points = self.create_ind_points(
             self.train_x, self.num_task
         )
+
+        if self.hyperparam["is_gpu"]:
+            self.ind_index = self.ind_index.cuda()
+            self.ind_points = self.ind_points.cuda()
 
         self.model = SparseGraphGP(
             self.ind_points, kernel, (self.eigen_vec, self.eigen_val)

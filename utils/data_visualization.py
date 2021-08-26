@@ -551,6 +551,7 @@ def plot_hyperparam_search():
     
     fig.savefig("figure/hyperparam.pdf")
 
+@save_figure("figure/compare_cluster.pdf")
 def plot_compare_cluster():
     result_cluster = others.load_json("exp_result/cluster_compare/compare_cluster.json")
 
@@ -590,9 +591,78 @@ def plot_compare_cluster():
 
     fig.tight_layout()
     plt.show()
-    return fig, ax
+    return fig, axes
     
-    # print(diff_result)
+@save_figure("figure/compare_graph.pdf")
+def plot_compare_graph():
+    result_cluster = others.load_json(
+        "exp_result/grid_graph/compare_graph.json"
+    )
+
+    suitable_baseline_compare = {
+        "SparseMaternGraphGP": "SparseGPIndex"
+    }
+
+    graph_name_to_display = {
+        "distance correlation": "Distance Correlation",
+        "hsic": "HSIC",
+        "kendell": "Kendel",
+        "peason": "Peason",
+        "spearman": "Spearman"
+    }
+
+    type_graph = list(result_cluster.keys())
+    type_graph.remove("no_graph_model")
+    type_graph = sorted(type_graph)
+    num_graph = len(type_graph)
+
+    baseline_result = result_cluster["no_graph_model"]
+    del result_cluster["no_graph_model"]
+
+    multi_task_gp = list(result_cluster[type_graph[0]].keys())
+    num_mlt = len(multi_task_gp)
+
+    fig, axes = plt.subplots(
+        ncols=num_mlt, nrows=1, figsize=(5*num_mlt, 4), sharey=True
+    )
+
+    if num_mlt == 1:
+        axes = [axes]
+    
+    list_improvement = []
+    
+    for j, (mtl_gp, ax) in enumerate(zip(multi_task_gp, axes)):
+        for i, graph in enumerate(type_graph):
+            diff = baseline_result[
+                suitable_baseline_compare[mtl_gp]
+            ] - result_cluster[graph][mtl_gp]
+
+            list_improvement.append(diff)
+
+            ax.scatter(
+                x=diff, y=i, 
+                color=color["r"] if diff < 0 else color["g"], 
+                s=40, zorder=3
+            )
+        
+        least_imporv, max_improv = min(list_improvement), max(list_improvement) 
+        
+        ax.axvline(x=0.0, color=color["k"], linestyle="--")
+        ax.set_xlim(least_imporv-0.02, max_improv+0.02)
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.grid(zorder=0)
+        ax.set_title(algo_dict.class_name_to_display[mtl_gp])
+        ax.set_xlabel("Improvement")
+
+        if j == 0:
+            ax.set_yticklabels(
+                [graph_name_to_display[g] for g in type_graph], 
+                rotation=0, fontsize=10
+            )
+            ax.set_ylim(-1, num_graph)
+            ax.set_yticks(np.arange(0, num_graph))
+    
+    return fig, axes
 
 def plot_arma_hyper_search(main_path):
     get_all_npy = lambda path: sorted([f for f in os.listdir(path) if ".npy" in f])

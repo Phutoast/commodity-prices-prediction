@@ -539,8 +539,8 @@ def distance_between_time_series(all_data=True, is_show=True, pre_computed_data=
         
         all_distances.append(distance)
 
-    create_folder("result/distance")
-    soft_dtw.save_data("result/distance/result.npy")
+    create_folder("exp_result/distance")
+    soft_dtw.save_data("exp_result/distance/result.npy")
 
     if is_show: 
         fig, axes = plt.subplots(ncols=3, figsize=(15, 5))
@@ -561,9 +561,9 @@ def distance_between_time_series(all_data=True, is_show=True, pre_computed_data=
 def clustering_dataset(is_side_by_side=True, num_cluster=4, is_verbose=True, use_all_data=False):
 
     if use_all_data:
-        base_folder = "result/cluster_result/all_data"
+        base_folder = "exp_result/cluster_result/all_data"
     else:
-        base_folder = "result/cluster_result/feat_data"
+        base_folder = "exp_result/cluster_result/feat_data"
 
     create_folder(base_folder)
     result = {}
@@ -627,7 +627,7 @@ def clustering_dataset(is_side_by_side=True, num_cluster=4, is_verbose=True, use
     list_correlation, _ = correlation_over_dataset(test_name, all_test)
     run_cluster(test_name, [np.abs(c) for c in list_correlation])
 
-    precomputed_data = np.load("result/distance/result.npy")
+    precomputed_data = np.load("exp_result/distance/result.npy")
 
     list_distance = distance_between_time_series(
         all_data=use_all_data, is_show=False, 

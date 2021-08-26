@@ -8,7 +8,7 @@ from examples.simple_example import example_plot_all_algo_lag, example_plot_walk
 from utils.others import create_folder, find_all_metal_names
 
 from utils.data_structure import CompressMethod
-from utils.data_visualization import plot_hyperparam_search, plot_compare_cluster, plot_arma_hyper_search
+from utils.data_visualization import plot_hyperparam_search, plot_compare_cluster, plot_arma_hyper_search, plot_compare_graph
 from utils.data_preprocessing import GlobalModifier, load_metal_data, save_date_common
 from utils import explore_data, others
 from utils.data_structure import DatasetTaskDesc
@@ -237,7 +237,9 @@ if __name__ == '__main__':
     # plot_hyperparam_search()
     # plot_arma_hyper_search("exp_result/hyper_param_arma")
     # plot_compare_cluster()
+
+    plot_compare_graph()
     
-    main()
+    # main()
     # gen_experiment.cluster_index_to_nested([0, 3, 0, 2, 3, 1, 1, 1, 2, 4])
 

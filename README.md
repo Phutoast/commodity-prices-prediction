@@ -9,6 +9,9 @@ Part of my master project, which includes the following algorithms
 - [x] Deep Sigma Point Process with Multi-Task Output
 - [x] Sparse Multi-Task Index Gaussian Process
 - [x] Sparse Matern Graph Gaussian Process
+- [ ] Deep Graph Kernel 
+- [ ] Deep Graph Kernel + Deep Graph Infomax Pretraining
+- [ ] Normal NN Graph Kernel
 
 
 See `main.py` for examples. Running a Test for Data-Splitting Algorithm. The data should be stored in `data/{metal_name}`.
