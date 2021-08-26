@@ -96,7 +96,7 @@ def main():
     exp_setting2 = {
         "task": {
             "sub_model": [
-                [f'v-deep_gp-Matern-{num_train_iter}-10', f'v-deep_gp-Matern-{num_train_iter}-10'], ['arima-8,1,10']
+                [f'v-gp_multi_task-Matern-{num_train_iter}-10', f'v-gp_multi_task-Matern-{num_train_iter}-10'], ['arima-8,1,10']
             ],
             "dataset": [
                 [
@@ -144,19 +144,19 @@ def main():
             "len_train_show":(200, 100)
         },
         # "algo": ["GPMultiTaskMultiOut", "IndependentMultiModel"],
-        # "algo": ["DeepGPMultiOut", "IndependentMultiModel"],
+        "algo": ["DeepGPMultiOut", "IndependentMultiModel"],
         # "algo": ["DSPPMultiOut", "IndependentMultiModel"],
         # "algo": ["GPMultiTaskIndex", "IndependentMultiModel"],
-        "algo": ["SparseGPIndex", "IndependentMultiModel"],
-        "using_first": [False, False]
-        # "using_first": [True, False]
+        # "algo": ["SparseGPIndex", "IndependentMultiModel"],
+        # "using_first": [False, False]
+        "using_first": [True, False]
     }
 
     if test_type == "f":
         example_plot_all_algo_lag(
-            {}, is_save=False, is_load=True,
-            # load_path="Hard_Cluster",
-            load_path="08-25-21-23-05-11-Hard_Cluster"
+            exp_setting2, is_save=True, is_load=False,
+            load_path="Hard_Cluster",
+            # load_path="08-25-21-23-05-11-Hard_Cluster"
         )
     elif test_type == "w":
         example_plot_walk_forward(

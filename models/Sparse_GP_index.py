@@ -84,9 +84,9 @@ class SparseGPIndex(GPMultiTaskIndex):
             loss.backward()
             self.optimizer.step()
             
-            if j%5 == 0:
+            if j%5 == 0 and self.hyperparam["is_verbose"]:
                 print(f"Loss At Epoch {epoch}/{num_iter} At Batch {j}/{num_batch}", loss)
-    
+            
     def pred_all(self, all_data, test_ind, is_sample):
         with torch.no_grad(), gpytorch.settings.fast_pred_var():
             test_x = torch.from_numpy(all_data).float()

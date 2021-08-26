@@ -118,29 +118,43 @@ def general_testing(is_verbose, is_test):
         for metal in all_metal_name
     }
     
-    all_algo = ["GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex", "IIDDataModel", "ARIMAModel"]
+    all_algo = [
+        "GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex", "IIDDataModel", "ARIMAModel", 
+        "DeepGPMultiOut", "DSPPMultiOut", "SparseGPIndex", 
+        "SparseMaternGraphGP"
+    ] 
     display_name_to_algo = dict(zip(
-        ["GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex", "IIDDataModel", "ARIMAModel"], 
-        ["Multi-Task Out", "Independent GP", "Multi-Task Index", "Mean", "ARIMA"],
+        all_algo,[
+            "Multi-Task Out", "Independent GP", "Multi-Task Index", 
+            "Mean", "ARIMA", "Deep GP", "DSPP", 
+            "Sparse Multi-Task Index", "Sparse Matern Graph GP"
+        ],
     ))
+    
+    all_algo = [
+        "SparseMaternGraphGP"
+    ] 
+
+    base_multi_task = algo_dict.encode_params(
+        "gp_multi_task", is_verbose=is_verbose, 
+        is_test=is_test, 
+        kernel="Matern", 
+        optim_iter=100,
+        len_inp=10,
+        lr=0.1, 
+        graph_path="exp_result/graph_result/kendell_test_graph.npy"
+    )
 
     default_config = {
-        "GPMultiTaskMultiOut": algo_dict.encode_params(
-            "gp_multi_task", is_verbose=is_verbose, 
-            is_test=is_test, 
-            kernel="Composite_1", 
-            optim_iter=100,
-            len_inp=10
-        ),
+        "GPMultiTaskMultiOut": base_multi_task,
+        "GPMultiTaskIndex": base_multi_task,
+        "DeepGPMultiOut": base_multi_task,
+        "DSPPMultiOut": base_multi_task,
+        "SparseGPIndex": base_multi_task,
+        # For Now.........
+        "SparseMaternGraphGP": base_multi_task,
         "IndependentGP": algo_dict.encode_params(
             "gp", is_verbose=is_verbose, 
-            is_test=is_test, 
-            kernel="Composite_1", 
-            optim_iter=100,
-            len_inp=10
-        ),
-        "GPMultiTaskIndex": algo_dict.encode_params(
-            "gp_multi_task", is_verbose=is_verbose, 
             is_test=is_test, 
             kernel="Composite_1", 
             optim_iter=100,
@@ -207,7 +221,7 @@ def general_testing(is_verbose, is_test):
         def how_to_plot(super_task):
             plot_latex(
                 names=[all_algo],
-                results=[super_task["All Meta"]],
+                results=[super_task["All Metal"]],
                 multi_task_name=[find_all_metal_names()],
                 display_name_to_algo=display_name_to_algo
             )
@@ -227,7 +241,7 @@ def general_testing(is_verbose, is_test):
 
     how_to_plot(super_task)
 
-def grid_commodities_run(save_path, list_len_inp, list_pca_dim, kernel, is_test=False, is_verbose=False):
+def grid_commodities_run(save_path, len_inp, pca_dim, kernel, is_test=False, is_verbose=False):
     all_metal_name = find_all_metal_names()
 
     num_metal = len(all_metal_name)
@@ -557,8 +571,8 @@ def main():
     # compare_cluster()
     # hyperparameter_search()
     # run_ARMA_param_search()
-    # general_test_run()
-    grid_commodities()
+    general_test_run()
+    # grid_commodities()
 
 
 if __name__ == '__main__':

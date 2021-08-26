@@ -148,6 +148,7 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
             list_mean, list_lower, list_upper = [], [], [] 
             for i in range(self.num_task):
                 index_task = (test_ind == i).nonzero(as_tuple=True)[0].cpu().numpy()
+                # index_task = np.nonzero(test_ind == i)[0]
                 list_mean.append(np.reshape(pred_mean[index_task], (-1)))
                 list_lower.append(np.reshape(pred_lower[index_task], (-1)))
                 list_upper.append(np.reshape(pred_upper[index_task], (-1)))
@@ -157,7 +158,7 @@ class GPMultiTaskIndex(BaseTrainMultiTask):
             rv = out
             list_sample = []
             for i in range(self.num_task):
-                index_task = (test_ind == i).nonzero(as_tuple=True)[0].cpu().numpy()
+                index_task = np.nonzero(test_ind == i)[0]
                 list_sample.append(rv[:, index_task])
 
             assert all(

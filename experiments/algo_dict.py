@@ -10,6 +10,7 @@ from models.GP_multi_index import GPMultiTaskIndex
 from models.Deep_GP import DeepGPMultiOut
 from models.DSPP_GP import DSPPMultiOut
 from models.Sparse_GP_index import SparseGPIndex
+from models.GP_Graph import SparseMaternGraphGP
 
 from models.full_AR_model import FullARModel
 
@@ -40,7 +41,8 @@ multi_task_algo = {
     "GPMultiTaskIndex": GPMultiTaskIndex,
     "DeepGPMultiOut": DeepGPMultiOut,
     "DSPPMultiOut": DSPPMultiOut, 
-    "SparseGPIndex": SparseGPIndex
+    "SparseGPIndex": SparseGPIndex,
+    "SparseMaternGraphGP": SparseMaternGraphGP
 }
 
 class_name_to_display = {
@@ -52,7 +54,8 @@ class_name_to_display = {
     "GPMultiTaskIndex": "Multi-Task GP Index",
     "DeepGPMultiOut": "2 Layer Deep GP",
     "DSPPMultiOut": "2 Layer DSPP GP",
-    "SparseGPIndex": "Sparse Multi-Task GP Index"
+    "SparseGPIndex": "Sparse Multi-Task GP Index",
+    "SparseMaternGraphGP": "Sparse Matern Graph GP"
 }
 
 algo_is_using_first = {k: v.expect_using_first for k, v in multi_task_algo.items()}
@@ -71,6 +74,7 @@ class AlgoDict(object):
             is_date=False, 
             is_past_label=True,
             kernel=None,
+            graph_path="exp_result/graph_result/kendell_test_graph.npy"
         )
 
         self.base_ARIMA = Hyperparameters(
@@ -94,7 +98,8 @@ class AlgoDict(object):
         curr_setting = copy.deepcopy(self.base_GP)
         key_change = [
             ("kernel", str), ("optim_iter", int), 
-            ("len_inp", int), ("lr", float)
+            ("len_inp", int), ("lr", float), 
+            ("graph_path", str)
         ]
 
         for (key, convert), new_val in zip(key_change, list_new_val):
@@ -123,7 +128,7 @@ class AlgoDict(object):
 
         if "gp" in algo:
             curr_setting = self.step_modi_GP(desc[1:])
-            algo_multi_name = ["gp_multi_task", "deep_gp", "dspp_gp"]
+            algo_multi_name = ["gp_multi_task"]
             if algo in algo_multi_name:
                 return self.modify_return([curr_setting, None])
             else:
@@ -174,7 +179,7 @@ def encode_params(algo, is_verbose, is_test, **kwargs):
 
     if "gp" in algo.lower():
 
-        all_keys = ["kernel", "optim_iter", "len_inp", "lr"]
+        all_keys = ["kernel", "optim_iter", "len_inp", "lr", "graph_path"]
         assert all(k in all_keys for k in kwargs.keys())
         
         list_text = [kwargs["kernel"]]

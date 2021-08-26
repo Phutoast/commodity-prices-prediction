@@ -62,9 +62,8 @@ class BaseTrainModel(BaseModel):
         self.optimizer.zero_grad()
         output, loss = self.cal_train_loss()
 
-        if self.hyperparam["is_verbose"]:
-            if epoch%10 == 0:
-                print(f"Loss {epoch}/{num_iter}", loss)
+        if epoch%10 == 0 and self.hyperparam["is_verbose"]:
+            print(f"Loss {epoch}/{num_iter}", loss)
 
         loss.backward()
         self.optimizer.step()

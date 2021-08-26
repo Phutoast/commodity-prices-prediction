@@ -76,8 +76,8 @@ class DeepGPMultiOut(GPMultiTaskMultiOut):
             loss = -self.loss_obj(output, y_batch)
             loss.backward()
             self.optimizer.step()
-            
-            if j%5 == 0:
+
+            if j%5 == 0 and self.hyperparam["is_verbose"]:
                 print(f"Loss At Epoch {epoch}/{num_iter} At Batch {j}/{num_batch}", loss)
             
             # break
