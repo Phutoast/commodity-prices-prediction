@@ -29,6 +29,9 @@ class DeepGraphInfoMaxMultiOutputGP(DeepGraphMultiOutputGP):
 
         discri = Discrimenator(self.hyperparam["final_size"])
 
+        if self.hyperparam["is_gpu"]:
+            discri = discri.cuda()
+
         optim_infomax = torch.optim.Adam([
             {'params': discri.parameters()},
             {'params': graph_NN.parameters()},
@@ -76,19 +79,14 @@ class DeepGraphInfoMaxMultiOutputGP(DeepGraphMultiOutputGP):
         )) == self.num_node
 
         kernel = self.load_kernel(self.hyperparam["kernel"])
-        self.graph_NN = TwoLayerGCN(
-            num_feature=self.feat_size,
-            hidden_channels=self.hyperparam["num_hidden_dim"],
-            final_size=self.hyperparam["final_size"]
-        )
-
-        self.pretrain_infomax(self.graph_NN)
 
         self.model = DeepKernelMultioutputGP(
             self.train_x, self.train_y, self.likelihood, 
             kernel, self.num_task, 
-            self.feat_size, self.graph_NN, self.underly_graph
+            self.feat_size, self.hyperparam, self.underly_graph
         )
+
+        self.pretrain_infomax(self.model.feature_extractor)
         return self.model
 
 class Discrimenator(nn.Module):

@@ -152,7 +152,7 @@ def main():
         "using_first": [False, False]
         # "using_first": [True, False]
     }
-
+        
     if test_type == "f":
         example_plot_all_algo_lag(
             exp_setting2, is_save=True, is_load=False,
@@ -240,6 +240,16 @@ if __name__ == '__main__':
     # plot_compare_cluster()
 
     # plot_compare_graph()
+    
+    example_plot_walk_forward(
+        {}, "DeepGraphMultiOutputGP",
+        is_save=False, is_load=True, is_show=True,
+        # load_path="Hard_Cluster_Walk_Forward"
+        load_path="08-27-21-14-28-03-DeepGraphMultiOutputGP"
+    )
+
+    assert False
+
     
     main()
     # gen_experiment.cluster_index_to_nested([0, 3, 0, 2, 3, 1, 1, 1, 2, 4])

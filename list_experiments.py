@@ -150,7 +150,8 @@ def general_testing(is_verbose, is_test):
         "SparseMaternGraphGP"
     ] 
 
-    all_algo = ["DeepGraphInfoMaxMultiOutputGP"]
+    all_algo = ["DeepGraphMultiOutputGP", "DeepGraphInfoMaxMultiOutputGP"]
+    all_algo = ["DeepGraphMultiOutputGP"]
     # all_algo = ["GPMultiTaskIndex"]
 
     base_multi_task_fast_lr = algo_dict.encode_params(
@@ -553,7 +554,7 @@ def compare_cluster():
     grid_compare_clusters(
         "exp_result/cluster_result/feat_data/cluster_4.json", 
         "exp_result/cluster_compare", 
-        [2, 2], [2, 10], "RBF", is_test=is_test, is_verbose=is_verbose
+        [3]*6, [5]*6, "RBF", is_test=is_test, is_verbose=is_verbose
     )
 
 def grid_commodities():
@@ -580,10 +581,10 @@ def grid_compare_graph():
     )
 
 def main():
-    # compare_cluster()
+    compare_cluster()
     # hyperparameter_search()
     # run_ARMA_param_search()
-    general_test_run()
+    # general_test_run()
     # grid_commodities()
     # grid_compare_graph()
 

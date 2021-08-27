@@ -24,7 +24,11 @@ class CustomGCN(torch.nn.Module):
         num_nodes = batch_adj_matrix.size(-1)
         num_batch = batch_adj_matrix.size(0)
 
-        hat_A = batch_adj_matrix + torch.eye(num_nodes).repeat(num_batch, 1, 1)
+        I = torch.eye(num_nodes).repeat(num_batch, 1, 1)
+        if batch_adj_matrix.is_cuda:
+            I = I.cuda()
+        
+        hat_A = batch_adj_matrix + I
 
         hat_D = torch.sum(hat_A, axis=1).pow(-0.5)
         hat_D[hat_D == float('inf')] = 0

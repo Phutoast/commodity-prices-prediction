@@ -11,6 +11,12 @@ Part of my master project, which includes the following algorithms
 - [x] Sparse Matern Graph Gaussian Process
 - [x] Deep Graph Kernel 
 - [x] Deep Graph Kernel + Deep Graph Infomax Pretraining
+- [ ] Cluster Multi-Task GP (Pyro + Gpytorch)
+- [ ] Non-Linear Deep Multi-Task GP
+- [ ] Non-Linear Deep Sigma Point Process
+- [ ] Cluster Non-Linear Deep Multi-Task GP
+- [ ] Cluster Non-Linear Deep Sigma Point Process
+- [ ] Learning Graph GP
 
 
 See `main.py` for examples. Running a Test for Data-Splitting Algorithm. The data should be stored in `data/{metal_name}`.

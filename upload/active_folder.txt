@@ -8,3 +8,4 @@ list_experiments.py
 result
 kernel_test
 exp_result/graph_result
+exp_result/cluster_result

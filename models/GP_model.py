@@ -261,7 +261,7 @@ class TwoLayerGCN(torch.nn.Module):
 class DeepKernelMultioutputGP(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, 
         likelihood, kernel, num_task, 
-        num_feature, graph_NN, graph_adj):
+        num_feature, hyperparam, graph_adj):
 
         super(DeepKernelMultioutputGP, self).__init__(train_x, train_y, likelihood)
         self.mean_module = gpytorch.means.MultitaskMean(
@@ -275,7 +275,14 @@ class DeepKernelMultioutputGP(gpytorch.models.ExactGP):
         self.num_feature = num_feature
         self.graph_adj = graph_adj
         
-        self.feature_extractor = graph_NN
+        self.feature_extractor = TwoLayerGCN(
+            num_feature=num_feature,
+            hidden_channels=hyperparam["num_hidden_dim"],
+            final_size=hyperparam["final_size"]
+        )
+
+        if hyperparam["is_gpu"]:
+            self.feature_extractor = self.feature_extractor.cuda()
     
     def forward(self, x):
         x = x.view(-1, self.num_task, self.num_feature) 

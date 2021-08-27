@@ -19,6 +19,18 @@ class DeepGraphMultiOutputGP(GPMultiTaskIndex):
         self.likelihood = MultitaskGaussianLikelihood(
                 num_tasks=self.num_task
         )
+
+        underly_graph = torch.unsqueeze(torch.from_numpy(np.load(
+            self.hyperparam["graph_path"]
+        )), 0).float()
+        self.num_node = underly_graph.shape[1]
+        self.underly_graph = underly_graph
+        # self.underly_graph = underly_graph.view(1, -1)
+
+        assert self.num_node == self.num_task
+
+        if self.hyperparam["is_gpu"]:
+            self.underly_graph = self.underly_graph.cuda()
     
     def repackage_data(self, data, data_ind, feat_size):  
         split_task = []
@@ -33,13 +45,9 @@ class DeepGraphMultiOutputGP(GPMultiTaskIndex):
     def reverse_package_out(self, data):
         data_T = torch.transpose(data, 0, 1)
         return torch.flatten(data_T, start_dim=0)
-
-         
-    def prepare_data(self):
-        super().prepare_data()
-
+    
+    def reshape_data(self):
         _, self.feat_size = self.train_x.size()
-
         self.train_x = self.repackage_data(self.train_x, self.train_ind, self.feat_size)
 
         self.train_y = torch.squeeze(self.repackage_data(
@@ -47,20 +55,13 @@ class DeepGraphMultiOutputGP(GPMultiTaskIndex):
         ))
 
         self.data_size = self.train_x.size(0)        
+        self.train_x = self.train_x.view(self.data_size, -1)
+        return self.train_x, self.train_y
 
-        underly_graph = torch.unsqueeze(torch.from_numpy(np.load(
-            self.hyperparam["graph_path"]
-        )), 0).float()
-        self.num_node = underly_graph.shape[1]
-        self.underly_graph = underly_graph
-        # self.underly_graph = underly_graph.view(1, -1)
-
-        assert self.num_node == self.num_task
-
-        if self.hyperparam["is_gpu"]:
-            self.underly_graph = self.underly_graph.cuda()
-        
-        return self.train_x.view(self.data_size, -1), self.train_y
+         
+    def prepare_data(self):
+        super().prepare_data()
+        return self.reshape_data()
     
     def build_training_model(self):
         assert len(set(
@@ -68,15 +69,11 @@ class DeepGraphMultiOutputGP(GPMultiTaskIndex):
         )) == self.num_node
 
         kernel = self.load_kernel(self.hyperparam["kernel"])
-        self.graph_NN = TwoLayerGCN(
-            num_feature=self.feat_size,
-            hidden_channels=self.hyperparam["num_hidden_dim"],
-            final_size=self.hyperparam["final_size"]
-        )
+
         self.model = DeepKernelMultioutputGP(
             self.train_x, self.train_y, self.likelihood, 
             kernel, self.num_task, 
-            self.feat_size, self.graph_NN, self.underly_graph
+            self.feat_size, self.hyperparam, self.underly_graph
         )
         return self.model
     
@@ -128,3 +125,20 @@ class DeepGraphMultiOutputGP(GPMultiTaskIndex):
             rv = torch.flatten(rv, start_dim=1)
             return rv.numpy()
 
+
+    def build_model_from_loaded(self, all_data, list_config, num_task):
+        (state_dict, self.train_x, self.train_y, 
+            self.mean_x, self.std_x, self.train_ind) = all_data
+        
+        kernel = self.load_kernel(list_config[0][0]["kernel"])
+        _, self.feat_size = self.train_x.size()
+
+        # Because we are flatting train_x
+        assert self.feat_size%self.num_task == 0
+        self.feat_size = self.feat_size//self.num_task
+
+        self.model = DeepKernelMultioutputGP(
+            self.train_x, self.train_y, self.likelihood, 
+            kernel, self.num_task, 
+            self.feat_size, self.hyperparam, self.underly_graph
+        )
