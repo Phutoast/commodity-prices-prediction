@@ -13,6 +13,8 @@ from models.Sparse_GP_index import SparseGPIndex
 from models.GP_Graph import SparseMaternGraphGP
 from models.Deep_Graph_GP import DeepGraphMultiOutputGP
 from models.Deep_InfoMax_GP import DeepGraphInfoMaxMultiOutputGP
+from models.Nonlinear_MT_GP import NonlinearMultiTaskGP
+from models.Nonlinear_MT_GSPP import NonlinearMultiTaskGSPP
 
 from models.full_AR_model import FullARModel
 
@@ -46,7 +48,9 @@ multi_task_algo = {
     "SparseGPIndex": SparseGPIndex,
     "SparseMaternGraphGP": SparseMaternGraphGP,
     "DeepGraphMultiOutputGP": DeepGraphMultiOutputGP,
-    "DeepGraphInfoMaxMultiOutputGP": DeepGraphInfoMaxMultiOutputGP
+    "DeepGraphInfoMaxMultiOutputGP": DeepGraphInfoMaxMultiOutputGP,
+    "NonlinearMultiTaskGP": NonlinearMultiTaskGP,
+    "NonlinearMultiTaskGSPP": NonlinearMultiTaskGSPP
 }
 
 class_name_to_display = {
@@ -61,7 +65,9 @@ class_name_to_display = {
     "SparseGPIndex": "Sparse Multi-Task GP Index",
     "SparseMaternGraphGP": "Sparse Matern Graph GP",
     "DeepGraphMultiOutputGP": "Deep Graph GP",
-    "DeepGraphInfoMaxMultiOutputGP": "Deep Graph InfoMax GP"
+    "DeepGraphInfoMaxMultiOutputGP": "Deep Graph InfoMax GP",
+    "NonlinearMultiTaskGP": "Non-Linear Multi-Task GP",
+    "NonlinearMultiTaskGSPP": "Non-Linear Multi-Task GSPP",
 }
 
 algo_is_using_first = {k: v.expect_using_first for k, v in multi_task_algo.items()}

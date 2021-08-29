@@ -4,6 +4,7 @@ import torch
 import os
 import json
 import argparse
+import os.path
 
 from utils.others import create_folder, dump_json, load_json, find_sub_string, find_all_metal_names
 from utils.data_visualization import plot_latex, plot_grid_commodity
@@ -133,26 +134,31 @@ def general_testing(is_verbose, is_test):
     all_algo = [
         "GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex", "IIDDataModel", "ARIMAModel", 
         "DeepGPMultiOut", "DSPPMultiOut", "SparseGPIndex", "SparseMaternGraphGP", 
-        "DeepGraphMultiOutputGP", "DeepGraphInfoMaxMultiOutputGP"
+        "DeepGraphMultiOutputGP", "DeepGraphInfoMaxMultiOutputGP",
+        "NonlinearMultiTaskGP", "NonlinearMultiTaskGSPP"
     ] 
     display_name_to_algo = dict(zip(
         all_algo,[
             "Multi-Task Out", "Independent GP", "Multi-Task Index", 
             "Mean", "ARIMA", "Deep GP", "DSPP", 
             "Sparse Multi-Task Index", "Sparse Matern Graph GP", 
-            "Deep Graph Multi Output GP", "Deep Graph InfoMax"
+            "Deep Graph Multi Output GP", "Deep Graph InfoMax",
+            "Non-Linear Multi-Task GP", "Non-Linear Multi-Task DSPP"
         ],
     ))
     
-    all_algo = [
-        "IndependentGP", "IIDDataModel", 
-        "DeepGPMultiOut", "DSPPMultiOut", "SparseGPIndex", 
-        "SparseMaternGraphGP"
-    ] 
+    # all_algo = [
+    #     "IndependentGP", "IIDDataModel", 
+    #     "DeepGPMultiOut", "DSPPMultiOut", "SparseGPIndex", 
+    #     "SparseMaternGraphGP", "NonlinearMultiTaskGSPP"
+    # ] 
 
-    all_algo = ["DeepGraphMultiOutputGP", "DeepGraphInfoMaxMultiOutputGP"]
-    all_algo = ["DeepGraphMultiOutputGP"]
+    # all_algo = ["DeepGraphMultiOutputGP", "DeepGraphInfoMaxMultiOutputGP"]
+    # all_algo = ["DeepGraphMultiOutputGP"]
     # all_algo = ["GPMultiTaskIndex"]
+    # all_algo = ["DeepGPMultiOut"]
+    # all_algo = ["DSPPMultiOut"]
+    # all_algo = ["NonlinearMultiTaskGSPP"]
 
     base_multi_task_fast_lr = algo_dict.encode_params(
         "gp_multi_task", is_verbose=is_verbose, 
@@ -184,6 +190,8 @@ def general_testing(is_verbose, is_test):
         "SparseMaternGraphGP": base_multi_task_slow_lr,
         "DeepGraphMultiOutputGP": base_multi_task_slow_lr,
         "DeepGraphInfoMaxMultiOutputGP": base_multi_task_slow_lr,
+        "NonlinearMultiTaskGP": base_multi_task_slow_lr,
+        "NonlinearMultiTaskGSPP": base_multi_task_slow_lr,
         "IndependentGP": algo_dict.encode_params(
             "gp", is_verbose=is_verbose, 
             is_test=is_test, 
@@ -326,19 +334,35 @@ def grid_compare_clusters(cluster_data_path, save_path, list_len_inp,
     all_metal_name = find_all_metal_names()
 
     all_results = {}
-    # list_algo = ["GPMultiTaskMultiOut"]
     list_algo = [
         "GPMultiTaskMultiOut", "GPMultiTaskIndex", 
-        "DeepGPMultiOut", "DSPPMultiOut", "SparseGPIndex"
+        "DeepGPMultiOut", "DSPPMultiOut", 
+        # "SparseGPIndex"
     ]
+    compare_cluster_path = f"{save_path}/compare_cluster.json"
+
+    def update_json(path, entry):
+        if os.path.isfile(path): 
+            updated_version = {}
+            current_json = load_json(path)
+            for k in entry:
+                if k in current_json:
+                    updated_version[k] = current_json[k].copy()
+                    updated_version[k].update(entry[k])
+                else:
+                    updated_version[k] = entry[k]
+        else:
+            updated_version = entry
+        
+        dump_json(path, updated_version) 
 
     for len_inp, pca_dim, curr_algo in zip(list_len_inp, list_pca_dim, list_algo):
+        pca_modifier = {
+            metal: CompressMethod(int(pca_dim), "pca", info={})
+            for metal in all_metal_name
+        }
 
         for test_name, cluster_index in cluster_dict.items():
-            pca_modifier = {
-                metal: CompressMethod(int(pca_dim), "pca", info={})
-                for metal in all_metal_name
-            }
 
             curr_save_path = save_path + "/" + "-".join(test_name.split(" ")) + "/"
             error_results = run_multi_task_gp(
@@ -359,30 +383,30 @@ def grid_compare_clusters(cluster_data_path, save_path, list_len_inp,
                 }
             }) 
             
-            dump_json(f"{save_path}/compare_cluster.json", all_results) 
+            update_json(compare_cluster_path, all_results)
 
 
             # Running all
-            curr_save_path = save_path + "/full_model/"
-            error_results = run_multi_task_gp(
-                curr_save_path, pca_modifier, 
-                multi_task_desc=[all_metal_name], 
-                len_inp=len_inp, 
-                len_dataset=default_len_dataset, 
-                len_train_show=default_len_train_show, 
-                kernel=kernel, 
-                is_test=is_test, is_verbose=is_verbose, 
-                multi_task_algo=[curr_algo]
-            )
+        curr_save_path = save_path + "/full_model/"
+        error_results = run_multi_task_gp(
+            curr_save_path, pca_modifier, 
+            multi_task_desc=[all_metal_name], 
+            len_inp=len_inp, 
+            len_dataset=default_len_dataset, 
+            len_train_show=default_len_train_show, 
+            kernel=kernel, 
+            is_test=is_test, is_verbose=is_verbose, 
+            multi_task_algo=[curr_algo]
+        )
 
-            all_results.update({
-                "full_model": {
-                    k: v["CRPS"]
-                    for k, v in error_results.items()
-                }
-            })
+        all_results.update({
+            "full_model": {
+                k: v["CRPS"]
+                for k, v in error_results.items()
+            }
+        })
 
-            dump_json(f"{save_path}/compare_cluster.json", all_results) 
+        update_json(compare_cluster_path, all_results)
 
 def run_ARMA_param_search(save_folder="exp_result/hyper_param_arma"):
     metal_names = find_all_metal_names()
@@ -429,9 +453,11 @@ def grid_compare_graph_run(save_path, len_inp, pca_dim, is_test, is_verbose):
         return name.split("/")[-1].split("_")[0]
     
     get_graph_name(graph_path[0])
-    
-    list_algo = ["SparseMaternGraphGP"]
-    base_line_algo = ["SparseGPIndex"]
+        
+    list_algo = ["SparseMaternGraphGP", 
+        "DeepGraphMultiOutputGP", "DeepGraphInfoMaxMultiOutputGP"
+    ]
+    base_line_algo = ["SparseGPIndex", "DeepGPMultiOut"]
 
     all_metal_name = find_all_metal_names()
             
@@ -581,10 +607,10 @@ def grid_compare_graph():
     )
 
 def main():
-    compare_cluster()
+    # compare_cluster()
     # hyperparameter_search()
     # run_ARMA_param_search()
-    # general_test_run()
+    general_test_run()
     # grid_commodities()
     # grid_compare_graph()
 

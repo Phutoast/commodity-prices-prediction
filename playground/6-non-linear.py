@@ -106,6 +106,9 @@ class NonLinearMultiTask(curr_config["class_type"]):
             mean_out = self.mean_hidden_layer(inp_task)
             specific_out = self.all_hidden_layer[task_i](inp_task)
 
+            print(mean_out)
+            print(specific_out)
+
             all_task_result.append(
                 self.last_layer(mean_out, specific_out)
             )
@@ -131,6 +134,11 @@ class NonLinearMultiTask(curr_config["class_type"]):
 
         # Assuming sample matrix size
         mat_size = all_task_result[0].covariance_matrix.size(1)
+        
+        # print(all_task_result[0].mean.size())
+        print(all_task_result[0].covariance_matrix[0, :, :])
+        print(all_task_result[0].covariance_matrix[0, :, :].size())
+        assert False
 
 
         # Block Diagonal Across Batch

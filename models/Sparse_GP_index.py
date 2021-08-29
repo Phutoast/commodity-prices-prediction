@@ -5,8 +5,6 @@ import gpytorch
 from models.GP_multi_index import GPMultiTaskIndex
 from models.GP_model import MultitaskSparseGPIndex
 
-from utils import others
-from utils.data_structure import Hyperparameters
 from torch.utils.data import TensorDataset, DataLoader
 
 import math
@@ -20,7 +18,7 @@ class SparseGPIndex(GPMultiTaskIndex):
         self.name = "sparse_multi_index_gp"
     
     def create_ind_points(self, train_x, num_task):
-        total_points = train_x.size(0)//3
+        total_points = train_x.size(0)//(3*num_task)
         each_task_points = math.ceil(total_points/num_task)
         total_points = each_task_points * num_task
 
@@ -66,7 +64,7 @@ class SparseGPIndex(GPMultiTaskIndex):
         )
 
         self.train_loader = DataLoader(
-            train_dataset, batch_size=64, shuffle=True
+            train_dataset, batch_size=32, shuffle=True
         )
 
         return self.optimizer, self.loss_obj

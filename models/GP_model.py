@@ -7,6 +7,14 @@ from gpytorch.models import ApproximateGP
 from gpytorch.variational import CholeskyVariationalDistribution
 from gpytorch.variational import VariationalStrategy
 
+from models.deep_layers import DSPPHHiddenLayer, DeepGPHiddenLayer
+from gpytorch.models.deep_gps import DeepGP
+
+from models.deep_layers import DSPPHHiddenLayer
+from gpytorch.models.deep_gps.dspp import DSPP
+from gpytorch.distributions import MultivariateNormal
+from gpytorch.likelihoods import GaussianLikelihood
+
 from models.Conv_Graph_NN import CustomGCN
 import torch.nn.functional as F
 import torch.nn as nn
@@ -94,6 +102,35 @@ class MultitaskSparseGPIndex(ApproximateGP):
         covar = covar_x.mul(covar_i)
 
         return gpytorch.distributions.MultivariateNormal(mean_x, covar)    
+
+def deep_gp_ll(model, x_batch, y_batch):
+    return model.likelihood.log_marginal(y_batch, model(x_batch)).cpu()
+
+def create_deep_gp_config(num_inducing, num_quad_site):
+    return {
+        "class_type": DeepGP,
+        "hidden_layer_type": DeepGPHiddenLayer,
+        "hidden_info": {"num_inducing": num_inducing},
+        "class_init_info": {},
+        "log_likelihood_cal": deep_gp_ll,
+    }
+
+def dspp_ll(model, x_batch, y_batch):
+    base_batch_ll = model.likelihood.log_marginal(y_batch, model(x_batch))
+    deep_batch_ll = model.quad_weights.unsqueeze(-1) + base_batch_ll
+    batch_log_prob = deep_batch_ll.logsumexp(dim=0)
+    return batch_log_prob.cpu()
+
+def create_dspp_config(num_inducing, num_quad_site):
+    return {
+        "class_type": DSPP,
+        "hidden_layer_type": DSPPHHiddenLayer,
+        "hidden_info": {"num_inducing": num_inducing, "num_quad_sites": num_quad_site},
+        "class_init_info": {"num_quad_sites": num_quad_site},
+        "log_likelihood_cal": dspp_ll,
+    }
+
+
         
 def create_deep_GP(
         create_config_funct, train_x_shape, num_tasks, hyperparameters, 
@@ -292,3 +329,96 @@ class DeepKernelMultioutputGP(gpytorch.models.ExactGP):
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
 
+def create_non_linear_mtl(
+        create_config_funct, train_x_shape, num_tasks, hyperparameters, 
+        num_inducing=256, hidden_layer_size=32, num_quad_site=3
+    ):
+
+    curr_config = create_config_funct(num_inducing, num_quad_site)
+    
+    class NonLinearMultiTask(curr_config["class_type"]):
+        def __init__(self, inp_feat_size, num_task, hidden_layer_size=3): 
+            LayerClass = curr_config["hidden_layer_type"]
+
+            mean_hidden_layer = LayerClass(
+                input_dims=inp_feat_size,
+                output_dims=hidden_layer_size,
+                is_linear=True,
+                kernel_type=hyperparameters["kernel"],
+                **curr_config["hidden_info"]
+            )
+
+            all_hidden_layer = [
+                LayerClass(
+                    input_dims=inp_feat_size,
+                    output_dims=hidden_layer_size,
+                    is_linear=True,
+                    kernel_type=hyperparameters["kernel"],
+                    **curr_config["hidden_info"]
+                )
+                for _ in range(num_task)
+            ]
+
+            if hyperparameters["is_gpu"]:
+                all_hidden_layer = [
+                    all_hidden_layer[i].cuda()
+                    for i in range(num_task)
+                ]
+
+            self.num_task = num_task
+
+
+            last_layer = LayerClass(
+                input_dims=hidden_layer_size*2,
+                output_dims=None,
+                is_linear=False,
+                kernel_type=hyperparameters["kernel"],
+                **curr_config["hidden_info"]
+            )
+            
+            super().__init__(**curr_config["class_init_info"])
+            
+            self.mean_hidden_layer = mean_hidden_layer
+            self.all_hidden_layer = all_hidden_layer
+            self.last_layer = last_layer
+            self.likelihood = GaussianLikelihood()
+        
+        def forward(self, inputs):
+
+            all_task_result = []
+
+            for task_i in range(self.num_task):
+
+                inp_task = inputs[:, task_i, :]
+
+                mean_out = self.mean_hidden_layer(inp_task)
+                specific_out = self.all_hidden_layer[task_i](inp_task)
+
+                all_task_result.append(
+                    self.last_layer(mean_out, specific_out)
+                )
+
+            # Assuming sample matrix size
+            mat_size = all_task_result[0].covariance_matrix.size(1)
+
+
+            # Block Diagonal Across Batch
+            block_sample_independent = torch.sum(torch.stack([
+                F.pad(task_sample.covariance_matrix, (
+                    mat_size*i, mat_size*(self.num_task-1-i), mat_size*i, mat_size*(self.num_task-1-i)
+                ))
+                for task_sample, i in zip(all_task_result, range(self.num_task))
+            ]), dim=0)
+
+            # print(all_task_result[0].mean.size())
+            # print(all_task_result[0].covariance_matrix.size())
+            # print(block_sample_independent.size())
+            # print(torch.cat([all_task_result[i].mean for i in range(self.num_task)], dim=1).size())
+            # assert False
+
+            return MultivariateNormal(
+                torch.cat([all_task_result[i].mean for i in range(self.num_task)], dim=1),
+                block_sample_independent
+            )
+    
+    return NonLinearMultiTask(train_x_shape, num_tasks, hidden_layer_size)
