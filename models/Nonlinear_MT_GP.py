@@ -50,7 +50,7 @@ class NonlinearMultiTaskGP(DeepGraphMultiOutputGP):
         train_dataset = TensorDataset(self.train_x, self.train_y)
 
         self.train_loader = DataLoader(
-            train_dataset, batch_size=32, shuffle=True
+            train_dataset, batch_size=16, shuffle=True
         )
 
         return self.optimizer, self.loss_obj

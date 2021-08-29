@@ -135,7 +135,7 @@ def general_testing(is_verbose, is_test):
         "GPMultiTaskMultiOut", "IndependentGP", "GPMultiTaskIndex", "IIDDataModel", "ARIMAModel", 
         "DeepGPMultiOut", "DSPPMultiOut", "SparseGPIndex", "SparseMaternGraphGP", 
         "DeepGraphMultiOutputGP", "DeepGraphInfoMaxMultiOutputGP",
-        "NonlinearMultiTaskGP", "NonlinearMultiTaskGSPP"
+        "NonlinearMultiTaskGP", "NonlinearMultiTaskGSPP", "DeepGPGraphPropagate", "DeepGPGraphInteract", "DSPPGraphInteract", "DSPPGraphPropagate"
     ] 
     display_name_to_algo = dict(zip(
         all_algo,[
@@ -143,7 +143,9 @@ def general_testing(is_verbose, is_test):
             "Mean", "ARIMA", "Deep GP", "DSPP", 
             "Sparse Multi-Task Index", "Sparse Matern Graph GP", 
             "Deep Graph Multi Output GP", "Deep Graph InfoMax",
-            "Non-Linear Multi-Task GP", "Non-Linear Multi-Task DSPP"
+            "Non-Linear Multi-Task GP", "Non-Linear Multi-Task DSPP",
+            "Deep Gaussian Process Graph", "Deep Gaussian Process Interaction",
+            "DSPP Interaction", "DSPP Graph Propagation"
         ],
     ))
     
@@ -158,7 +160,9 @@ def general_testing(is_verbose, is_test):
     # all_algo = ["GPMultiTaskIndex"]
     # all_algo = ["DeepGPMultiOut"]
     # all_algo = ["DSPPMultiOut"]
-    # all_algo = ["NonlinearMultiTaskGSPP"]
+    all_algo = ["DSPPGraphPropagate"]
+    # all_algo = ["NonlinearMultiTaskGP"]
+
 
     base_multi_task_fast_lr = algo_dict.encode_params(
         "gp_multi_task", is_verbose=is_verbose, 
@@ -181,6 +185,16 @@ def general_testing(is_verbose, is_test):
         graph_path="exp_result/graph_result/hsic_test_graph.npy"
     )
 
+    base_multi_task_slower_lr = algo_dict.encode_params(
+        "gp_multi_task", is_verbose=is_verbose, 
+        is_test=is_test, 
+        kernel="Matern", 
+        optim_iter=optim_iter,
+        len_inp=10,
+        lr=0.01, 
+        graph_path="exp_result/graph_result/hsic_test_graph.npy"
+    )
+
     default_config = {
         "GPMultiTaskMultiOut": base_multi_task_fast_lr,
         "GPMultiTaskIndex": base_multi_task_fast_lr,
@@ -188,10 +202,14 @@ def general_testing(is_verbose, is_test):
         "DSPPMultiOut": base_multi_task_slow_lr,
         "SparseGPIndex": base_multi_task_slow_lr,
         "SparseMaternGraphGP": base_multi_task_slow_lr,
-        "DeepGraphMultiOutputGP": base_multi_task_slow_lr,
-        "DeepGraphInfoMaxMultiOutputGP": base_multi_task_slow_lr,
-        "NonlinearMultiTaskGP": base_multi_task_slow_lr,
-        "NonlinearMultiTaskGSPP": base_multi_task_slow_lr,
+        "DeepGraphMultiOutputGP": base_multi_task_slower_lr,
+        "DeepGraphInfoMaxMultiOutputGP": base_multi_task_slower_lr,
+        "NonlinearMultiTaskGP": base_multi_task_slower_lr,
+        "NonlinearMultiTaskGSPP": base_multi_task_slower_lr,
+        "DeepGPGraphPropagate": base_multi_task_slow_lr,
+        "DeepGPGraphInteract": base_multi_task_slow_lr,
+        "DSPPGraphInteract": base_multi_task_slow_lr,
+        "DSPPGraphPropagate": base_multi_task_slow_lr,
         "IndependentGP": algo_dict.encode_params(
             "gp", is_verbose=is_verbose, 
             is_test=is_test, 

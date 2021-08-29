@@ -18,6 +18,7 @@ from gpytorch.likelihoods import GaussianLikelihood
 from models.Conv_Graph_NN import CustomGCN
 import torch.nn.functional as F
 import torch.nn as nn
+import numpy as np
 
 class OneDimensionGP(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood, kernel):
@@ -329,6 +330,24 @@ class DeepKernelMultioutputGP(gpytorch.models.ExactGP):
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultitaskMultivariateNormal(mean_x, covar_x)
 
+def create_ind_between_task(all_task_result, num_task):
+    # Assuming sample matrix size
+    mat_size = all_task_result[0].covariance_matrix.size(1)
+
+    # Block Diagonal Across Batch
+    block_sample_independent = torch.sum(torch.stack([
+        F.pad(task_sample.covariance_matrix, (
+            mat_size*i, mat_size*(num_task-1-i), mat_size*i, mat_size*(num_task-1-i)
+        ))
+        for task_sample, i in zip(all_task_result, range(num_task))
+    ]), dim=0)
+
+    return MultivariateNormal(
+        torch.cat([all_task_result[i].mean for i in range(num_task)], dim=1),
+        block_sample_independent
+    )
+
+
 def create_non_linear_mtl(
         create_config_funct, train_x_shape, num_tasks, hyperparameters, 
         num_inducing=256, hidden_layer_size=32, num_quad_site=3
@@ -398,27 +417,175 @@ def create_non_linear_mtl(
                     self.last_layer(mean_out, specific_out)
                 )
 
-            # Assuming sample matrix size
-            mat_size = all_task_result[0].covariance_matrix.size(1)
-
-
-            # Block Diagonal Across Batch
-            block_sample_independent = torch.sum(torch.stack([
-                F.pad(task_sample.covariance_matrix, (
-                    mat_size*i, mat_size*(self.num_task-1-i), mat_size*i, mat_size*(self.num_task-1-i)
-                ))
-                for task_sample, i in zip(all_task_result, range(self.num_task))
-            ]), dim=0)
-
-            # print(all_task_result[0].mean.size())
-            # print(all_task_result[0].covariance_matrix.size())
-            # print(block_sample_independent.size())
-            # print(torch.cat([all_task_result[i].mean for i in range(self.num_task)], dim=1).size())
-            # assert False
-
-            return MultivariateNormal(
-                torch.cat([all_task_result[i].mean for i in range(self.num_task)], dim=1),
-                block_sample_independent
-            )
+            return create_ind_between_task(all_task_result, self.num_task)
     
     return NonLinearMultiTask(train_x_shape, num_tasks, hidden_layer_size)
+
+
+def create_non_linear_graph_gp(
+    create_config_funct, inp_feat_size, num_tasks, hyperparameters, graph_structure,
+    num_inducing=256, hidden_layer_size=8, num_quad_site=3):
+
+    curr_config = create_config_funct(num_inducing, num_quad_site)
+
+    class GPDeepGraphModel(curr_config["class_type"]):
+        def __init__(self, inp_feat_size, num_task, 
+            graph_structure, hidden_layer_size=3): 
+
+            LayerClass = curr_config["hidden_layer_type"]
+
+            self.inp_feat_size = inp_feat_size
+            self.num_task = num_task
+
+            common_feat_extractor = LayerClass(
+                input_dims=inp_feat_size,
+                output_dims=hidden_layer_size,
+                is_linear=True,
+                kernel_type=hyperparameters["kernel"],
+                **curr_config["hidden_info"]
+            )
+
+            # Adding self-loop ?  
+            graph_structure = graph_structure + torch.eye(self.num_task)
+            graph_structure = torch.min(graph_structure, torch.ones_like(graph_structure))
+                
+            self.all_neigh = [
+                torch.nonzero(
+                    graph_structure[i, :], as_tuple=True
+                )[0].cpu().tolist()
+                for i in range(self.num_task)
+            ]
+
+            ind_extractor = [
+                LayerClass(
+                    input_dims=hidden_layer_size*len(self.all_neigh[task]),
+                    output_dims=None,
+                    is_linear=True,
+                    kernel_type=hyperparameters["kernel"],
+                    **curr_config["hidden_info"]
+                )
+                for task in range(num_task)
+            ]
+            
+            if hyperparameters["is_gpu"]:
+                ind_extractor = [
+                    ind_extractor[i].cuda()
+                    for i in range(num_task)
+                ]
+            
+            super().__init__(**curr_config["class_init_info"])
+            
+            self.num_task = num_task
+            self.common_feat_extractor = common_feat_extractor
+            self.ind_extractor = ind_extractor
+            self.likelihood = GaussianLikelihood()
+
+        def forward(self, inputs): 
+            indv_feat = [
+                self.common_feat_extractor(inputs[:, task_i, :])
+                for task_i in range(self.num_task)
+            ]
+            
+            indv_feat_agg = []
+            for task_j in range(self.num_task):
+                feat_agg = self.ind_extractor[task_j](*[
+                    indv_feat[i] for i in self.all_neigh[task_j]
+                ])
+                indv_feat_agg.append(feat_agg)
+            
+            return create_ind_between_task(indv_feat_agg, self.num_task)
+    
+    return GPDeepGraphModel(inp_feat_size, num_tasks, 
+        graph_structure, hidden_layer_size)
+
+def create_non_linear_interact(
+    create_config_funct, inp_feat_size, num_tasks, hyperparameters,num_inducing=256, hidden_layer_size=8, num_quad_site=3
+):
+
+    curr_config = create_config_funct(num_inducing, num_quad_site)
+
+    class GPDeepInteractionModel(curr_config["class_type"]):
+        def __init__(self, inp_feat_size, num_task, hidden_layer_size=3): 
+
+            LayerClass = curr_config["hidden_layer_type"]
+
+            self.inp_feat_size = inp_feat_size
+            self.num_task = num_task
+            
+            ind_extractor = [
+                LayerClass(
+                    input_dims=inp_feat_size,
+                    output_dims=hidden_layer_size,
+                    is_linear=True,
+                    kernel_type=hyperparameters["kernel"],
+                    **curr_config["hidden_info"]
+                )
+                for task in range(num_task)
+            ]
+            
+            if hyperparameters["is_gpu"]:
+                ind_extractor = [
+                    ind_extractor[i].cuda()
+                    for i in range(num_task)
+                ]
+
+            relation = LayerClass(
+                input_dims=hidden_layer_size*2,
+                output_dims=hidden_layer_size,
+                is_linear=True,
+                kernel_type=hyperparameters["kernel"],
+                **curr_config["hidden_info"]
+            )
+            
+            aggregator = LayerClass(
+                input_dims=hidden_layer_size*(self.num_task-1),
+                output_dims=None,
+                is_linear=True,
+                kernel_type=hyperparameters["kernel"],
+                **curr_config["hidden_info"]
+            )
+
+            super().__init__(**curr_config["class_init_info"])
+            
+            self.num_task = num_task
+            self.ind_extractor = ind_extractor
+            self.relation = relation
+            self.aggregator = aggregator
+            self.likelihood = GaussianLikelihood()
+        
+        def forward(self, inputs): 
+            indv_feat = [
+                self.ind_extractor[task_i](inputs[:, task_i, :])
+                for task_i in range(self.num_task)
+            ]
+
+            all_out = np.zeros((self.num_task, self.num_task)).tolist()
+
+            # Calcualte pairwise
+            for task_j in range(1, self.num_task):
+                for task_i in range(task_j):
+                    all_out[task_j][task_i] = self.relation(
+                        indv_feat[task_i], indv_feat[task_j]
+                    )
+
+            final_aggr = []
+            for task_i in range(self.num_task):
+                used_representation = []
+                for j in range(self.num_task):
+                    if task_i == j:
+                        pass
+                    else:
+                        pair = all_out[task_i][j]
+                        if pair != 0:
+                            used_representation.append(pair)
+                        else:
+                            used_representation.append(all_out[j][task_i])
+
+                final_aggr.append(self.aggregator(*used_representation))
+
+            return create_ind_between_task(final_aggr, self.num_task)
+    
+    return GPDeepInteractionModel(
+        inp_feat_size, num_tasks, hidden_layer_size
+    )
+            

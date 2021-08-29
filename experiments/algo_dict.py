@@ -15,6 +15,10 @@ from models.Deep_Graph_GP import DeepGraphMultiOutputGP
 from models.Deep_InfoMax_GP import DeepGraphInfoMaxMultiOutputGP
 from models.Nonlinear_MT_GP import NonlinearMultiTaskGP
 from models.Nonlinear_MT_GSPP import NonlinearMultiTaskGSPP
+from models.DeepGP_graph_prop import DeepGPGraphPropagate
+from models.DeepGP_graph_interact import DeepGPGraphInteract
+from models.DSPP_graph_interact import DSPPGraphInteract
+from models.DSPP_graph_prop import DSPPGraphPropagate
 
 from models.full_AR_model import FullARModel
 
@@ -50,7 +54,11 @@ multi_task_algo = {
     "DeepGraphMultiOutputGP": DeepGraphMultiOutputGP,
     "DeepGraphInfoMaxMultiOutputGP": DeepGraphInfoMaxMultiOutputGP,
     "NonlinearMultiTaskGP": NonlinearMultiTaskGP,
-    "NonlinearMultiTaskGSPP": NonlinearMultiTaskGSPP
+    "NonlinearMultiTaskGSPP": NonlinearMultiTaskGSPP,
+    "DeepGPGraphPropagate": DeepGPGraphPropagate,
+    "DeepGPGraphInteract": DeepGPGraphInteract,
+    "DSPPGraphInteract": DSPPGraphInteract,
+    "DSPPGraphPropagate": DSPPGraphPropagate
 }
 
 class_name_to_display = {
@@ -68,6 +76,10 @@ class_name_to_display = {
     "DeepGraphInfoMaxMultiOutputGP": "Deep Graph InfoMax GP",
     "NonlinearMultiTaskGP": "Non-Linear Multi-Task GP",
     "NonlinearMultiTaskGSPP": "Non-Linear Multi-Task GSPP",
+    "DeepGPGraphPropagate": "Deep Gaussian Process Graph",
+    "DeepGPGraphInteract": "Deep Gaussian Process Interaction",
+    "DSPPGraphInteract": "DSPP Graph Interact",
+    "DSPPGraphPropagate": "DSPP Graph Propagate",
 }
 
 algo_is_using_first = {k: v.expect_using_first for k, v in multi_task_algo.items()}

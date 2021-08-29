@@ -90,7 +90,9 @@ class DeepGPMultiOut(GPMultiTaskMultiOut):
                 return pred_mean, pred_lower, pred_upper
             else:
                 rv = self.model(test_x)
-                rv = rv.sample(sample_shape=torch.Size([1000])).mean(1).cpu().numpy()
+                rv = rv.sample(
+                    sample_shape=torch.Size([1000])
+                ).mean(1).cpu().numpy()
                 return rv
 
     def build_model_from_loaded(self, all_data, list_config, num_task):

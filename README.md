@@ -12,11 +12,15 @@ Part of my master project, which includes the following algorithms
 - [x] Deep Graph Kernel 
 - [x] Deep Graph Kernel + Deep Graph Infomax Pretraining
 - [ ] Cluster Multi-Task GP (Pyro + Gpytorch)
-- [ ] Non-Linear Deep Multi-Task GP
-- [ ] Non-Linear Deep Sigma Point Process
+- [x] Non-Linear Deep Multi-Task GP
+- [x] Non-Linear Deep Sigma Point Process
 - [ ] Cluster Non-Linear Deep Multi-Task GP
 - [ ] Cluster Non-Linear Deep Sigma Point Process
 - [ ] Learning Graph GP
+- [x] Graph Propagation Deep GP
+- [x] Interaction Net Deep GP
+- [x] DSPP Graph Propagation GP
+- [x] Interaction Net DSPP
 
 
 See `main.py` for examples. Running a Test for Data-Splitting Algorithm. The data should be stored in `data/{metal_name}`.
