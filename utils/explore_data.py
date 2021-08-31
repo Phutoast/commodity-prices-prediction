@@ -30,6 +30,7 @@ import tslearn
     
 from hyppo.time_series import DcorrX
 from kernel_test.hsic import wild_bootstrap_HSIC
+from sklearn.feature_selection import mutual_info_regression
 
 import json
 
@@ -96,6 +97,82 @@ def plot_feature_PCA():
     
     for i, metal in enumerate(metal_names):
         plot_PCA_metal(axs[i], metal)
+    
+    return fig, axs
+
+@save_figure("figure/PCA_multi_task_future.pdf")
+def plot_feature_PCA_future():
+
+    fig, axs = plt.subplots(nrows=2, ncols=5,figsize=(20, 10) ,subplot_kw=dict(projection='3d'))
+    axs = axs.flatten()
+
+    def plot_PCA_metal(ax, metal_name):
+        data = load_metal_data(metal_name)
+        data = data.dropna()
+        price = np.log(data["Price"].iloc[22:])
+        
+        data = data.loc[:, data.columns != "Price"]
+        data = data.loc[:, data.columns != "Date"].to_numpy()
+
+        length, _ = data.shape
+        data = data[:length-22]
+
+        pca = PCA(n_components=3)
+        reduced_data = pca.fit_transform(data)
+
+        num_data_show = 300
+
+        x, y, z = reduced_data[num_data_show:, :].T
+        ax.scatter3D(
+            x, y, z, c=price[num_data_show:], 
+            s=10.0, cmap=plt.cm.coolwarm
+        )
+        ax.view_init(20, -120)
+        ax.set_title(metal_to_display_name[metal_name])
+    
+    for i, metal in enumerate(metal_names):
+        plot_PCA_metal(axs[i], metal)
+    
+    return fig, axs
+
+@save_figure("figure/PCA_multi_task_return.pdf")
+def plot_feature_PCA_return():
+
+    fig, axs = plt.subplots(nrows=2, ncols=5,figsize=(20, 10) ,subplot_kw=dict(projection='3d'))
+    axs = axs.flatten()
+
+    def plot_PCA_metal(ax, metal_name):
+        data = load_metal_data(metal_name)
+        data = data.dropna()
+
+        length, _ = data.shape
+        price = np.log(
+            data["Price"].iloc[22:].to_numpy()/data["Price"].iloc[:length-22].to_numpy()
+        )
+        
+        data = data.loc[:, data.columns != "Price"]
+        data = data.loc[:, data.columns != "Date"].to_numpy()
+
+        data = data[:length-22]
+        # print()
+
+        pca = PCA(n_components=3)
+        reduced_data = pca.fit_transform(data)
+
+        num_data_show = 300
+
+        x, y, z = reduced_data[num_data_show:, :].T
+        ax.scatter3D(
+            x, y, z, c=price[num_data_show:], 
+            s=10.0, cmap=plt.cm.coolwarm
+        )
+        ax.view_init(20, -120)
+        ax.set_title(metal_to_display_name[metal_name])
+        return np.mean(mutual_info_regression(data, price))
+    
+    for i, metal in enumerate(metal_names):
+        out_mi = plot_PCA_metal(axs[i], metal)
+        print(f"Metal Name {metal}: {out_mi}")
     
     return fig, axs
 
@@ -297,11 +374,14 @@ def plot_window_unrelated():
 
 @save_figure("figure/p_value_window_related.pdf")
 def plot_window_related():
-    return plot_window("nickel", "palladium")
+    # out = plot_window("natgas", "aluminium")
+    out = plot_window("natgas", "aluminium")
+    plt.show()
+    return out
 
 def plot_window(metal1, metal2):
-    data1 = get_data(metal1, is_price_only=False)
-    data2 = get_data(metal2, is_price_only=False)
+    data1 = get_data(metal1, is_feat=False, is_price_only=False)
+    data2 = get_data(metal2, is_feat=False, is_price_only=False)
 
     title = f"Sliding Window ({metal_to_display_name[metal1]} vs {metal_to_display_name[metal2]})" 
     fig, axes = plot_correlation_window(data1, data2, title=title, skip_size=1)
@@ -547,8 +627,12 @@ def distance_between_time_series(all_data=True, is_show=True, pre_computed_data=
         names = [metal_to_display_name[metal] for metal in metal_names]
 
         for ax, matrix, n in zip(axes, all_distances, name):
+            if n == "Soft-DTW Divergence":
+                matrix = matrix * 0.1
+                n = "Soft-DTW Divergence (x0.1)"
             plot_heat_map(ax, matrix, names, names, xlabel="Commodities", ylabel="Commodities", round_acc=2)
             plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+            ax.set_title(n)
 
         fig.tight_layout()
         plt.show()

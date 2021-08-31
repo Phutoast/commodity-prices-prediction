@@ -155,12 +155,18 @@ def general_testing(is_verbose, is_test):
     #     "SparseMaternGraphGP", "NonlinearMultiTaskGSPP"
     # ] 
 
+    all_algo = [
+        # "DeepGraphMultiOutputGP", 
+        "DeepGraphInfoMaxMultiOutputGP",
+        # "NonlinearMultiTaskGP", "NonlinearMultiTaskGSPP", "DeepGPGraphPropagate", "DeepGPGraphInteract", "DSPPGraphInteract", "DSPPGraphPropagate"
+    ]
+
     # all_algo = ["DeepGraphMultiOutputGP", "DeepGraphInfoMaxMultiOutputGP"]
     # all_algo = ["DeepGraphMultiOutputGP"]
     # all_algo = ["GPMultiTaskIndex"]
     # all_algo = ["DeepGPMultiOut"]
     # all_algo = ["DSPPMultiOut"]
-    all_algo = ["DSPPGraphPropagate"]
+    # all_algo = ["GPMultiTaskIndex"]
     # all_algo = ["NonlinearMultiTaskGP"]
 
 
@@ -189,9 +195,9 @@ def general_testing(is_verbose, is_test):
         "gp_multi_task", is_verbose=is_verbose, 
         is_test=is_test, 
         kernel="Matern", 
-        optim_iter=optim_iter,
+        optim_iter=500,
         len_inp=10,
-        lr=0.01, 
+        lr=0.005, 
         graph_path="exp_result/graph_result/hsic_test_graph.npy"
     )
 
@@ -203,13 +209,13 @@ def general_testing(is_verbose, is_test):
         "SparseGPIndex": base_multi_task_slow_lr,
         "SparseMaternGraphGP": base_multi_task_slow_lr,
         "DeepGraphMultiOutputGP": base_multi_task_slower_lr,
-        "DeepGraphInfoMaxMultiOutputGP": base_multi_task_slower_lr,
+        "DeepGraphInfoMaxMultiOutputGP": base_multi_task_slow_lr,
         "NonlinearMultiTaskGP": base_multi_task_slower_lr,
         "NonlinearMultiTaskGSPP": base_multi_task_slower_lr,
-        "DeepGPGraphPropagate": base_multi_task_slow_lr,
-        "DeepGPGraphInteract": base_multi_task_slow_lr,
-        "DSPPGraphInteract": base_multi_task_slow_lr,
-        "DSPPGraphPropagate": base_multi_task_slow_lr,
+        "DeepGPGraphPropagate": base_multi_task_fast_lr,
+        "DeepGPGraphInteract": base_multi_task_fast_lr,
+        "DSPPGraphInteract": base_multi_task_fast_lr,
+        "DSPPGraphPropagate": base_multi_task_fast_lr,
         "IndependentGP": algo_dict.encode_params(
             "gp", is_verbose=is_verbose, 
             is_test=is_test, 
@@ -447,7 +453,7 @@ def run_ARMA_param_search(save_folder="exp_result/hyper_param_arma"):
             for j, s2 in enumerate(np.arange(2, 12, step=1)):
                 print(f"At {i} and {j} with metal {metal}")
                 try:
-                    model = ARIMA(test, order=(s1, 0, s2))
+                    model = ARIMA(test, order=(s1, 1, s2))
                     model_fit = model.fit(method="innovations_mle")
                     result[metal][i, j] = model_fit.aic 
                 except ValueError:

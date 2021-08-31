@@ -67,7 +67,7 @@ def plot_axis_date(ax, data_date, month_interval=3):
 
     # Round to nearest years.
     datemin = np.datetime64(data_date[0], 'Y')
-    datemax = np.datetime64(data_date[-1], 'Y') + np.timedelta64(6, 'M')
+    datemax = np.datetime64(data_date[-1], 'Y') + np.timedelta64(12, 'M')
     ax.set_xlim(datemin, datemax)
 
     # Format the coords message box, i.e. the numbers displayed as the cursor moves

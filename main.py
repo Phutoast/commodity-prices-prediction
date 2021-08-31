@@ -13,6 +13,7 @@ from utils.data_preprocessing import GlobalModifier, load_metal_data, save_date_
 from utils import explore_data, others
 from utils.data_structure import DatasetTaskDesc
 from experiments import gen_experiment, algo_dict
+import matplotlib.pyplot as plt
 
 import warnings
 # warnings.filterwarnings("ignore")
@@ -215,8 +216,54 @@ def fix_hyper_data():
     
     others.dump_json(path + "/" + file_path, merge_json(all_final_result_path))
     
+def plot_embedding():
+    embedding = np.load("embedding.npy")
+    # embedding = embedding[:50]
+    num_data = embedding.shape[0]
+    embedding = np.reshape(embedding,(-1, embedding.shape[-1]) )
+    labels = np.concatenate([
+        np.arange(0, 10)
+        for i in range(num_data)
+    ])
+    colors = ["#ff7500", "#5a08bf", "#0062b8", "#1a1a1a", "#20c406", "#ebebeb","#d6022a", "#009688", "#00e5ff", "#1a237e"]
+
+
+    from sklearn.decomposition import PCA
+    from sklearn.manifold import TSNE
+    import umap
+    import matplotlib
+
+    def plot_3D():
+        pca = PCA(n_components=3)
+        reduced_data = pca.fit_transform(embedding)
+
+        fig, ax = plt.subplots(figsize=(10, 10),subplot_kw=dict(projection='3d'))
+        x, y, z = reduced_data.T
+        ax.scatter3D(
+            x, y, z, c=labels, s=10.0, 
+            cmap=matplotlib.colors.ListedColormap(colors)
+        )
+    
+    def plot_2D():
+        pca = TSNE(n_components=2, perplexity=20)
+        reduced_data = pca.fit_transform(embedding).T
+        
+        fig, ax = plt.subplots(figsize=(10, 10))
+        ax.scatter(
+            reduced_data[0], 
+            reduced_data[1], 
+            c=labels, 
+            cmap=matplotlib.colors.ListedColormap(colors),
+            zorder=3
+        )
+
+        ax.grid(zorder=0)
+
+    plot_2D()
+    plt.show()
         
 if __name__ == '__main__':
+    # plot_embedding()
     # save_date_common("raw_data", "data")
 
     # fix_hyper_data()
@@ -235,22 +282,31 @@ if __name__ == '__main__':
     # explore_data.clustering_dataset()
     # explore_data.plot_correlation_all()
 
+    # explore_data.plot_feature_PCA()
+    # explore_data.plot_feature_PCA_future()
+
+    # explore_data.plot_year_unrelated()
+    # explore_data.plot_year_related()
+    
+    explore_data.plot_window_unrelated()
+    # explore_data.plot_window_related()
+
     # plot_hyperparam_search()
     # plot_arma_hyper_search("exp_result/hyper_param_arma")
     # plot_compare_cluster()
 
     # plot_compare_graph()
     
-    example_plot_walk_forward(
-        {}, "DeepGraphMultiOutputGP",
-        is_save=False, is_load=True, is_show=True,
-        # load_path="Hard_Cluster_Walk_Forward"
-        load_path="08-27-21-14-28-03-DeepGraphMultiOutputGP"
-    )
+    # example_plot_walk_forward(
+    #     {}, "DeepGraphMultiOutputGP",
+    #     is_save=False, is_load=True, is_show=True,
+    #     # load_path="Hard_Cluster_Walk_Forward"
+    #     load_path="08-27-21-14-28-03-DeepGraphMultiOutputGP"
+    # )
 
-    assert False
+    # assert False
 
     
-    main()
+    # main()
     # gen_experiment.cluster_index_to_nested([0, 3, 0, 2, 3, 1, 1, 1, 2, 4])
 

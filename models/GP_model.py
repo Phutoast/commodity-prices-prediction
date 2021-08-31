@@ -283,13 +283,17 @@ class TwoLayerGCN(torch.nn.Module):
     def __init__(self, num_feature, hidden_channels, final_size):
         super(TwoLayerGCN, self).__init__()
         self.conv1 = CustomGCN(num_feature, hidden_channels)
-        self.conv2 = CustomGCN(hidden_channels, final_size)
+        self.out = CustomGCN(hidden_channels, final_size)
         self.leakyReLU = nn.LeakyReLU()
+        self.dropout = nn.Dropout(p=0.2)
 
     def forward(self, x, graph_batch, is_summary=True):
         x = self.conv1(x, graph_batch)
         x = self.leakyReLU(x)
-        x = self.conv2(x, graph_batch)
+        x = self.dropout(x)
+        x = self.out(x, graph_batch)
+
+        np.save("embedding.npy", x.detach().cpu().numpy())
 
         if is_summary:
             x = torch.mean(x, dim=1)
@@ -299,7 +303,7 @@ class TwoLayerGCN(torch.nn.Module):
 class DeepKernelMultioutputGP(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, 
         likelihood, kernel, num_task, 
-        num_feature, hyperparam, graph_adj):
+        num_feature, hyperparam, graph_adj, is_freeze=False):
 
         super(DeepKernelMultioutputGP, self).__init__(train_x, train_y, likelihood)
         self.mean_module = gpytorch.means.MultitaskMean(
@@ -321,10 +325,15 @@ class DeepKernelMultioutputGP(gpytorch.models.ExactGP):
 
         if hyperparam["is_gpu"]:
             self.feature_extractor = self.feature_extractor.cuda()
+        
+        self.is_freeze = is_freeze
     
     def forward(self, x):
         x = x.view(-1, self.num_task, self.num_feature) 
         x = self.feature_extractor(x, self.graph_adj)
+
+        if self.is_freeze:
+            x = x.detach()
 
         mean_x = self.mean_module(x)
         covar_x = self.covar_module(x)

@@ -12,6 +12,7 @@ from torch_geometric.nn.inits import uniform
 import torch.nn as nn
 
 from torch.utils.data import TensorDataset, DataLoader
+from torch.optim.lr_scheduler import ExponentialLR
 
 class DeepGraphInfoMaxMultiOutputGP(DeepGraphMultiOutputGP):
     
@@ -35,13 +36,13 @@ class DeepGraphInfoMaxMultiOutputGP(DeepGraphMultiOutputGP):
         optim_infomax = torch.optim.Adam([
             {'params': discri.parameters()},
             {'params': graph_NN.parameters()},
-        ], lr=0.001)
+        ], lr=5e-2)
+        scheduler = ExponentialLR(optim_infomax, gamma=0.8)
 
         graph_NN.train()
         discri.train()
 
-        for epoch in range(2500):
-
+        for epoch in range(5000):
             optim_infomax.zero_grad()
             corruptor = torch.randperm(train_x.size(1))
             not_corrupt = graph_NN(
@@ -62,12 +63,18 @@ class DeepGraphInfoMaxMultiOutputGP(DeepGraphMultiOutputGP):
             )
 
             mean_loss = torch.mean(all_loss)
-
-            if epoch%500 == 0 and self.hyperparam["is_verbose"]:
-                print(f"At Epoch {epoch}. Loss {mean_loss}")
             
             mean_loss.backward()
             optim_infomax.step()
+
+            if epoch%500 == 0 and self.hyperparam["is_verbose"]:
+                print(f"At Epoch {epoch}. Loss {mean_loss}")
+                scheduler.step()
+        
+        not_corrupt = graph_NN(
+            train_x, self.underly_graph, 
+            is_summary=False
+        )   
         
         graph_NN.eval()
         discri.eval()
@@ -83,7 +90,8 @@ class DeepGraphInfoMaxMultiOutputGP(DeepGraphMultiOutputGP):
         self.model = DeepKernelMultioutputGP(
             self.train_x, self.train_y, self.likelihood, 
             kernel, self.num_task, 
-            self.feat_size, self.hyperparam, self.underly_graph
+            self.feat_size, self.hyperparam, self.underly_graph,
+            is_freeze=True
         )
 
         self.pretrain_infomax(self.model.feature_extractor)
