@@ -506,50 +506,60 @@ def plot_heat_map(ax, matrix, row_name, column_name, xlabel="PCA", ylabel="Backw
     ax.set_ylabel(ylabel)
     return ax
 
+@save_figure("figure/hyperparam_search.pdf")
 def plot_hyperparam_search():
-
-    def plot_individual(result, axes):
-        row_name = np.arange(2, 12, step=2).tolist()
-        column_name = np.arange(2, 7).tolist()
-
-        for i, metric in enumerate(all_metric):
-            for j, method in enumerate(all_methods):
-                data = np.array(results[method][metric]) * 10
-                curr_ax = axes[i, j] 
-                curr_ax.set_title(f"{algo_dict.class_name_to_display[method]} {metric}") 
-                plot_heat_map(curr_ax, data, row_name, column_name)
-
  
-    fig = plt.figure(figsize=(15, 15), constrained_layout=True)
-    subfigs = fig.subfigures(2, 2)
+    kernel_names = ["matern", "rbf"]
+    kernel_display = ["Matern", "Radical Basis Function"]
+    algorithms = ["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"]
+
+    load_path = "exp_result/save_hyper/hyper_search_"
+    row_name = np.arange(2, 12, step=2)
+    column_name = np.arange(2, 7)
     
-    list_load_path = [
-        "exp_result/save_hyper/hyper_search_matern/final_result_matern.json",
-        "exp_result/save_hyper/hyper_search_matern_periodic/final_result_matern_periodic.json",
-        "exp_result/save_hyper/hyper_search_rbf/final_result_rbf.json",
-        "exp_result/save_hyper/hyper_search_rbf_periodic/final_result_rbf_periodic.json"
-    ]
+    fig = plt.figure(figsize=(12, 4*len(kernel_names)), constrained_layout=True)
+    subfigs = fig.subfigures(len(kernel_names), 1)
 
-    list_name = [
-        "Matern", "Matern + Periodic", "RBF", "RBF + Periodic"
-    ]
-            
-    for i, (load_path, name) in enumerate(zip(list_load_path, list_name)):    
-        results = others.load_json(load_path)
-        all_methods = list(results.keys())
-        all_metric = list(results[all_methods[0]].keys())
-        # all_metric = ["CRPS"]
+    all_kernel = []
+    for i, kernel in enumerate(kernel_names):
+        curr_fig = subfigs[i]
+        axes = curr_fig.subplots(1, len(algorithms))
 
-        curr_subfig = subfigs.flatten()[i]
-        axes = curr_subfig.subplots(ncols=len(all_methods), nrows=len(all_metric))
+        curr_fig.suptitle(kernel_display[i], fontsize=20)
+        # plt.text(x=0.5, y=0.98-i*0.5, s=kernel_display[i], fontsize=20, ha="center", transform=fig.transFigure)
 
-        if axes.ndim == 1:
-            axes = np.expand_dims(axes, axis=0)
+        load_folder = load_path + kernel
+        result = others.load_json(load_folder + f"/final_result_{kernel}.json")
+        total_result = []
 
-        plot_individual(results, axes)
-        curr_subfig.suptitle(name, fontsize=25)
+        for j, algo in enumerate(algorithms):
+            result_crps = np.array(result[algo]["CRPS"])
+            curr_ax = axes[j]
+            plot_heat_map(curr_ax, result_crps, row_name, column_name)
+            curr_ax.set_title(algo_dict.class_name_to_display[algo])
+            total_result.append(result_crps)
+        
+        all_kernel.append(total_result)
     
-    fig.savefig("figure/hyperparam.pdf")
+    all_algo = []
+    for j, algo in enumerate(algorithms):
+        algo_kernl = []
+        for i, kernel in enumerate(kernel_names):
+            algo_kernl.append(all_kernel[i][j])
+        
+        print("At Algorithm:", algo)
+        matrix = np.stack(algo_kernl)
+        kernel, row, col = np.unravel_index(np.argmin(matrix), matrix.shape)
+        print(f"Optimal Kernel: {kernel_display[kernel]} Optimal Inp Len: {row_name[row]} Optimal PCA: {column_name[col]} Best CRPS {np.min(matrix)}")
+        print("------------")
+    
+    # print(all_algo[0])
+    # assert False
+    
+    plt.show()
+    
+    return fig, axes
+
 
 @save_figure("figure/compare_cluster.pdf")
 def plot_compare_cluster():

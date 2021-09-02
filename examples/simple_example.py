@@ -430,7 +430,7 @@ def example_plot_walk_forward(all_exp_setting, model_name, load_path,
                 method_name=method_name[task_number]
             )
 
-        fig.savefig(f"img/walk_forward_task_{model_name}")
+        fig.savefig(f"img/walk_forward_task_{model_name}.pdf")
         plt.show()
     
     return show_result_fold(fold_result, all_exp_setting, other_details=display_data)

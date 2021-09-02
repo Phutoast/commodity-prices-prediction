@@ -21,6 +21,8 @@ Part of my master project, which includes the following algorithms
 - [x] Interaction Net Deep GP
 - [x] DSPP Graph Propagation GP
 - [x] Interaction Net DSPP
+- [ ] Non-Linear Deep Multi-Task GP Multi-Output
+- [ ] Non-Linear Deep Sigma Point Process Multi-Output
 
 
 See `main.py` for examples. Running a Test for Data-Splitting Algorithm. The data should be stored in `data/{metal_name}`.

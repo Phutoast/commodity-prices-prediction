@@ -157,18 +157,11 @@ def general_testing(is_verbose, is_test):
 
     all_algo = [
         # "DeepGraphMultiOutputGP", 
-        "DeepGraphInfoMaxMultiOutputGP",
-        # "NonlinearMultiTaskGP", "NonlinearMultiTaskGSPP", "DeepGPGraphPropagate", "DeepGPGraphInteract", "DSPPGraphInteract", "DSPPGraphPropagate"
+        # "DeepGraphInfoMaxMultiOutputGP",
+        # "NonlinearMultiTaskGP", "NonlinearMultiTaskGSPP", "DeepGPGraphPropagate", "DeepGPGraphInteract", 
+        "DSPPGraphInteract", 
+        # "DSPPGraphPropagate"
     ]
-
-    # all_algo = ["DeepGraphMultiOutputGP", "DeepGraphInfoMaxMultiOutputGP"]
-    # all_algo = ["DeepGraphMultiOutputGP"]
-    # all_algo = ["GPMultiTaskIndex"]
-    # all_algo = ["DeepGPMultiOut"]
-    # all_algo = ["DSPPMultiOut"]
-    # all_algo = ["GPMultiTaskIndex"]
-    # all_algo = ["NonlinearMultiTaskGP"]
-
 
     base_multi_task_fast_lr = algo_dict.encode_params(
         "gp_multi_task", is_verbose=is_verbose, 
@@ -210,8 +203,11 @@ def general_testing(is_verbose, is_test):
         "SparseMaternGraphGP": base_multi_task_slow_lr,
         "DeepGraphMultiOutputGP": base_multi_task_slower_lr,
         "DeepGraphInfoMaxMultiOutputGP": base_multi_task_slow_lr,
+
+        # Optim = 4 is enough....
         "NonlinearMultiTaskGP": base_multi_task_slower_lr,
         "NonlinearMultiTaskGSPP": base_multi_task_slower_lr,
+
         "DeepGPGraphPropagate": base_multi_task_fast_lr,
         "DeepGPGraphInteract": base_multi_task_fast_lr,
         "DSPPGraphInteract": base_multi_task_fast_lr,
@@ -274,9 +270,11 @@ def general_testing(is_verbose, is_test):
         return task_train, task_names, how_to_plot
     
     def test_all_metal():
+        all_metal_name = find_all_metal_names()
+
         task = gen_experiment.gen_task_cluster(
             all_algo, "metal", pca_modifier, 
-            clus_metal_desc=[find_all_metal_names()], 
+            clus_metal_desc=[all_metal_name], 
             clus_time_desc=None,
             algo_config=default_config
         )
@@ -285,7 +283,7 @@ def general_testing(is_verbose, is_test):
             plot_latex(
                 names=[all_algo],
                 results=[super_task["All Metal"]],
-                multi_task_name=[find_all_metal_names()],
+                multi_task_name=[all_metal_name],
                 display_name_to_algo=display_name_to_algo
             )
 

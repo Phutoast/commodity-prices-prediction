@@ -245,7 +245,7 @@ def plot_embedding():
         )
     
     def plot_2D():
-        pca = TSNE(n_components=2, perplexity=20)
+        pca = TSNE(n_components=2, perplexity=100)
         reduced_data = pca.fit_transform(embedding).T
         
         fig, ax = plt.subplots(figsize=(10, 10))
@@ -268,40 +268,17 @@ if __name__ == '__main__':
 
     # fix_hyper_data()
 
-    # explore_data.plot_window_unrelated()
-    # explore_data.plot_window_related()
-
-    # explore_data.plot_correlation_all()
-    # explore_data.plot_graph_hsic()
-
-    # explore_data.plot_years_correlation("nickel", "copper")
-    # explore_data.plot_years_correlation("natgas", "copper")
-    # explore_data.plot_cf_and_acf()
-    # explore_data.distance_between_time_series()
-    # explore_data.clustering_dataset(num_cluster=4, is_verbose=True)
-    # explore_data.clustering_dataset()
-    # explore_data.plot_correlation_all()
-
-    # explore_data.plot_feature_PCA()
-    # explore_data.plot_feature_PCA_future()
-
-    # explore_data.plot_year_unrelated()
-    # explore_data.plot_year_related()
-    
-    explore_data.plot_window_unrelated()
-    # explore_data.plot_window_related()
-
-    # plot_hyperparam_search()
+    plot_hyperparam_search()
     # plot_arma_hyper_search("exp_result/hyper_param_arma")
     # plot_compare_cluster()
 
     # plot_compare_graph()
     
     # example_plot_walk_forward(
-    #     {}, "DeepGraphMultiOutputGP",
+    #     {}, "GPMultiTaskMultiOut",
     #     is_save=False, is_load=True, is_show=True,
     #     # load_path="Hard_Cluster_Walk_Forward"
-    #     load_path="08-27-21-14-28-03-DeepGraphMultiOutputGP"
+    #     load_path="09-01-21-00-22-08-GPMultiTaskMultiOut"
     # )
 
     # assert False
