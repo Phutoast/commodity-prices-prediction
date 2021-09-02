@@ -27,6 +27,10 @@ Part of my master project, which includes the following algorithms
 
 See `main.py` for examples. Running a Test for Data-Splitting Algorithm. The data should be stored in `data/{metal_name}`.
 
+
+In order to run the experiments, we assume to have a `raw_data` folder that contains folders that named after the commodities, which have `{commodity name}_feature.csv` and `{commodity name}_raw_prices.csv` (this should be raw prices *not* log of it) storted within. To create a preprocessed data that is saved in folder `data`, we run `save_date_common("raw_data", "data")` from `utils.data_preprocessing`.
+
+We can run the test by:
 ```sh
 python -m pytest
 ```

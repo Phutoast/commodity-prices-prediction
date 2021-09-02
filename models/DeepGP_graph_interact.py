@@ -30,3 +30,16 @@ class DeepGPGraphInteract(NonlinearMultiTaskGP):
         )
 
         return self.model
+    
+    def build_model_from_loaded(self, all_data, list_config, num_task):
+        (state_dict, self.train_x, self.train_y, 
+            self.mean_x, self.std_x, self.train_ind) = all_data
+        
+        self.feat_size = self.train_x.size(-1)
+        
+        self.model = create_non_linear_interact(
+            self.create_funct, self.feat_size, 
+            self.num_task, self.hyperparam, 
+            num_inducing=self.train_x.size(0)//(3*self.num_task),
+            hidden_layer_size=8
+        )

@@ -393,6 +393,7 @@ def create_non_linear_mtl(
                     for i in range(num_task)
                 ]
 
+            all_hidden_layer = nn.ModuleList(all_hidden_layer)
             self.num_task = num_task
 
 
@@ -449,7 +450,7 @@ def create_non_linear_graph_gp(
             common_feat_extractor = LayerClass(
                 input_dims=inp_feat_size,
                 output_dims=hidden_layer_size,
-                is_linear=True,
+                is_linear=False,
                 kernel_type=hyperparameters["kernel"],
                 **curr_config["hidden_info"]
             )
@@ -469,7 +470,7 @@ def create_non_linear_graph_gp(
                 LayerClass(
                     input_dims=hidden_layer_size*len(self.all_neigh[task]),
                     output_dims=None,
-                    is_linear=True,
+                    is_linear=False,
                     kernel_type=hyperparameters["kernel"],
                     **curr_config["hidden_info"]
                 )
@@ -481,6 +482,8 @@ def create_non_linear_graph_gp(
                     ind_extractor[i].cuda()
                     for i in range(num_task)
                 ]
+            
+            ind_extractor = nn.ModuleList(ind_extractor)
             
             super().__init__(**curr_config["class_init_info"])
             
@@ -525,7 +528,7 @@ def create_non_linear_interact(
                 LayerClass(
                     input_dims=inp_feat_size,
                     output_dims=hidden_layer_size,
-                    is_linear=True,
+                    is_linear=False,
                     kernel_type=hyperparameters["kernel"],
                     **curr_config["hidden_info"]
                 )
@@ -538,10 +541,12 @@ def create_non_linear_interact(
                     for i in range(num_task)
                 ]
 
+            ind_extractor = nn.ModuleList(ind_extractor)
+
             relation = LayerClass(
                 input_dims=hidden_layer_size*2,
                 output_dims=hidden_layer_size,
-                is_linear=True,
+                is_linear=False,
                 kernel_type=hyperparameters["kernel"],
                 **curr_config["hidden_info"]
             )
@@ -549,7 +554,7 @@ def create_non_linear_interact(
             aggregator = LayerClass(
                 input_dims=hidden_layer_size*(self.num_task-1),
                 output_dims=None,
-                is_linear=True,
+                is_linear=False,
                 kernel_type=hyperparameters["kernel"],
                 **curr_config["hidden_info"]
             )

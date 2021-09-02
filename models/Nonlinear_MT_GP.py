@@ -106,10 +106,12 @@ class NonlinearMultiTaskGP(DeepGraphMultiOutputGP):
         (state_dict, self.train_x, self.train_y, 
             self.mean_x, self.std_x, self.train_ind) = all_data
         
-        _, self.feat_size = self.train_x.size()
-
-        assert self.feat_size%self.num_task == 0
-        self.feat_size = self.feat_size//self.num_task
+        if self.train_x.dim() == 2:
+            _, self.feat_size = self.train_x.size()
+            assert self.feat_size%self.num_task == 0
+            self.feat_size = self.feat_size//self.num_task
+        else:
+            self.feat_size = self.train_x.size(-1)
 
         self.model = create_non_linear_mtl(
             self.create_funct, self.feat_size, 
