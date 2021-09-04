@@ -241,7 +241,7 @@ def corr_test(list_a, list_b, test_name, all_test, is_verbose=False):
     
     return corr_value, p_value
 
-def correlation_over_dataset(test_name, all_test, test_corr):
+def correlation_over_dataset(test_name, all_test, test_corr, is_verbose=False):
     list_correlation, list_is_correlated, list_addi_info = [], [], []
     names = [metal_to_display_name[metal] for metal in metal_names]
     num_metals = len(metal_names) 
@@ -258,7 +258,8 @@ def correlation_over_dataset(test_name, all_test, test_corr):
 
         for row in range(len(data)):
             for col in range(row):
-                print(f"Running {row} and {col}")
+                if is_verbose:
+                    print(f"Running {row} and {col}")
                 stat, is_corr, addi_compare = test_corr(test, data[row], data[col])
                 correlation[row, col] = stat
                 addi_info[row, col] = addi_compare
@@ -708,7 +709,10 @@ def clustering_dataset(is_side_by_side=True, num_cluster=4, is_verbose=True, use
     
     all_test = [stats.pearsonr, stats.spearmanr, stats.kendalltau]
     test_name = ["Peason", "Spearman", "Kendell"]
-    list_correlation, _ = correlation_over_dataset(test_name, all_test)
+    def test_corr(test, d1, d2):
+        test_result = test(d1.flatten(), d2.flatten())
+        return test_result[0], test_result[1] < 0.05, -1
+    list_correlation, _, _ = correlation_over_dataset(test_name, all_test, test_corr)
     run_cluster(test_name, [np.abs(c) for c in list_correlation])
 
     precomputed_data = np.load("exp_result/distance/result.npy")

@@ -42,9 +42,9 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
     base_multi_task_fast_lr = algo_dict.encode_params(
         "gp_multi_task", is_verbose=is_verbose, 
         is_test=is_test, 
-        kernel="Matern", 
+        kernel=kernel, 
         optim_iter=25,
-        len_inp=10,
+        len_inp=len_inp,
         lr=0.1, 
         graph_path="exp_result/graph_result/hsic_test_graph.npy"
     )
@@ -53,9 +53,9 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
     base_multi_task_slow_lr = algo_dict.encode_params(
         "gp_multi_task", is_verbose=is_verbose, 
         is_test=is_test, 
-        kernel="Matern", 
+        kernel=kernel, 
         optim_iter=optim_iter,
-        len_inp=10,
+        len_inp=len_inp,
         lr=0.05, 
         graph_path="exp_result/graph_result/hsic_test_graph.npy"
     )
@@ -63,9 +63,9 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
     base_multi_task_slower_lr = algo_dict.encode_params(
         "gp_multi_task", is_verbose=is_verbose, 
         is_test=is_test, 
-        kernel="Matern", 
+        kernel=kernel, 
         optim_iter=500,
-        len_inp=10,
+        len_inp=len_inp,
         lr=0.005, 
         graph_path="exp_result/graph_result/hsic_test_graph.npy"
     )
@@ -82,10 +82,10 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
         # Optim = 4 is enough....
         "NonlinearMultiTaskGP": base_multi_task_slow_lr,
         "NonlinearMultiTaskGSPP": base_multi_task_slow_lr,
-        "DeepGPGraphPropagate": base_multi_task_fast_lr,
-        "DeepGPGraphInteract": base_multi_task_fast_lr,
-        "DSPPGraphInteract": base_multi_task_fast_lr,
-        "DSPPGraphPropagate": base_multi_task_fast_lr,
+        # "DeepGPGraphPropagate": base_multi_task_fast_lr,
+        # "DeepGPGraphInteract": base_multi_task_fast_lr,
+        # "DSPPGraphInteract": base_multi_task_fast_lr,
+        # "DSPPGraphPropagate": base_multi_task_fast_lr,
         "IndependentGP": algo_dict.encode_params(
             "gp", is_verbose=is_verbose, 
             is_test=is_test, 
@@ -409,21 +409,12 @@ def grid_commodities_run(save_path, len_inp, pca_dim, kernel, is_test=False, is_
     
     dump_json(f"{save_path}/grid_result.json", error_dict) 
 
-def grid_compare_clusters(cluster_data_path, save_path, is_test=False, is_verbose=False):
+def grid_compare_clusters(setting, cluster_data_path, save_path, is_test=False, is_verbose=False):
 
     cluster_dict = load_json(cluster_data_path)
     all_metal_name = find_all_metal_names()
 
     all_results = {}
-    setting = [
-        ("GPMultiTaskMultiOut", 2, 2, "RBF"), 
-        ("GPMultiTaskIndex", 8, 2, "RBF"),
-        ("DeepGPMultiOut", 6, 3, "RBF"), 
-        ("DSPPMultiOut", 6, 3, "RBF"), 
-        ("SparseGPIndex", 4, 3, "Matern"),
-        ("NonlinearMultiTaskGP", 6, 3, "RBF"), 
-        ("NonlinearMultiTaskGSPP", 6, 3, "RBF"),
-    ] 
 
     compare_cluster_path = f"{save_path}/compare_cluster.json"
 
@@ -621,18 +612,18 @@ def hyperparameter_search():
     
     # multi_task_algo=["GPMultiTaskIndex", "GPMultiTaskMultiOut"],
 
-    # run_hyperparam_search(
-    #     "matern", "exp_result/save_hyper", 
-    #     multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"],
-    #     kernel="Matern", is_test=is_test, 
-    #     is_verbose=is_verbose
-    # )
-    # run_hyperparam_search(
-    #     "rbf", "exp_result/save_hyper", 
-    #     multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"],
-    #     kernel="RBF", is_test=is_test, 
-    #     is_verbose=is_verbose
-    # )
+    run_hyperparam_search(
+        "matern", "exp_result/save_hyper", 
+        multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"],
+        kernel="Matern", is_test=is_test, 
+        is_verbose=is_verbose
+    )
+    run_hyperparam_search(
+        "rbf", "exp_result/save_hyper", 
+        multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"],
+        kernel="RBF", is_test=is_test, 
+        is_verbose=is_verbose
+    )
     
     # run_hyperparam_search(
     #     "matern", "exp_result/save_hyper_deep", 
@@ -647,18 +638,18 @@ def hyperparameter_search():
     #     is_verbose=is_verbose
     # )
     
-    run_hyperparam_search(
-        "matern", "exp_result/save_hyper_deep_2", 
-        multi_task_algo=["DeepGPMultiOut", "NonlinearMultiTaskGP"],
-        kernel="Matern", is_test=is_test, 
-        is_verbose=is_verbose
-    )
-    run_hyperparam_search(
-        "rbf", "exp_result/save_hyper_deep_2", 
-        multi_task_algo=["DeepGPMultiOut", "NonlinearMultiTaskGP"],
-        kernel="RBF", is_test=is_test, 
-        is_verbose=is_verbose
-    )
+    # run_hyperparam_search(
+    #     "matern", "exp_result/save_hyper_deep_2", 
+    #     multi_task_algo=["DeepGPMultiOut", "NonlinearMultiTaskGP"],
+    #     kernel="Matern", is_test=is_test, 
+    #     is_verbose=is_verbose
+    # )
+    # run_hyperparam_search(
+    #     "rbf", "exp_result/save_hyper_deep_2", 
+    #     multi_task_algo=["DeepGPMultiOut", "NonlinearMultiTaskGP"],
+    #     kernel="RBF", is_test=is_test, 
+    #     is_verbose=is_verbose
+    # )
 
 def general_test_run():
     args = argument_parser()
@@ -676,8 +667,19 @@ def compare_cluster():
     #     "exp_result/cluster_compare", 
     #     3, 3, "Composite_1", is_test=is_test, is_verbose=is_verbose
     # )
+
+    setting = [
+        ("GPMultiTaskMultiOut", 2, 2, "RBF"), 
+        ("GPMultiTaskIndex", 8, 2, "RBF"),
+        # ("DeepGPMultiOut", 6, 3, "RBF"), 
+        # ("DSPPMultiOut", 6, 3, "RBF"), 
+        ("SparseGPIndex", 4, 3, "Matern"),
+        # ("NonlinearMultiTaskGP", 6, 3, "RBF"), 
+        # ("NonlinearMultiTaskGSPP", 6, 3, "RBF"),
+    ] 
     
     grid_compare_clusters(
+        setting,
         "exp_result/cluster_result/feat_data/cluster_4.json", 
         "exp_result/cluster_compare", 
         is_test=is_test, is_verbose=is_verbose
