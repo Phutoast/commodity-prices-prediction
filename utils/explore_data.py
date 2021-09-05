@@ -200,8 +200,8 @@ def plot_all_data():
     
     return fig, axs
 
-def stationary_test(is_tabulate=True):
-    get_p_val = lambda metal : adfuller(get_data(metal))[1]
+def stationary_test(is_tabulate=True, is_diff=True):
+    get_p_val = lambda metal : adfuller(get_data(metal, load_non_diff=not is_diff))[1]
     stationary_result = [
         (metal_to_display_name[metal], get_p_val(metal), "✅" if get_p_val(metal) < 0.05 else "❌")
         for metal in metal_names
@@ -789,10 +789,10 @@ def clustering_dataset(is_side_by_side=True, num_cluster=4, is_verbose=True, use
 
     if num_cluster == 4:
         expert_cluster = [0, 2, 0, 1, 2, 0, 0, 0, 1, 3]
+        result.update({"expert": expert_cluster})
     elif num_cluster == 5:
-        expert_cluster = [0, 3, 0, 2, 3, 1, 1, 1, 2, 4]
-    
-    result.update({"expert": expert_cluster})
+        expert_cluster = [0, 3, 0, 2, 3, 1, 1, 1, 2, 4] 
+        result.update({"expert": expert_cluster})
 
     for k, v in result.items():
         print(k, ":", v)

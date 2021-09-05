@@ -268,7 +268,14 @@ if __name__ == '__main__':
 
     # fix_hyper_data()
 
-    plot_hyperparam_search()
+    # load_path = "exp_result/save_hyper/hyper_search_"
+    # algorithms = ["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"]
+    # plot_hyperparam_search(load_path, algorithms)
+    
+    # load_path = "exp_result/save_hyper_deep/hyper_search_"
+    # algorithms = ["DeepGPMultiOut", "NonlinearMultiTaskGP"]
+    # plot_hyperparam_search(load_path, algorithms)
+
     # plot_arma_hyper_search("exp_result/hyper_param_arma")
     # plot_compare_cluster()
 
@@ -283,6 +290,7 @@ if __name__ == '__main__':
 
     # assert False
 
+    # print(explore_data.stationary_test(False, is_diff=False))
     
     # main()
     # gen_experiment.cluster_index_to_nested([0, 3, 0, 2, 3, 1, 1, 1, 2, 4])

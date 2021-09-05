@@ -27,7 +27,8 @@ class DeepGraphMultiOutputGP(GPMultiTaskIndex):
         self.underly_graph = underly_graph
         # self.underly_graph = underly_graph.view(1, -1)
 
-        assert self.num_node == self.num_task
+        if self.num_node != self.num_task:
+            print("ERROR NUMBER OF NODE ~= NUM TASK")
 
         if self.hyperparam["is_gpu"]:
             self.underly_graph = self.underly_graph.cuda()

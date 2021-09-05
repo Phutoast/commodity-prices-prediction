@@ -525,14 +525,17 @@ def save_date_common(raw_folder_name, target_folder_name):
     get_start_end_date(all_metal_dates, all_metal_data, None)
     get_start_end_date(trim_metal_drop_date, trim_metal_drop,  "drop_nan", is_drop=False)
 
-def get_data(metal, is_feat=True, is_price_only=True):
+def get_data(metal, is_feat=True, is_price_only=True, load_non_diff=False):
 
     if is_feat:
         global_modi = GlobalModifier(data_structure.CompressMethod(3, "pca"))
     else:
         global_modi = GlobalModifier(data_structure.CompressMethod(0, "id"))
 
-    data = load_transform_data(metal, 22, global_modifier=global_modi)[1]
+    if load_non_diff:
+        data = load_transform_data(metal, 0, global_modifier=global_modi)[1]
+    else:
+        data = load_transform_data(metal, 22, global_modifier=global_modi)[1]
 
     if is_price_only:
         return data["Price"]

@@ -59,12 +59,23 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
         lr=0.05, 
         graph_path="exp_result/graph_result/hsic_test_graph.npy"
     )
+    
+    base_multi_task_slow_dspp = algo_dict.encode_params(
+        "gp_multi_task", is_verbose=is_verbose, 
+        is_test=is_test, 
+        kernel=kernel, 
+        optim_iter=optim_iter,
+        len_inp=len_inp,
+        lr=0.1, 
+        graph_path="exp_result/graph_result/hsic_test_graph.npy"
+    )
 
     base_multi_task_slower_lr = algo_dict.encode_params(
         "gp_multi_task", is_verbose=is_verbose, 
         is_test=is_test, 
         kernel=kernel, 
         optim_iter=500,
+        # optim_iter=1,
         len_inp=len_inp,
         lr=0.005, 
         graph_path="exp_result/graph_result/hsic_test_graph.npy"
@@ -74,14 +85,14 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
         "GPMultiTaskMultiOut": base_multi_task_fast_lr,
         "GPMultiTaskIndex": base_multi_task_fast_lr,
         "DeepGPMultiOut": base_multi_task_slow_lr,
-        "DSPPMultiOut": base_multi_task_slow_lr,
+        "DSPPMultiOut": base_multi_task_slow_dspp,
         "SparseGPIndex": base_multi_task_slow_lr,
         "SparseMaternGraphGP": base_multi_task_slow_lr,
         "DeepGraphMultiOutputGP": base_multi_task_slower_lr,
-        "DeepGraphInfoMaxMultiOutputGP": base_multi_task_slow_lr,
+        "DeepGraphInfoMaxMultiOutputGP": base_multi_task_fast_lr,
         # Optim = 4 is enough....
         "NonlinearMultiTaskGP": base_multi_task_slow_lr,
-        "NonlinearMultiTaskGSPP": base_multi_task_slow_lr,
+        "NonlinearMultiTaskGSPP": base_multi_task_slow_dspp,
         # "DeepGPGraphPropagate": base_multi_task_fast_lr,
         # "DeepGPGraphInteract": base_multi_task_fast_lr,
         # "DSPPGraphInteract": base_multi_task_fast_lr,
@@ -408,6 +419,22 @@ def grid_commodities_run(save_path, len_inp, pca_dim, kernel, is_test=False, is_
     ]
     
     dump_json(f"{save_path}/grid_result.json", error_dict) 
+    
+def update_json(path, entry):
+    if os.path.isfile(path): 
+        updated_version = {}
+        current_json = load_json(path)
+        for k in entry:
+            if k in current_json:
+                updated_version[k] = current_json[k].copy()
+                updated_version[k].update(entry[k])
+            else:
+                updated_version[k] = entry[k]
+    else:
+        updated_version = entry
+    
+    dump_json(path, updated_version) 
+
 
 def grid_compare_clusters(setting, cluster_data_path, save_path, is_test=False, is_verbose=False):
 
@@ -418,21 +445,6 @@ def grid_compare_clusters(setting, cluster_data_path, save_path, is_test=False, 
 
     compare_cluster_path = f"{save_path}/compare_cluster.json"
 
-    def update_json(path, entry):
-        if os.path.isfile(path): 
-            updated_version = {}
-            current_json = load_json(path)
-            for k in entry:
-                if k in current_json:
-                    updated_version[k] = current_json[k].copy()
-                    updated_version[k].update(entry[k])
-                else:
-                    updated_version[k] = entry[k]
-        else:
-            updated_version = entry
-        
-        dump_json(path, updated_version) 
-
     for curr_algo, len_inp, pca_dim, kernel in setting:
         pca_modifier = {
             metal: CompressMethod(int(pca_dim), "pca", info={})
@@ -442,16 +454,19 @@ def grid_compare_clusters(setting, cluster_data_path, save_path, is_test=False, 
         for test_name, cluster_index in cluster_dict.items():
 
             curr_save_path = save_path + "/" + "-".join(test_name.split(" ")) + "/"
-            error_results = run_multi_task_gp(
-                curr_save_path, pca_modifier, 
-                multi_task_desc=gen_experiment.cluster_index_to_nested(cluster_index), 
-                len_inp=len_inp, 
-                len_dataset=default_len_dataset, 
-                len_train_show=default_len_train_show, 
-                kernel=kernel, 
-                is_test=is_test, is_verbose=is_verbose, 
-                multi_task_algo=[curr_algo]
-            )
+            try:
+                error_results = run_multi_task_gp(
+                    curr_save_path, pca_modifier, 
+                    multi_task_desc=gen_experiment.cluster_index_to_nested(cluster_index), 
+                    len_inp=len_inp, 
+                    len_dataset=default_len_dataset, 
+                    len_train_show=default_len_train_show, 
+                    kernel=kernel, 
+                    is_test=is_test, is_verbose=is_verbose, 
+                    multi_task_algo=[curr_algo]
+                )
+            except RuntimeError: 
+                error_results = {curr_algo : {"CRPS": None}}
 
             all_results.update({
                 test_name: {
@@ -515,7 +530,7 @@ def run_ARMA_param_search(save_folder="exp_result/hyper_param_arma"):
 
                 np.save(f"{save_folder}/{metal}.npy", result[metal])
 
-def grid_compare_graph_run(save_path, len_inp, pca_dim, is_test, is_verbose):
+def grid_compare_graph_run(save_path, setting, is_test, is_verbose):
     graph_path = [
         "exp_result/graph_result/distance correlation_test_graph.npy",
         "exp_result/graph_result/hsic_test_graph.npy",
@@ -531,43 +546,42 @@ def grid_compare_graph_run(save_path, len_inp, pca_dim, is_test, is_verbose):
     
     get_graph_name(graph_path[0])
         
-    list_algo = ["SparseMaternGraphGP", 
-        "DeepGraphMultiOutputGP", "DeepGraphInfoMaxMultiOutputGP"
-    ]
     base_line_algo = ["SparseGPIndex", "DeepGPMultiOut"]
-
     all_metal_name = find_all_metal_names()
             
-    pca_modifier = {
-        metal: CompressMethod(int(pca_dim), "pca", info={})
-        for metal in all_metal_name
-    }
 
     all_results = {}
+    save_graph_path = f"{save_path}/compare_graph.json"
 
-    for curr_graph_path in graph_path:
-        test_name = get_graph_name(curr_graph_path)
-        curr_save_path = save_path + test_name + "/"
+    for curr_algo, pca_dim, len_inp, kernel in setting:
+        pca_modifier = {
+            metal: CompressMethod(int(pca_dim), "pca", info={})
+            for metal in all_metal_name
+        }
 
-        error_results = run_multi_task_gp(
-            curr_save_path, pca_modifier, multi_task_desc=[all_metal_name], 
-            len_inp=len_inp, 
-            len_dataset=default_len_dataset, 
-            len_train_show=default_len_train_show, 
-            kernel="RBF", 
-            graph_path=curr_graph_path, 
-            is_test=is_test, is_verbose=is_verbose, 
-            multi_task_algo=list_algo
-        )
+        for curr_graph_path in graph_path:
+            test_name = get_graph_name(curr_graph_path)
+            curr_save_path = save_path + test_name + "/"
 
-        all_results.update({
-            test_name : {
-                k: v["CRPS"]
-                for k, v in error_results.items()
-            }
-        })
-        
-        dump_json(f"{save_path}/compare_graph.json", all_results) 
+            error_results = run_multi_task_gp(
+                curr_save_path, pca_modifier, multi_task_desc=[all_metal_name], 
+                len_inp=len_inp, 
+                len_dataset=default_len_dataset, 
+                len_train_show=default_len_train_show, 
+                kernel=kernel, 
+                graph_path=curr_graph_path, 
+                is_test=is_test, is_verbose=is_verbose, 
+                multi_task_algo=[curr_algo]
+            )
+
+            all_results.update({
+                test_name : {
+                    k: v["CRPS"]
+                    for k, v in error_results.items()
+                }
+            })
+            
+            update_json(save_graph_path, all_results)
 
     curr_save_path = save_path + "full_model/"
     no_graph_results = run_multi_task_gp(
@@ -587,8 +601,8 @@ def grid_compare_graph_run(save_path, len_inp, pca_dim, is_test, is_verbose):
             for k, v in no_graph_results.items()
         }
     })
-    
-    dump_json(f"{save_path}/compare_graph.json", all_results) 
+        
+    update_json(save_graph_path, all_results)
 
 def argument_parser():
     parser = argparse.ArgumentParser()
@@ -612,27 +626,28 @@ def hyperparameter_search():
     
     # multi_task_algo=["GPMultiTaskIndex", "GPMultiTaskMultiOut"],
 
-    run_hyperparam_search(
-        "matern", "exp_result/save_hyper", 
-        multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"],
-        kernel="Matern", is_test=is_test, 
-        is_verbose=is_verbose
-    )
-    run_hyperparam_search(
-        "rbf", "exp_result/save_hyper", 
-        multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"],
-        kernel="RBF", is_test=is_test, 
-        is_verbose=is_verbose
-    )
-    
     # run_hyperparam_search(
-    #     "matern", "exp_result/save_hyper_deep", 
-    #     multi_task_algo=["DSPPMultiOut", "NonlinearMultiTaskGSPP"],
+    #     "matern", "exp_result/save_hyper", 
+    #     multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"],
     #     kernel="Matern", is_test=is_test, 
     #     is_verbose=is_verbose
     # )
     # run_hyperparam_search(
-    #     "rbf", "exp_result/save_hyper_deep", 
+    #     "rbf", "exp_result/save_hyper", 
+    #     multi_task_algo=["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"],
+    #     kernel="RBF", is_test=is_test, 
+    #     is_verbose=is_verbose
+    # )
+    
+    # run_hyperparam_search(
+    #     "matern", "exp_result/save_hyper_deep_dspp_matern", 
+    #     multi_task_algo=["DSPPMultiOut"],
+    #     # multi_task_algo=["DSPPMultiOut", "NonlinearMultiTaskGSPP"],
+    #     kernel="Matern", is_test=is_test, 
+    #     is_verbose=is_verbose
+    # )
+    # run_hyperparam_search(
+    #     "rbf", "exp_result/save_hyper_dspp_rbf", 
     #     multi_task_algo=["DSPPMultiOut", "NonlinearMultiTaskGSPP"],
     #     kernel="RBF", is_test=is_test, 
     #     is_verbose=is_verbose
@@ -662,28 +677,80 @@ def compare_cluster():
     is_test=args.is_test
     is_verbose=args.is_verbose
 
-    # grid_compare_clusters(
-    #     "result/cluster_result/feat_data/cluster_4.json", 
-    #     "exp_result/cluster_compare", 
-    #     3, 3, "Composite_1", is_test=is_test, is_verbose=is_verbose
-    # )
-
-    setting = [
-        ("GPMultiTaskMultiOut", 2, 2, "RBF"), 
-        ("GPMultiTaskIndex", 8, 2, "RBF"),
-        # ("DeepGPMultiOut", 6, 3, "RBF"), 
-        # ("DSPPMultiOut", 6, 3, "RBF"), 
-        ("SparseGPIndex", 4, 3, "Matern"),
-        # ("NonlinearMultiTaskGP", 6, 3, "RBF"), 
-        # ("NonlinearMultiTaskGSPP", 6, 3, "RBF"),
+    best_setting = [
+        # ("SparseGPIndex", 2, 2, "Matern"),
+        # ("GPMultiTaskMultiOut", 2, 2, "Matern"), 
+        # ("GPMultiTaskIndex", 8, 2, "RBF"),
+        ("DeepGPMultiOut", 10, 6, "Matern"), 
+        ("DSPPMultiOut", 10, 6, "Matern"), 
+        ("NonlinearMultiTaskGP", 6, 3, "RBF"), 
+        ("NonlinearMultiTaskGSPP", 6, 3, "RBF"), 
     ] 
     
+    second_best_setting = [
+        ("SparseGPIndex", 2, 3, "Matern"),
+        ("GPMultiTaskMultiOut", 2, 4, "Matern"), 
+        ("GPMultiTaskIndex", 10, 2, "RBF"),
+        ("DeepGPMultiOut", 10, 6, "RBF"), 
+        ("DSPPMultiOut", 10, 6, "RBF"), 
+        ("NonlinearMultiTaskGP", 6, 3, "Matern"), 
+        ("NonlinearMultiTaskGSPP", 6, 3, "Matern"),
+    ] 
+    
+    worst_setting = [
+        ("SparseGPIndex", 4, 3, "RBF"),
+        ("GPMultiTaskMultiOut", 10, 6, "RBF"), 
+        ("GPMultiTaskIndex", 2, 3, "RBF"),
+        ("DeepGPMultiOut", 8, 2, "Matern"), 
+        ("DSPPMultiOut", 8, 2, "Matern"), 
+        ("NonlinearMultiTaskGP", 10, 4, "RBF"), 
+        # ("NonlinearMultiTaskGSPP", 10, 4, "RBF"), 
+    ] 
+
     grid_compare_clusters(
-        setting,
+        best_setting,
         "exp_result/cluster_result/feat_data/cluster_4.json", 
         "exp_result/cluster_compare", 
         is_test=is_test, is_verbose=is_verbose
     )
+
+def compare_many_clusters():
+    args = argument_parser()
+    is_test=args.is_test
+    is_verbose=args.is_verbose
+
+    best_setting = [
+        ("SparseGPIndex", 2, 2, "Matern"),
+        ("GPMultiTaskMultiOut", 2, 2, "Matern"), 
+        ("GPMultiTaskIndex", 8, 2, "RBF"),
+        # ("DeepGPMultiOut", 10, 6, "Matern"), 
+        # ("DSPPMultiOut", 10, 6, "Matern"), 
+        # ("NonlinearMultiTaskGP", 6, 3, "RBF"), 
+        # ("NonlinearMultiTaskGSPP", 6, 3, "RBF"), 
+    ] 
+    
+    worst_setting = [
+        ("SparseGPIndex", 4, 3, "RBF"),
+        ("GPMultiTaskMultiOut", 10, 6, "RBF"), 
+        ("GPMultiTaskIndex", 2, 3, "RBF"),
+        ("DeepGPMultiOut", 8, 2, "Matern"), 
+        ("DSPPMultiOut", 8, 2, "Matern"), 
+        ("NonlinearMultiTaskGP", 10, 4, "RBF"), 
+        ("NonlinearMultiTaskGSPP", 10, 4, "RBF"), 
+    ] 
+
+    save_folder = "exp_result/range_cluster_test"
+
+    num_cluster = [2, 3, 5, 6, 7, 8]
+    create_folder(save_folder)
+
+    for n in num_cluster: 
+        grid_compare_clusters(
+            best_setting,
+            f"exp_result/cluster_result/feat_data/cluster_{n}.json", 
+            f"{save_folder}/cluster_compare_{n}", 
+            is_test=is_test, is_verbose=is_verbose
+        )
 
 def grid_commodities():
     args = argument_parser()
@@ -692,7 +759,7 @@ def grid_commodities():
     
     grid_commodities_run(
         "exp_result/grid_corr_plot/", 
-        5, 5, "RBF", 
+        5,5,"RBF",
         is_test=is_test, is_verbose=is_verbose
     )
     plot_grid_commodity("grid_corr_plot/grid_result.json")
@@ -702,15 +769,29 @@ def grid_compare_graph():
     is_test=args.is_test
     is_verbose=args.is_verbose
     
+    best_graph_setting = [
+        ("DeepGraphMultiOutputGP", 2, 2, "Matern"), 
+        ("DeepGraphInfoMaxMultiOutputGP", 2, 2, "Matern"),
+        ("SparseMaternGraphGP", 2, 2, "Matern"),
+    ] 
+    
+    worst_graph_setting = [
+        ("DeepGraphMultiOutputGP", 10, 6, "RBF"), 
+        ("DeepGraphInfoMaxMultiOutputGP", 10, 6, "RBF"), 
+        ("SparseMaternGraphGP", 4, 3, "RBF"),
+    ] 
+    
     grid_compare_graph_run(
-        "exp_result/grid_graph/",
-        len_inp=10, pca_dim=3,
+        "exp_result/graph_compare/",
+        worst_graph_setting,
         is_test=is_test, is_verbose=is_verbose
     )
 
+
 def main():
     # compare_cluster()
-    hyperparameter_search()
+    compare_many_clusters()
+    # hyperparameter_search()
     # run_ARMA_param_search()
     # general_test_run()
     # grid_commodities()

@@ -507,13 +507,11 @@ def plot_heat_map(ax, matrix, row_name, column_name, xlabel="PCA", ylabel="Backw
     return ax
 
 @save_figure("figure/hyperparam_search.pdf")
-def plot_hyperparam_search():
+def plot_hyperparam_search(load_path, algorithms):
  
     kernel_names = ["matern", "rbf"]
     kernel_display = ["Matern", "Radical Basis Function"]
-    algorithms = ["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"]
 
-    load_path = "exp_result/save_hyper/hyper_search_"
     row_name = np.arange(2, 12, step=2)
     column_name = np.arange(2, 7)
     
@@ -542,6 +540,9 @@ def plot_hyperparam_search():
         all_kernel.append(total_result)
     
     all_algo = []
+    find_lowest_index = lambda arr: np.unravel_index(np.nanargmin(arr), arr.shape)
+    find_highest_index = lambda arr: np.unravel_index(np.nanargmax(arr), arr.shape)
+
     for j, algo in enumerate(algorithms):
         algo_kernl = []
         for i, kernel in enumerate(kernel_names):
@@ -549,9 +550,21 @@ def plot_hyperparam_search():
         
         print("At Algorithm:", algo)
         matrix = np.stack(algo_kernl)
-        kernel, row, col = np.unravel_index(np.argmin(matrix), matrix.shape)
-        print(f"Optimal Kernel: {kernel_display[kernel]} Optimal Inp Len: {row_name[row]} Optimal PCA: {column_name[col]} Best CRPS {np.min(matrix)}")
+
+        matrix[np.isnan(matrix)] = -100
+
+        worst_kernel, worst_row, worst_col = find_highest_index(matrix)
+        print(f"Worst Kernel: {kernel_display[worst_kernel]} Worst Inp Len: {row_name[worst_row]} Worst PCA: {column_name[worst_col]} Worst CRPS {np.max(matrix)}") 
+
+        matrix[matrix == -100] = 100
+        kernel, row, col = find_lowest_index(matrix)
+        print(f"Optimal Kernel: {kernel_display[kernel]} Optimal Inp Len: {row_name[row]} Optimal PCA: {column_name[col]} Best CRPS {np.min(matrix)}") 
+        matrix[find_lowest_index(matrix)] = np.inf
+        second_kernel, second_row, second_col = find_lowest_index(matrix)
+        print(f"Second Optimal Kernel: {kernel_display[second_kernel]} Second Optimal Inp Len: {row_name[second_row]} Second Optimal PCA: {column_name[second_col]} Second Best CRPS {np.min(matrix)}")
+        
         print("------------")
+
     
     # print(all_algo[0])
     # assert False
@@ -563,10 +576,12 @@ def plot_hyperparam_search():
 
 @save_figure("figure/compare_cluster.pdf")
 def plot_compare_cluster():
-    result_cluster = others.load_json("exp_result/cluster_compare/compare_cluster.json")
+    result_cluster = others.load_json("exp_result/cluster_compare_non_deep/compare_cluster.json")
 
-    multi_task_gp = list(algo_dict.multi_task_algo.keys())
-    multi_task_gp.remove("IndependentMultiModel")
+    # multi_task_gp = list(algo_dict.multi_task_algo.keys())
+    # multi_task_gp.remove("IndependentMultiModel")
+
+    multi_task_gp = ["GPMultiTaskMultiOut", "GPMultiTaskIndex", "SparseGPIndex"]
 
     full_model_result = result_cluster["full_model"]
     diff_result = {}
@@ -577,10 +592,11 @@ def plot_compare_cluster():
     fig, axes = plt.subplots(ncols=len(multi_task_gp), nrows=1, figsize=(10, 4), sharey=True)
     all_cluster_names = []
 
-    xlim_min = [-0.025, 0.15]
-    xlim = [0.025, 0.25]
+    # xlim_min = [-0.025, 0.15]
+    # xlim = [0.025, 0.25]
 
     for j, (mtl_gp, ax) in enumerate(zip(multi_task_gp, axes)):
+
         for i, (test_name, result) in enumerate(result_cluster.items()):
             if j == 0:
                 all_cluster_names.append(cluster_type_to_display_name[test_name])
@@ -588,7 +604,7 @@ def plot_compare_cluster():
             ax.scatter(x=diff, y=i, color=color["r"] if diff < 0 else color["g"], s=40, zorder=3)
     
         ax.axvline(x=0.0, color=color["k"], linestyle="--")
-        ax.set_xlim(xlim_min[j], xlim[j])
+        # ax.set_xlim(xlim_min[j], xlim[j])
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.grid(zorder=0)
         ax.set_title(algo_dict.class_name_to_display[mtl_gp])
@@ -689,7 +705,8 @@ def plot_arma_hyper_search(main_path):
 
 def cluster_label_to_dict(labels):
     num_cluster = len(set(labels))
-    assert sorted(list(set(labels))) == list(range(num_cluster))
+    # print(labels)
+    # assert sorted(list(set(labels))) == list(range(num_cluster))
 
     return {
         cluster : [i for i, l in enumerate(labels) if l == cluster]
