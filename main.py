@@ -232,7 +232,7 @@ def plot_embedding():
     from sklearn.manifold import TSNE
     import umap
     import matplotlib
-
+ 
     def plot_3D():
         pca = PCA(n_components=3)
         reduced_data = pca.fit_transform(embedding)
@@ -261,6 +261,7 @@ def plot_embedding():
 
     plot_2D()
     plt.show()
+
         
 if __name__ == '__main__':
     # plot_embedding()
@@ -268,10 +269,11 @@ if __name__ == '__main__':
 
     # fix_hyper_data()
 
-    data_visualization.plot_hyperparam_search_gp()
-    data_visualization.plot_hyperparam_search_gp_deep()
+    # data_visualization.plot_hyperparam_search_gp()
+    # data_visualization.plot_hyperparam_search_gp_deep()
 
     # data_visualization.plot_arma_hyper_search("exp_result/hyper_param_arma")
+    data_visualization.plot_table_cluster()
 
     # data_visualization.plot_range_algo_best()
     # data_visualization.plot_range_algo_worst()

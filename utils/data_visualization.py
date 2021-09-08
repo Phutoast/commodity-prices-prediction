@@ -773,13 +773,17 @@ def plot_arma_hyper_search(main_path):
     get_all_npy = lambda path: sorted([f for f in os.listdir(path) if ".npy" in f])
     all_path = get_all_npy(main_path)
 
+    batch_name = np.arange(2, 12, step=1)
     row_name = np.arange(2, 12, step=1)
     col_name = np.arange(2, 12, step=1)
 
     for path in all_path:
         # fig, ax = plt.subplots(figsize=(10, 10))
         data = np.load(main_path + "/" + path) * 0.00001
-        row, col = np.unravel_index(data.argmax(), data.shape)
+        print(data)
+        batch, row, col = np.unravel_index(data.argmin(), data.shape)
+        print(data.min())
+        assert False
         print(f"For Metal {metal_to_display_name[path.split('.')[0]]}: Optimal Order: ({row_name[row]}, 0, {col_name[col]})")
 
 def cluster_label_to_dict(labels):
@@ -957,6 +961,94 @@ def plot_range_algo(base_path):
     # plt.show()
     return fig, axes
 
-def plot_arma_param_search():
-    loading_path = "exp_result/hyper_param_arma"
-    
+def plot_table_cluster():
+    from experiments.metal_desc import metal_to_display_name
+    colors = [
+        "#ff7500", "#5a08bf", "#0062b8", 
+        "#1a1a1a", "#20c406", "#ebebeb",
+        "#d6022a", "#009688", "#00e5ff", "#1a237e"
+    ]
+
+    def text_color(color, text):
+        return "\\textcolor[HTML]{" + color + "}{\\textbf{" + text + "}}"
+
+    display_name_metal = {
+        "aluminium": "Al",
+        "carbon": "CC",
+        "copper": "Cu",
+        "lldpe": "Cu",
+        "natgas": "NG",
+        "nickel": "Ni",
+        "palladium": "Pd",
+        "platinum": "Pt",
+        "pvc": "PVC",
+        "wheat": "WH",
+    }
+
+    display_name_cluster = {
+        "peason": "Peason",
+        "spearman": "Spearman",
+        "kendell": "Kendell",
+        "euclidean": "Euclidean",
+        "dtw": "DTW",
+        "soft-dtw divergence": "Soft-DTW Div.",
+        "euclidean knn": "Euclidean KNN",
+        "dtw knn": "DTW KNN",
+        "softdtw knn": "Soft-DTW KNN",
+        "kshape": "KShape",
+        "expert": "Expert"
+    }
+
+    def plot_row_color(names, colors=None):
+        row_texts = ""
+        for i, n in enumerate(names):
+            if colors is None:
+                curr_text = "\\textbf{" + n + "}" 
+            elif colors[i] is None:
+                curr_text = n
+            else:
+                curr_text = text_color(colors[i], n)
+
+            if i == len(names) - 1:
+                curr_text = "\t" + curr_text + " \\\\"
+            elif i == 0:
+                curr_text = curr_text + " &"
+            else:
+                curr_text = "\t" + curr_text + " &"
+
+            row_texts += curr_text
+
+        return row_texts
+
+    open("table_cluster.txt", 'w').close()
+
+    with open("table_cluster.txt", 'a') as f:
+
+        for cluster_num in [2, 3, 4, 5, 6, 7]:
+            f.write("\\begin{table}[H]\n")
+            f.write("\\centering\n")
+            f.write("\\begin{tabular}{lcccccccccc}\n")
+            f.write("\\toprule\n")
+
+            all_metal_name = others.find_all_metal_names()
+            f.write(plot_row_color(
+                ["Name"] + [display_name_metal[a] for a in all_metal_name]
+            ) + "\n")
+            f.write("\\midrule\n")
+            
+            all_cluster_path = f"exp_result/cluster_result/feat_data/cluster_{cluster_num}.json"
+
+            cluster_data = others.load_json(all_cluster_path)
+            for k, v in cluster_data.items():
+                f.write(plot_row_color(
+                    [display_name_cluster[k]] + [str(i) for i in v],
+                    [None] + [colors[i][1:] for i in v]
+                ) + "\n")
+
+            # f.write("\\midrule\n")
+
+            f.write("\\bottomrule\n")
+            f.write("\\end{tabular}\n")
+            f.write("\\caption{some caption}\n")
+            f.write("\\label{some label}\n")
+            f.write("\\end{table}\n")

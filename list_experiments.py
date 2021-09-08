@@ -306,14 +306,14 @@ def general_testing_legacy(is_verbose, is_test):
     def original_test():
     
         all_algo = [
-            # "GPMultiTaskMultiOut", 
-            # "IndependentGP", 
-            # "GPMultiTaskIndex", 
+            "GPMultiTaskMultiOut", 
+            "IndependentGP", 
+            "GPMultiTaskIndex", 
             "IIDDataModel", 
             "ARIMAModel", 
-            # "DeepGPMultiOut", 
-            # "DSPPMultiOut", 
-            # "SparseGPIndex", 
+            "DeepGPMultiOut", 
+            "DSPPMultiOut", 
+            "SparseGPIndex", 
             # "NonlinearMultiTaskGP", 
             # "NonlinearMultiTaskGSPP", 
         ] 
@@ -397,7 +397,7 @@ def general_testing(save_path, setting, is_verbose, is_test):
     print(save_path)
     all_metal_name = find_all_metal_names()
 
-    for i, (curr_algo, len_inp, pca_dim, kernel) in enumerate(setting):
+    for i, (curr_algo, len_inp, pca_dim, kernel, graph_path) in enumerate(setting):
         pca_modifier = {
             metal: CompressMethod(int(pca_dim), "pca", info={})
             for metal in all_metal_name
@@ -413,7 +413,8 @@ def general_testing(save_path, setting, is_verbose, is_test):
             kernel=kernel, 
             is_test=is_test, is_verbose=is_verbose, 
             multi_task_algo=[curr_algo],
-            is_full_result=True
+            is_full_result=True,
+            graph_path=graph_path
         )
         # except RuntimeError: 
         #     error_results = {curr_algo : {"CRPS": None}}
@@ -476,8 +477,8 @@ def grid_commodities_run(save_path, setting, is_test=False, is_verbose=False):
 
                     error_dict[curr_algo][j][i] = 0 if i == j else error_results[curr_algo]["CRPS"]
 
-                    dump_json(f"{save_path}/grid_result.json", error_dict)     
-                    
+                    dump_json(f"{save_path}/grid_result.json", error_dict) 
+    
 def update_json(path, entry):
     if os.path.isfile(path): 
         updated_version = {}
@@ -566,7 +567,7 @@ def grid_compare_clusters(setting, cluster_data_path, save_path, is_test=False, 
 
         update_json(compare_cluster_path, all_results)
 
-def run_ARMA_param_search(save_folder="exp_result/hyper_param_arma"):
+def run_ARMA_param_search(save_folder="exp_result/hyper_param_arma_test"):
     metal_names = find_all_metal_names()
     all_output_data = [
         get_data(metal, is_price_only=False, is_feat=False)
@@ -576,7 +577,7 @@ def run_ARMA_param_search(save_folder="exp_result/hyper_param_arma"):
 
     
     result = {
-        metal: np.zeros((10, 11))
+        metal: np.zeros((10, 10, 10))
         for metal in metal_names
     }
 
@@ -585,16 +586,17 @@ def run_ARMA_param_search(save_folder="exp_result/hyper_param_arma"):
     for metal in metal_names:
         for i, s1 in enumerate(np.arange(2, 12, step=1)):
             for j, s2 in enumerate(np.arange(2, 12, step=1)):
-                print(f"At {i} and {j} with metal {metal}")
-                try:
-                    model = ARIMA(test, order=(s1, 1, s2))
-                    model_fit = model.fit(method="innovations_mle")
-                    result[metal][i, j] = model_fit.aic 
-                except ValueError:
-                    print(f"Value Error At {s1}, {s2}")
-                    result[metal][i, j] = 10 
+                for k, s3 in enumerate(np.arange(2, 12, step=1)):
+                    print(f"At {i}, {j} and {k} with metal {metal}")
+                    try:
+                        model = ARIMA(test, order=(s1, s3, s2))
+                        model_fit = model.fit(method="innovations_mle")
+                        result[metal][i, j, k] = model_fit.aic 
+                    except ValueError:
+                        print(f"Value Error At {s1}, {s2}")
+                        result[metal][i, j, k] = 10 
 
-                np.save(f"{save_folder}/{metal}.npy", result[metal])
+                    np.save(f"{save_folder}/{metal}.npy", result[metal])
 
 def grid_compare_graph_run(save_path, setting, is_test, is_verbose):
     graph_path = [
@@ -745,21 +747,62 @@ def general_test_run():
     is_verbose=args.is_verbose
     
     best_setting = [
-        ("IIDDataModel", 2, 2, "Matern"),
-        ("ARIMAModel", 2, 2, "Matern"),
-        # ("IndependentGP", 2, 2, "Matern"),
-        # ("SparseGPIndex", 2, 2, "Matern"),
-        # ("GPMultiTaskMultiOut", 2, 2, "Matern"), 
-        # ("GPMultiTaskIndex", 8, 2, "RBF"),
-        # ("DeepGPMultiOut", 10, 6, "Matern"), 
-        # ("DSPPMultiOut", 10, 6, "Matern"), 
-        # ("NonlinearMultiTaskGP", 6, 3, "RBF"), 
-        # ("NonlinearMultiTaskGSPP", 6, 3, "RBF"), 
+        ("IIDDataModel", 
+            2, 2, "Matern", 
+            "exp_result/graph_result/distance correlation_test_graph.npy"),
+        ("ARIMAModel", 
+            2, 2, "Matern", 
+            "exp_result/graph_result/distance correlation_test_graph.npy"),
+        ("IndependentGP", 
+            2, 2, "Matern", 
+            "exp_result/graph_result/distance correlation_test_graph.npy"),
+        ("SparseGPIndex", 
+            2, 2, "Matern", 
+            "exp_result/graph_result/distance correlation_test_graph.npy"),
+        ("GPMultiTaskMultiOut", 
+            2, 2, 
+            "Matern", "exp_result/graph_result/distance correlation_test_graph.npy"), 
+        ("GPMultiTaskIndex", 
+            8, 2, "RBF", 
+            "exp_result/graph_result/distance correlation_test_graph.npy"),
+        ("DeepGPMultiOut", 
+            10, 6, "Matern", 
+            "exp_result/graph_result/distance correlation_test_graph.npy"), 
+        ("DSPPMultiOut", 
+            10, 6, "Matern", 
+            "exp_result/graph_result/distance correlation_test_graph.npy"), 
+        ("NonlinearMultiTaskGP", 
+            6, 3, "Matern", 
+            "exp_result/graph_result/distance correlation_test_graph.npy"), 
+        ("NonlinearMultiTaskGSPP", 
+            6, 3, "Matern", 
+            "exp_result/graph_result/distance correlation_test_graph.npy"), 
+        ("DeepGraphMultiOutputGP", 
+            2, 2, "Matern", 
+            "exp_result/graph_result/spearman_test_graph.npy"), 
+        ("DeepGraphInfoMaxMultiOutputGP",
+            2, 2, "Matern", 
+            "exp_result/graph_result/hsic_test_graph.npy"),
+        ("SparseMaternGraphGP", 
+            2, 2, "Matern", 
+            "exp_result/graph_result/distance correlation_test_graph.npy"),
+        ("DeepGPGraphPropagate", 
+            3, 10, "Matern", 
+            "exp_result/graph_result/hsic_test_graph.npy"),
+        ("DeepGPGraphInteract", 
+            3, 10, "Matern", 
+            "exp_result/graph_result/hsic_test_graph.npy"),
+        ("DSPPGraphInteract", 
+            3, 10, "Matern", 
+            "exp_result/graph_result/hsic_test_graph.npy"),
+        ("DSPPGraphPropagate",
+            3, 10, "Matern", 
+            "exp_result/graph_result/hsic_test_graph.npy"),
     ] 
 
     save_path = "exp_result/general_running/"
-    general_testing(save_path, best_setting, is_verbose, is_test)
-    # general_testing_legacy(is_verbose, is_test)
+    # general_testing(save_path, best_setting, is_verbose, is_test)
+    general_testing_legacy(is_verbose, is_test)
 
 def compare_cluster():
     args = argument_parser()
@@ -814,8 +857,8 @@ def compare_many_clusters():
         # ("GPMultiTaskIndex", 8, 2, "RBF"),
         # ("DeepGPMultiOut", 10, 6, "Matern"), 
         # ("DSPPMultiOut", 10, 6, "Matern"), 
-        # ("NonlinearMultiTaskGP", 6, 3, "RBF"), 
-        ("NonlinearMultiTaskGSPP", 6, 3, "RBF"), 
+        # ("NonlinearMultiTaskGP", 6, 3, "Matern"), 
+        ("NonlinearMultiTaskGSPP", 6, 3, "Matern"), 
     ] 
     
     worst_setting = [
@@ -824,8 +867,8 @@ def compare_many_clusters():
         # ("GPMultiTaskIndex", 2, 3, "RBF"),
         # ("DeepGPMultiOut", 8, 2, "Matern"), 
         # ("DSPPMultiOut", 8, 2, "Matern"), 
-        # ("NonlinearMultiTaskGP", 10, 4, "RBF"), 
-        ("NonlinearMultiTaskGSPP", 10, 4, "RBF"), 
+        ("NonlinearMultiTaskGP", 10, 4, "RBF"), 
+        # ("NonlinearMultiTaskGSPP", 10, 4, "Matern"), 
     ] 
 
     save_folder = "exp_result/range_cluster_test"
@@ -834,12 +877,12 @@ def compare_many_clusters():
     create_folder(save_folder)
     
     missing_entries_best = {
-        2: ["spearman", "euclidean", "soft-dtw divergence", "euclidean knn", "dtw knn"],
-        3: ["spearman", "kendell", "dtw", "soft-dtw divergence", "dtw knn"],
-        4: ["euclidean knn", "dtw knn", "softdtw knn", "expert"],
-        5: ["peason", "softdtw knn"],
-        6: ["euclidean"],
-        7: ["dtw knn"]
+        2: ["euclidean", "euclidean knn", "dtw knn"],
+        # 3: ["soft-dtw divergence"],
+        # 4: ["euclidean knn", "dtw knn", "softdtw knn", "expert"],
+        # 5: ["peason", "softdtw knn"],
+        # 6: ["euclidean"],
+        # 7: ["dtw knn"]
     }
 
     missing_entries_worst = {
@@ -848,15 +891,15 @@ def compare_many_clusters():
     }
 
     for n in num_cluster: 
-        if not n in missing_entries_worst:
+        if not n in missing_entries_best:
             continue
 
         grid_compare_clusters(
-            worst_setting,
+            best_setting,
             f"exp_result/cluster_result/feat_data/cluster_{n}.json", 
             f"{save_folder}/cluster_compare_{n}", 
             is_test=is_test, is_verbose=is_verbose, 
-            cluster_names=missing_entries_worst[n]
+            cluster_names=missing_entries_best[n]
         )
 
 def grid_commodities():
@@ -870,8 +913,8 @@ def grid_commodities():
         ("GPMultiTaskIndex", 8, 2, "RBF"),
         # ("DeepGPMultiOut", 10, 6, "Matern"), 
         # ("DSPPMultiOut", 10, 6, "Matern"), 
-        # ("NonlinearMultiTaskGP", 6, 3, "RBF"), 
-        # ("NonlinearMultiTaskGSPP", 6, 3, "RBF"), 
+        # ("NonlinearMultiTaskGP", 6, 3, "Matern"), 
+        # ("NonlinearMultiTaskGSPP", 6, 3, "Matern"), 
     ] 
     
     grid_commodities_run(
@@ -879,7 +922,7 @@ def grid_commodities():
         best_setting,
         is_test=is_test, is_verbose=is_verbose
     )
-    plot_grid_commodity("grid_corr_plot/grid_result.json")
+    # plot_grid_commodity("grid_corr_plot/grid_result.json")
 
 def grid_compare_graph():
     args = argument_parser()
@@ -909,8 +952,8 @@ def main():
     # compare_cluster()
     # compare_many_clusters()
     # hyperparameter_search()
-    # run_ARMA_param_search()
-    general_test_run()
+    run_ARMA_param_search()
+    # general_test_run()
     # grid_commodities()
     # grid_compare_graph()
 
