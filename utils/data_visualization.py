@@ -46,7 +46,7 @@ def save_figure(save_path):
             if isinstance(out, tuple):
                 fig, ax = out
                 if save_path is not None:
-                    fig.savefig(save_path)
+                    fig.savefig(save_path, bbox_inches='tight')
                 return fig, ax
             
             return out
@@ -486,6 +486,9 @@ def plot_latex(names, results, multi_task_name, display_name_to_algo):
 
 def plot_heat_map(ax, matrix, row_name, column_name, xlabel="PCA", ylabel="Backward Time", round_acc=3):
     # https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html
+
+    cmap = plt.cm.coolwarm
+    cmap.set_bad(color=color["p"])
     im = ax.imshow(matrix, cmap="coolwarm")
 
     len_col = range(len(column_name))
@@ -498,10 +501,16 @@ def plot_heat_map(ax, matrix, row_name, column_name, xlabel="PCA", ylabel="Backw
 
     for i in len_row:
         for j in len_col:
-            text = ax.text(
-                j, i, round(matrix[i, j], round_acc),
-                ha="center", va="center", color="w"
-            )
+            if np.isnan(matrix[i, j]):
+                text = ax.text(
+                    j, i, "n/a",
+                    ha="center", va="center", color="w"
+                )
+            else:
+                text = ax.text(
+                    j, i, round(matrix[i, j], round_acc),
+                    ha="center", va="center", color="w"
+                )
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     return ax
@@ -511,12 +520,17 @@ def plot_hyperparam_search(load_path, algorithms):
  
     kernel_names = ["matern", "rbf"]
     kernel_display = ["Matern", "Radical Basis Function"]
+    # kernel_names = ["matern"]
+    # kernel_display = ["Matern"]
 
     row_name = np.arange(2, 12, step=2)
     column_name = np.arange(2, 7)
     
     fig = plt.figure(figsize=(12, 4*len(kernel_names)), constrained_layout=True)
+
     subfigs = fig.subfigures(len(kernel_names), 1)
+    if len(kernel_names) == 1:
+        subfigs = [subfigs]
 
     all_kernel = []
     for i, kernel in enumerate(kernel_names):
@@ -576,20 +590,21 @@ def plot_hyperparam_search(load_path, algorithms):
 
 @save_figure("figure/compare_cluster.pdf")
 def plot_compare_cluster():
-    result_cluster = others.load_json("exp_result/cluster_compare_non_deep/compare_cluster.json")
+    # result_cluster = others.load_json("exp_result/cluster_compare_non_deep/compare_cluster.json")
+    result_cluster = others.load_json("exp_result/cluster_compare_all/worst_all.json")
+    # result_cluster = others.load_json("exp_result/cluster_compare_all/best_some_dspp.json")
 
-    # multi_task_gp = list(algo_dict.multi_task_algo.keys())
-    # multi_task_gp.remove("IndependentMultiModel")
+    keys = list(result_cluster.keys())
+    multi_task_gp = sorted(list(result_cluster[keys[0]].keys()))
 
-    multi_task_gp = ["GPMultiTaskMultiOut", "GPMultiTaskIndex", "SparseGPIndex"]
+    # multi_task_gp = ["GPMultiTaskMultiOut", "GPMultiTaskIndex", "SparseGPIndex"]
 
     full_model_result = result_cluster["full_model"]
-    diff_result = {}
 
     del result_cluster["full_model"]
     num_cluster = len(result_cluster)
     
-    fig, axes = plt.subplots(ncols=len(multi_task_gp), nrows=1, figsize=(10, 4), sharey=True)
+    fig, axes = plt.subplots(ncols=len(multi_task_gp), nrows=1, figsize=(4*len(multi_task_gp), 7), sharey=True)
     all_cluster_names = []
 
     # xlim_min = [-0.025, 0.15]
@@ -597,18 +612,28 @@ def plot_compare_cluster():
 
     for j, (mtl_gp, ax) in enumerate(zip(multi_task_gp, axes)):
 
+        diff_result = []
         for i, (test_name, result) in enumerate(result_cluster.items()):
             if j == 0:
                 all_cluster_names.append(cluster_type_to_display_name[test_name])
-            diff = full_model_result[mtl_gp] - result[mtl_gp]  
-            ax.scatter(x=diff, y=i, color=color["r"] if diff < 0 else color["g"], s=40, zorder=3)
-    
-        ax.axvline(x=0.0, color=color["k"], linestyle="--")
-        # ax.set_xlim(xlim_min[j], xlim[j])
+            
+            if not result[mtl_gp] is None:
+                diff = full_model_result[mtl_gp] - result[mtl_gp]  
+                ax.scatter(x=diff, y=i, color=color["r"] if diff < 0 else color["g"], s=40, zorder=3)
+                diff_result.append(diff)
+
+        if np.sign(np.max(diff_result)) != np.sign(np.min(diff_result)):
+            ax.axvline(x=0.0, color=color["k"], linestyle="--")
+
+        ax.set_xlim(
+            np.min(diff_result)-np.std(diff_result)/2.0, 
+            np.max(diff_result)+np.std(diff_result)/2.0
+        )
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.grid(zorder=0)
         ax.set_title(algo_dict.class_name_to_display[mtl_gp])
         ax.set_xlabel("Improvement")
+        ax.ticklabel_format(axis="x", style="sci", scilimits=(0, 0))
  
         if j == 0:
             ax.set_yticklabels(all_cluster_names, rotation=0, fontsize=10)
@@ -616,17 +641,20 @@ def plot_compare_cluster():
             ax.set_yticks(np.arange(0, num_cluster))
 
     fig.tight_layout()
-    plt.show()
+    # plt.show()
     return fig, axes
     
 @save_figure("figure/compare_graph.pdf")
 def plot_compare_graph():
     result_cluster = others.load_json(
-        "exp_result/grid_graph/compare_graph.json"
+        "exp_result/graph_compare/compare_graph_best.json"
+        # "exp_result/graph_compare/compare_graph_worst.json"
     )
 
     suitable_baseline_compare = {
-        "SparseMaternGraphGP": "SparseGPIndex"
+        "SparseMaternGraphGP": "SparseGPIndex",
+        "DeepGraphMultiOutputGP":"DeepGPMultiOut",
+        "DeepGraphInfoMaxMultiOutputGP": "DeepGPMultiOut"
     }
 
     graph_name_to_display = {
@@ -655,9 +683,9 @@ def plot_compare_graph():
     if num_mlt == 1:
         axes = [axes]
     
-    list_improvement = []
     
     for j, (mtl_gp, ax) in enumerate(zip(multi_task_gp, axes)):
+        list_improvement = []
         for i, graph in enumerate(type_graph):
             diff = baseline_result[
                 suitable_baseline_compare[mtl_gp]
@@ -673,12 +701,18 @@ def plot_compare_graph():
         
         least_imporv, max_improv = min(list_improvement), max(list_improvement) 
         
-        ax.axvline(x=0.0, color=color["k"], linestyle="--")
-        ax.set_xlim(least_imporv-0.02, max_improv+0.02)
+        if np.sign(np.max(list_improvement)) != np.sign(np.min(list_improvement)):
+            ax.axvline(x=0.0, color=color["k"], linestyle="--")
+
+        ax.set_xlim(
+            least_imporv-np.std(list_improvement)/2.0, 
+            max_improv+np.std(list_improvement)/2.0
+        )
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.grid(zorder=0)
         ax.set_title(algo_dict.class_name_to_display[mtl_gp])
         ax.set_xlabel("Improvement")
+        ax.ticklabel_format(axis="x", style="sci", scilimits=(0, 0))
 
         if j == 0:
             ax.set_yticklabels(
@@ -764,6 +798,102 @@ def plot_grid_commodity(load_path):
      
     fig.tight_layout()
     plt.show()
+    return fig, axes
+
+@save_figure("figure/range_algo_best.pdf")
+def plot_range_algo_best():
+    return plot_range_algo("exp_result/range_best_hyperparam/compare_cluster_")
+
+@save_figure("figure/range_algo_worst.pdf")
+def plot_range_algo_worst():
+    return plot_range_algo("exp_result/range_worst_hyperparam/compare_cluster_")
+
+def plot_range_algo(base_path):
+
+    range_cluster = range(2, 8)
+    sample_path = base_path + "2.json"
+    sample_data = others.load_json(sample_path)
+
+    cluster_methods = sorted(list(sample_data.keys()))
+    learning_methods = sorted(list(sample_data[cluster_methods[0]].keys()))
+    cluster_methods.remove("full_model")
+
+    # cluster_type_to_display_name
+
+    # methods.remove("full_model")
+    print(learning_methods)
+    print(cluster_methods)
+
+    num_row = len(cluster_methods)
+    num_col = len(learning_methods)
+
+    # num_row = 4
+    # num_col = 2
+
+    fig, axes = plt.subplots(
+        nrows=num_row,
+        ncols=num_col, 
+        figsize=(26, 25),
+        # figsize=(10, 10)
+    )
+
+    for row in range(num_row):
+        for col in range(num_col):
+
+            curr_axes = axes[row][col]
+
+            algo_name = learning_methods[col]
+            cluster_name = cluster_methods[row]
+
+            all_data = []
+
+            for num_cluster in range_cluster:
+                cluster_path = base_path + f"{num_cluster}.json"
+                data = others.load_json(cluster_path)
+
+                full_model_result = data["full_model"][algo_name]
+                result = data[cluster_name][algo_name]
+
+                if result is None:
+                    pass
+                else:
+                    diff = full_model_result - result
+                    all_data.append([num_cluster, diff])
+
+            all_data = np.array(all_data)
+            x, y = all_data.T
+            
+            for data_x, data_y in zip(x, y):
+                curr_axes.scatter(x=data_x, y=data_y, color=color["r"] if data_y < 0 else color["g"], s=50, zorder=3)
+            
+            curr_axes.plot(x, y, zorder=1, color=color["gray"], linewidth=0.5)
+
+            if np.sign(np.max(y)) != np.sign(np.min(y)):
+                curr_axes.axhline(y=0, color=color["k"], linestyle="--")
+            
+            curr_axes.grid(zorder=0)
+            
+            if row == 0:
+                curr_axes.set_title(
+                    algo_dict.class_name_to_display[algo_name], 
+                    fontsize=16, y=1.1
+                )
+            
+            if col == 0: 
+                curr_axes.set_ylabel(
+                    cluster_type_to_display_name[cluster_name], 
+                    rotation=0, fontsize=16, labelpad=15
+                )
+                curr_axes.yaxis.set_label_coords(-0.5, 0.5)
+            
+            curr_axes.set_xlim(range_cluster[0]-0.2, range_cluster[-1]+0.2)
+            curr_axes.set_xticks(range_cluster)
+            curr_axes.set_xticklabels(range_cluster)
+            curr_axes.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+            
+    fig.tight_layout()
+    
+    # plt.show()
     return fig, axes
 
 def plot_arma_param_search():

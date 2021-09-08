@@ -37,7 +37,7 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
     kernel="Composite_1", 
     graph_path="exp_result/graph_result/distance correlation_test_graph.npy", 
     is_test=False, is_verbose=False, 
-    multi_task_algo=multi_task_algo
+    multi_task_algo=multi_task_algo, is_full_result=False
 ):
     base_multi_task_fast_lr = algo_dict.encode_params(
         "gp_multi_task", is_verbose=is_verbose, 
@@ -46,7 +46,7 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
         optim_iter=25,
         len_inp=len_inp,
         lr=0.1, 
-        graph_path="exp_result/graph_result/hsic_test_graph.npy"
+        graph_path=graph_path,
     )
 
 
@@ -57,17 +57,17 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
         optim_iter=optim_iter,
         len_inp=len_inp,
         lr=0.05, 
-        graph_path="exp_result/graph_result/hsic_test_graph.npy"
+        graph_path=graph_path
     )
     
     base_multi_task_slow_dspp = algo_dict.encode_params(
         "gp_multi_task", is_verbose=is_verbose, 
         is_test=is_test, 
         kernel=kernel, 
-        optim_iter=optim_iter,
+        optim_iter=3,
         len_inp=len_inp,
         lr=0.1, 
-        graph_path="exp_result/graph_result/hsic_test_graph.npy"
+        graph_path=graph_path
     )
 
     base_multi_task_slower_lr = algo_dict.encode_params(
@@ -78,13 +78,14 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
         # optim_iter=1,
         len_inp=len_inp,
         lr=0.005, 
-        graph_path="exp_result/graph_result/hsic_test_graph.npy"
+        graph_path=graph_path
     )
 
     default_config = {
         "GPMultiTaskMultiOut": base_multi_task_fast_lr,
         "GPMultiTaskIndex": base_multi_task_fast_lr,
         "DeepGPMultiOut": base_multi_task_slow_lr,
+        # Might be wrong.....
         "DSPPMultiOut": base_multi_task_slow_dspp,
         "SparseGPIndex": base_multi_task_slow_lr,
         "SparseMaternGraphGP": base_multi_task_slow_lr,
@@ -110,7 +111,7 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
         ),
         "ARIMAModel": algo_dict.encode_params(
             "arima", is_verbose=is_verbose, 
-            is_test=is_test, order=(2, 0, 5)
+            is_test=is_test, order=(2, 1, 5)
         ),
     }
 
@@ -123,18 +124,22 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
         len_train_show=len_train_show
     )
     output = gen_experiment.run_experiments(task, save_path=save_path)
-    dump_json(f"{save_path}all_data.json", output) 
 
-    summary = {}
+    if is_full_result:
+        return output
+    else:
+        dump_json(f"{save_path}all_data.json", output) 
 
-    for algo_name, result in output.items():
-        data = {}
-        for metric, r in result.items():
-            mean_across_task = np.mean(np.array(r), axis=0)[0]
-            data[metric] = mean_across_task
-        summary[algo_name] = data 
-    
-    return summary
+        summary = {}
+
+        for algo_name, result in output.items():
+            data = {}
+            for metric, r in result.items():
+                mean_across_task = np.mean(np.array(r), axis=0)[0]
+                data[metric] = mean_across_task
+            summary[algo_name] = data 
+        
+        return summary
 
 def run_hyperparam_search(name, save_folder, multi_task_algo, kernel="Composite_1", is_test=False, is_verbose=False): 
     num_inp = np.arange(2, 12, step=2)
@@ -170,7 +175,7 @@ def run_hyperparam_search(name, save_folder, multi_task_algo, kernel="Composite_
 
     return all_results 
 
-def general_testing(is_verbose, is_test):
+def general_testing_legacy(is_verbose, is_test):
     all_metal_name = find_all_metal_names()
     no_modifier = {
         metal: CompressMethod(0, "drop")
@@ -235,8 +240,6 @@ def general_testing(is_verbose, is_test):
         graph_path="exp_result/graph_result/hsic_test_graph.npy"
     )
 
-
-
     base_multi_task_slow_lr = algo_dict.encode_params(
         "gp_multi_task", is_verbose=is_verbose, 
         is_test=is_test, 
@@ -275,14 +278,14 @@ def general_testing(is_verbose, is_test):
         "SparseGPIndex": base_multi_task_slow_lr,
         "SparseMaternGraphGP": base_multi_task_slow_lr,
         "DeepGraphMultiOutputGP": base_multi_task_slower_lr,
-        "DeepGraphInfoMaxMultiOutputGP": base_multi_task_slow_lr,
+        "DeepGraphInfoMaxMultiOutputGP": base_multi_task_fast_lr,
         # Optim = 4 is enough....
         "NonlinearMultiTaskGP": base_multi_task_deep,
         "NonlinearMultiTaskGSPP": base_multi_task_deep,
-        "DeepGPGraphPropagate": base_multi_task_fast_lr,
-        "DeepGPGraphInteract": base_multi_task_fast_lr,
-        "DSPPGraphInteract": base_multi_task_v_fast_lr,
-        "DSPPGraphPropagate": base_multi_task_v_fast_lr,
+        # "DeepGPGraphPropagate": base_multi_task_fast_lr,
+        # "DeepGPGraphInteract": base_multi_task_fast_lr,
+        # "DSPPGraphInteract": base_multi_task_v_fast_lr,
+        # "DSPPGraphPropagate": base_multi_task_v_fast_lr,
         "IndependentGP": algo_dict.encode_params(
             "gp", is_verbose=is_verbose, 
             is_test=is_test, 
@@ -301,8 +304,22 @@ def general_testing(is_verbose, is_test):
     }
 
     def original_test():
+    
+        all_algo = [
+            # "GPMultiTaskMultiOut", 
+            # "IndependentGP", 
+            # "GPMultiTaskIndex", 
+            "IIDDataModel", 
+            "ARIMAModel", 
+            # "DeepGPMultiOut", 
+            # "DSPPMultiOut", 
+            # "SparseGPIndex", 
+            # "NonlinearMultiTaskGP", 
+            # "NonlinearMultiTaskGSPP", 
+        ] 
 
-        (time_al, time_cu, commodity, time_al_feat, time_cu_feat, commodity_feat) = [
+        # (time_al, time_cu, commodity, time_al_feat, time_cu_feat, commodity_feat) = [
+        (time_al_feat, time_cu_feat, commodity_feat) = [
             gen_experiment.gen_task_cluster(
                 all_algo, type_task, modifier, 
                 clus_metal_desc=metal_desc, 
@@ -310,27 +327,30 @@ def general_testing(is_verbose, is_test):
                 algo_config=default_config
             )
             for type_task, modifier, metal_desc, time_desc in [
-                ("time", no_modifier, "aluminium", [[22, 44, 66]]),
-                ("time", no_modifier, "copper", [[22, 44, 66]]),
-                ("metal", no_modifier, [["aluminium", "copper"]], None),
+                # ("time", no_modifier, "aluminium", [[22, 44, 66]]),
+                # ("time", no_modifier, "copper", [[22, 44, 66]]),
+                # ("metal", no_modifier, [["aluminium", "copper"]], None),
                 ("time", pca_modifier, "aluminium", [[22, 44, 66]]),
                 ("time", pca_modifier, "copper", [[22, 44, 66]]),
                 ("metal", pca_modifier, [["aluminium", "copper"]], None),
             ]
         ]
         
-        task_train = [time_al, commodity, time_al_feat, commodity_feat]
-        task_names = ["Price", "Metal", "Price_Feat", "Metal_Feat"]
+        # task_train = [time_al, commodity, time_al_feat, commodity_feat]
+        # task_names = ["Price", "Metal", "Price_Feat", "Metal_Feat"]
+        
+        task_train = [time_al_feat, commodity_feat]
+        task_names = ["Price_Feat", "Metal_Feat"]
 
         def how_to_plot(super_task):
-            plot_latex(
-                names=[all_algo, all_algo],
-                results=[super_task["Price"], super_task["Metal"]],
-                multi_task_name=[["Date (22)", "Date (44)", "Date (66)"], ["Aluminium", "Copper"]],
-                display_name_to_algo=display_name_to_algo
-            )
-            print()
-            print()
+            # plot_latex(
+            #     names=[all_algo, all_algo],
+            #     results=[super_task["Price"], super_task["Metal"]],
+            #     multi_task_name=[["Date (22)", "Date (44)", "Date (66)"], ["Aluminium", "Copper"]],
+            #     display_name_to_algo=display_name_to_algo
+            # )
+            # print()
+            # print()
             plot_latex(
                 names=[all_algo, all_algo],
                 results=[super_task["Price_Feat"], super_task["Metal_Feat"]],
@@ -360,8 +380,8 @@ def general_testing(is_verbose, is_test):
 
         return [task], ["All Metal"], how_to_plot
 
-    # task_train, task_names, how_to_plot = original_test()
-    task_train, task_names, how_to_plot = test_all_metal()
+    task_train, task_names, how_to_plot = original_test()
+    # task_train, task_names, how_to_plot = test_all_metal()
 
     super_task = {}
     for task, name in zip(task_train, task_names):
@@ -373,42 +393,91 @@ def general_testing(is_verbose, is_test):
 
     how_to_plot(super_task)
 
-def grid_commodities_run(save_path, len_inp, pca_dim, kernel, is_test=False, is_verbose=False):
+def general_testing(save_path, setting, is_verbose, is_test):
+    print(save_path)
+    all_metal_name = find_all_metal_names()
+
+    for i, (curr_algo, len_inp, pca_dim, kernel) in enumerate(setting):
+        pca_modifier = {
+            metal: CompressMethod(int(pca_dim), "pca", info={})
+            for metal in all_metal_name
+        }
+
+        # try:
+        error_results = run_multi_task_gp(
+            save_path, pca_modifier, 
+            multi_task_desc=[all_metal_name], 
+            len_inp=len_inp, 
+            len_dataset=default_len_dataset, 
+            len_train_show=default_len_train_show, 
+            kernel=kernel, 
+            is_test=is_test, is_verbose=is_verbose, 
+            multi_task_algo=[curr_algo],
+            is_full_result=True
+        )
+        # except RuntimeError: 
+        #     error_results = {curr_algo : {"CRPS": None}}
+
+        if i > 0:
+            result = load_json(f"{save_path}grid_result.json")
+            result.update(error_results)  
+            dump_json(f"{save_path}grid_result.json", result)
+        else:
+            dump_json(f"{save_path}grid_result.json", error_results)
+
+    
+    result = load_json(f"{save_path}grid_result.json")
+    plot_latex(
+        names=[[data[0] for data in setting]],
+        results=[result],
+        multi_task_name=[all_metal_name],
+        display_name_to_algo=algo_dict.class_name_to_display
+    )
+
+    pass
+
+def grid_commodities_run(save_path, setting, is_test=False, is_verbose=False):
     all_metal_name = find_all_metal_names()
 
     num_metal = len(all_metal_name)
-    multi_task_algo = ["GPMultiTaskMultiOut", "GPMultiTaskIndex"]
-
-    pca_modifier = {
-        metal: CompressMethod(int(pca_dim), "pca", info={})
-        for metal in all_metal_name
-    }
+    # multi_task_algo = ["GPMultiTaskMultiOut", "GPMultiTaskIndex"]
 
     counter = 0
 
     # error_matrix = np.zeros((num_metal, num_metal))
     error_dict = {
         algo: np.zeros((num_metal, num_metal))
-        for algo in multi_task_algo
+        for algo, _, _, _ in setting
     }
 
     for i in range(num_metal):
         for j in range(i, num_metal):
             counter += 1
             if i != j:
-                error_results = run_multi_task_gp(
-                    save_path, pca_modifier, 
-                    multi_task_desc=[[all_metal_name[j], all_metal_name[i]]], 
-                    len_inp=len_inp, 
-                    len_dataset=default_len_dataset, 
-                    len_train_show=default_len_train_show, 
-                    kernel=kernel, 
-                    is_test=is_test, is_verbose=is_verbose, 
-                    multi_task_algo=multi_task_algo
-                )
+                for curr_algo, len_inp, pca_dim, kernel in setting:
+                    pca_modifier = {
+                        metal: CompressMethod(int(pca_dim), "pca", info={})
+                        for metal in all_metal_name
+                    }
 
-            for algo in multi_task_algo:
-                error_dict[algo][j, i] = 0 if i == j else error_results[algo]["CRPS"]
+                    try:
+                        error_results = run_multi_task_gp(
+                            save_path, pca_modifier, 
+                            multi_task_desc=[[all_metal_name[j], all_metal_name[i]]], 
+                            len_inp=len_inp, 
+                            len_dataset=default_len_dataset, 
+                            len_train_show=default_len_train_show, 
+                            kernel=kernel, 
+                            is_test=is_test, is_verbose=is_verbose, 
+                            multi_task_algo=[curr_algo]
+                        )
+                    except RuntimeError: 
+                        error_results = {curr_algo : {"CRPS": None}}
+
+                    for algo in multi_task_algo:
+                        error_dict[algo][j, i] = 0 if i == j else error_results[algo]["CRPS"]
+                    
+                    print(error_dict)
     
     for algo in multi_task_algo:
         error_dict[algo] = (error_dict[algo].T + error_dict[algo]).tolist()
@@ -436,7 +505,7 @@ def update_json(path, entry):
     dump_json(path, updated_version) 
 
 
-def grid_compare_clusters(setting, cluster_data_path, save_path, is_test=False, is_verbose=False):
+def grid_compare_clusters(setting, cluster_data_path, save_path, is_test=False, is_verbose=False, cluster_names=None):
 
     cluster_dict = load_json(cluster_data_path)
     all_metal_name = find_all_metal_names()
@@ -452,6 +521,10 @@ def grid_compare_clusters(setting, cluster_data_path, save_path, is_test=False, 
         }
 
         for test_name, cluster_index in cluster_dict.items():
+
+            if not cluster_names is None:
+                if not test_name in cluster_names:
+                    continue
 
             curr_save_path = save_path + "/" + "-".join(test_name.split(" ")) + "/"
             try:
@@ -480,16 +553,20 @@ def grid_compare_clusters(setting, cluster_data_path, save_path, is_test=False, 
 
             # Running all
         curr_save_path = save_path + "/full_model/"
-        error_results = run_multi_task_gp(
-            curr_save_path, pca_modifier, 
-            multi_task_desc=[all_metal_name], 
-            len_inp=len_inp, 
-            len_dataset=default_len_dataset, 
-            len_train_show=default_len_train_show, 
-            kernel=kernel, 
-            is_test=is_test, is_verbose=is_verbose, 
-            multi_task_algo=[curr_algo]
-        )
+
+        try:
+            error_results = run_multi_task_gp(
+                curr_save_path, pca_modifier, 
+                multi_task_desc=[all_metal_name], 
+                len_inp=len_inp, 
+                len_dataset=default_len_dataset, 
+                len_train_show=default_len_train_show, 
+                kernel=kernel, 
+                is_test=is_test, is_verbose=is_verbose, 
+                multi_task_algo=[curr_algo]
+            )
+        except RuntimeError: 
+            error_results = {curr_algo : {"CRPS": None}}
 
         all_results.update({
             "full_model": {
@@ -553,7 +630,7 @@ def grid_compare_graph_run(save_path, setting, is_test, is_verbose):
     all_results = {}
     save_graph_path = f"{save_path}/compare_graph.json"
 
-    for curr_algo, pca_dim, len_inp, kernel in setting:
+    for curr_algo, len_inp, pca_dim, kernel in setting:
         pca_modifier = {
             metal: CompressMethod(int(pca_dim), "pca", info={})
             for metal in all_metal_name
@@ -563,16 +640,19 @@ def grid_compare_graph_run(save_path, setting, is_test, is_verbose):
             test_name = get_graph_name(curr_graph_path)
             curr_save_path = save_path + test_name + "/"
 
-            error_results = run_multi_task_gp(
-                curr_save_path, pca_modifier, multi_task_desc=[all_metal_name], 
-                len_inp=len_inp, 
-                len_dataset=default_len_dataset, 
-                len_train_show=default_len_train_show, 
-                kernel=kernel, 
-                graph_path=curr_graph_path, 
-                is_test=is_test, is_verbose=is_verbose, 
-                multi_task_algo=[curr_algo]
-            )
+            try:
+                error_results = run_multi_task_gp(
+                    curr_save_path, pca_modifier, multi_task_desc=[all_metal_name], 
+                    len_inp=len_inp, 
+                    len_dataset=default_len_dataset, 
+                    len_train_show=default_len_train_show, 
+                    kernel=kernel, 
+                    graph_path=curr_graph_path, 
+                    is_test=is_test, is_verbose=is_verbose, 
+                    multi_task_algo=[curr_algo]
+                )
+            except RuntimeError: 
+                error_results = {curr_algo : {"CRPS": None}}
 
             all_results.update({
                 test_name : {
@@ -584,21 +664,25 @@ def grid_compare_graph_run(save_path, setting, is_test, is_verbose):
             update_json(save_graph_path, all_results)
 
     curr_save_path = save_path + "full_model/"
-    no_graph_results = run_multi_task_gp(
-        curr_save_path, pca_modifier, multi_task_desc=[all_metal_name], 
-        len_inp=len_inp, 
-        len_dataset=default_len_dataset, 
-        len_train_show=default_len_train_show, 
-        kernel="RBF", 
-        graph_path=None, 
-        is_test=is_test, is_verbose=is_verbose, 
-        multi_task_algo=base_line_algo
-    )
+
+    try:
+        error_results = run_multi_task_gp(
+            curr_save_path, pca_modifier, multi_task_desc=[all_metal_name], 
+            len_inp=len_inp, 
+            len_dataset=default_len_dataset, 
+            len_train_show=default_len_train_show, 
+            kernel="RBF", 
+            graph_path=None, 
+            is_test=is_test, is_verbose=is_verbose, 
+            multi_task_algo=base_line_algo
+        )
+    except RuntimeError: 
+        error_results = {curr_algo : {"CRPS": None}}
 
     all_results.update({
         "no_graph_model" : {
             k: v["CRPS"]
-            for k, v in no_graph_results.items()
+            for k, v in error_results.items()
         }
     })
         
@@ -670,7 +754,23 @@ def general_test_run():
     args = argument_parser()
     is_test=args.is_test
     is_verbose=args.is_verbose
-    general_testing(is_verbose, is_test)
+    
+    best_setting = [
+        ("IIDDataModel", 2, 2, "Matern"),
+        ("ARIMAModel", 2, 2, "Matern"),
+        # ("IndependentGP", 2, 2, "Matern"),
+        # ("SparseGPIndex", 2, 2, "Matern"),
+        # ("GPMultiTaskMultiOut", 2, 2, "Matern"), 
+        # ("GPMultiTaskIndex", 8, 2, "RBF"),
+        # ("DeepGPMultiOut", 10, 6, "Matern"), 
+        # ("DSPPMultiOut", 10, 6, "Matern"), 
+        # ("NonlinearMultiTaskGP", 6, 3, "RBF"), 
+        # ("NonlinearMultiTaskGSPP", 6, 3, "RBF"), 
+    ] 
+
+    save_path = "exp_result/general_running/"
+    general_testing(save_path, best_setting, is_verbose, is_test)
+    # general_testing_legacy(is_verbose, is_test)
 
 def compare_cluster():
     args = argument_parser()
@@ -704,7 +804,7 @@ def compare_cluster():
         ("DeepGPMultiOut", 8, 2, "Matern"), 
         ("DSPPMultiOut", 8, 2, "Matern"), 
         ("NonlinearMultiTaskGP", 10, 4, "RBF"), 
-        # ("NonlinearMultiTaskGSPP", 10, 4, "RBF"), 
+        ("NonlinearMultiTaskGSPP", 10, 4, "RBF"), 
     ] 
 
     grid_compare_clusters(
@@ -720,6 +820,62 @@ def compare_many_clusters():
     is_verbose=args.is_verbose
 
     best_setting = [
+        # ("SparseGPIndex", 2, 2, "Matern"),
+        # ("GPMultiTaskMultiOut", 2, 2, "Matern"), 
+        # ("GPMultiTaskIndex", 8, 2, "RBF"),
+        # ("DeepGPMultiOut", 10, 6, "Matern"), 
+        # ("DSPPMultiOut", 10, 6, "Matern"), 
+        # ("NonlinearMultiTaskGP", 6, 3, "RBF"), 
+        ("NonlinearMultiTaskGSPP", 6, 3, "RBF"), 
+    ] 
+    
+    worst_setting = [
+        # ("SparseGPIndex", 4, 3, "RBF"),
+        # ("GPMultiTaskMultiOut", 10, 6, "RBF"), 
+        # ("GPMultiTaskIndex", 2, 3, "RBF"),
+        # ("DeepGPMultiOut", 8, 2, "Matern"), 
+        # ("DSPPMultiOut", 8, 2, "Matern"), 
+        # ("NonlinearMultiTaskGP", 10, 4, "RBF"), 
+        ("NonlinearMultiTaskGSPP", 10, 4, "RBF"), 
+    ] 
+
+    save_folder = "exp_result/range_cluster_test"
+
+    num_cluster = [2, 3, 4, 5, 6, 7]
+    create_folder(save_folder)
+    
+    missing_entries_best = {
+        2: ["spearman", "euclidean", "soft-dtw divergence", "euclidean knn", "dtw knn"],
+        3: ["spearman", "kendell", "dtw", "soft-dtw divergence", "dtw knn"],
+        4: ["euclidean knn", "dtw knn", "softdtw knn", "expert"],
+        5: ["peason", "softdtw knn"],
+        6: ["euclidean"],
+        7: ["dtw knn"]
+    }
+
+    missing_entries_worst = {
+        2: ["dtw knn"],
+        4: ["kendel"]
+    }
+
+    for n in num_cluster: 
+        if not n in missing_entries_worst:
+            continue
+
+        grid_compare_clusters(
+            worst_setting,
+            f"exp_result/cluster_result/feat_data/cluster_{n}.json", 
+            f"{save_folder}/cluster_compare_{n}", 
+            is_test=is_test, is_verbose=is_verbose, 
+            cluster_names=missing_entries_worst[n]
+        )
+
+def grid_commodities():
+    args = argument_parser()
+    is_test=args.is_test
+    is_verbose=args.is_verbose
+    
+    best_setting = [
         ("SparseGPIndex", 2, 2, "Matern"),
         ("GPMultiTaskMultiOut", 2, 2, "Matern"), 
         ("GPMultiTaskIndex", 8, 2, "RBF"),
@@ -729,37 +885,9 @@ def compare_many_clusters():
         # ("NonlinearMultiTaskGSPP", 6, 3, "RBF"), 
     ] 
     
-    worst_setting = [
-        ("SparseGPIndex", 4, 3, "RBF"),
-        ("GPMultiTaskMultiOut", 10, 6, "RBF"), 
-        ("GPMultiTaskIndex", 2, 3, "RBF"),
-        ("DeepGPMultiOut", 8, 2, "Matern"), 
-        ("DSPPMultiOut", 8, 2, "Matern"), 
-        ("NonlinearMultiTaskGP", 10, 4, "RBF"), 
-        ("NonlinearMultiTaskGSPP", 10, 4, "RBF"), 
-    ] 
-
-    save_folder = "exp_result/range_cluster_test"
-
-    num_cluster = [2, 3, 5, 6, 7, 8]
-    create_folder(save_folder)
-
-    for n in num_cluster: 
-        grid_compare_clusters(
-            best_setting,
-            f"exp_result/cluster_result/feat_data/cluster_{n}.json", 
-            f"{save_folder}/cluster_compare_{n}", 
-            is_test=is_test, is_verbose=is_verbose
-        )
-
-def grid_commodities():
-    args = argument_parser()
-    is_test=args.is_test
-    is_verbose=args.is_verbose
-    
     grid_commodities_run(
         "exp_result/grid_corr_plot/", 
-        5,5,"RBF",
+        best_setting,
         is_test=is_test, is_verbose=is_verbose
     )
     plot_grid_commodity("grid_corr_plot/grid_result.json")
@@ -790,10 +918,10 @@ def grid_compare_graph():
 
 def main():
     # compare_cluster()
-    compare_many_clusters()
+    # compare_many_clusters()
     # hyperparameter_search()
     # run_ARMA_param_search()
-    # general_test_run()
+    general_test_run()
     # grid_commodities()
     # grid_compare_graph()
 

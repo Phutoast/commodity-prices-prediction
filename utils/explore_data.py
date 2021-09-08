@@ -352,10 +352,11 @@ def plot_graph_hsic():
             np.save(f"exp_result/graph_result/{name.lower()}_test_addi_info.npy", addi_info)
     else:
 
-        list_test_stat = [
-            np.load(f"exp_result/graph_result/{name.lower()}_test_stat.npy")
-            for name in test_name
-        ]
+        list_test_stat = []
+        for name in test_name:
+            matrix = np.load(f"exp_result/graph_result/{name.lower()}_test_stat.npy")
+            np.fill_diagonal(matrix, np.nan)
+            list_test_stat.append(matrix)
         
         list_is_correlated = [
             np.load(f"exp_result/graph_result/{name.lower()}_test_graph.npy")

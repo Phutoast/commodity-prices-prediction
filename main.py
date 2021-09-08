@@ -8,7 +8,7 @@ from examples.simple_example import example_plot_all_algo_lag, example_plot_walk
 from utils.others import create_folder, find_all_metal_names
 
 from utils.data_structure import CompressMethod
-from utils.data_visualization import plot_hyperparam_search, plot_compare_cluster, plot_arma_hyper_search, plot_compare_graph
+from utils import data_visualization
 from utils.data_preprocessing import GlobalModifier, load_metal_data, save_date_common
 from utils import explore_data, others
 from utils.data_structure import DatasetTaskDesc
@@ -270,16 +270,16 @@ if __name__ == '__main__':
 
     # load_path = "exp_result/save_hyper/hyper_search_"
     # algorithms = ["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"]
-    # plot_hyperparam_search(load_path, algorithms)
+    # data_visualization.plot_hyperparam_search(load_path, algorithms)
     
     # load_path = "exp_result/save_hyper_deep/hyper_search_"
     # algorithms = ["DeepGPMultiOut", "NonlinearMultiTaskGP"]
-    # plot_hyperparam_search(load_path, algorithms)
+    # data_visualization.plot_hyperparam_search(load_path, algorithms)
 
-    # plot_arma_hyper_search("exp_result/hyper_param_arma")
-    # plot_compare_cluster()
+    # data_visualization.plot_arma_hyper_search("exp_result/hyper_param_arma")
+    # data_visualization.plot_compare_cluster()
 
-    # plot_compare_graph()
+    # data_visualization.plot_compare_graph()
     
     # example_plot_walk_forward(
     #     {}, "GPMultiTaskMultiOut",
@@ -290,8 +290,12 @@ if __name__ == '__main__':
 
     # assert False
 
-    # print(explore_data.stationary_test(False, is_diff=False))
+    # print()
+    # explore_data.plot_graph_hsic()
     
     # main()
     # gen_experiment.cluster_index_to_nested([0, 3, 0, 2, 3, 1, 1, 1, 2, 4])
+
+    data_visualization.plot_range_algo_best()
+    data_visualization.plot_range_algo_worst()
 
