@@ -446,7 +446,7 @@ def grid_commodities_run(save_path, setting, is_test=False, is_verbose=False):
 
     # error_matrix = np.zeros((num_metal, num_metal))
     error_dict = {
-        algo: np.zeros((num_metal, num_metal))
+        algo: np.zeros((num_metal, num_metal)).tolist()
         for algo, _, _, _ in setting
     }
 
@@ -474,21 +474,10 @@ def grid_commodities_run(save_path, setting, is_test=False, is_verbose=False):
                     except RuntimeError: 
                         error_results = {curr_algo : {"CRPS": None}}
 
-                    for algo in multi_task_algo:
-                        error_dict[algo][j, i] = 0 if i == j else error_results[algo]["CRPS"]
+                    error_dict[curr_algo][j][i] = 0 if i == j else error_results[curr_algo]["CRPS"]
+
+                    dump_json(f"{save_path}/grid_result.json", error_dict)     
                     
-                    print(error_dict)
-    
-    for algo in multi_task_algo:
-        error_dict[algo] = (error_dict[algo].T + error_dict[algo]).tolist()
-    
-    error_dict["metal_names"] = [
-        metal_desc.metal_to_display_name[name]
-        for name in all_metal_name
-    ]
-    
-    dump_json(f"{save_path}/grid_result.json", error_dict) 
-    
 def update_json(path, entry):
     if os.path.isfile(path): 
         updated_version = {}

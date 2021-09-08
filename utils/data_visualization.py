@@ -515,7 +515,20 @@ def plot_heat_map(ax, matrix, row_name, column_name, xlabel="PCA", ylabel="Backw
     ax.set_ylabel(ylabel)
     return ax
 
-@save_figure("figure/hyperparam_search.pdf")
+@save_figure("figure/hyperparam_search_gp.pdf")
+def plot_hyperparam_search_gp():
+    load_path = "exp_result/save_hyper/hyper_search_"
+    algorithms = ["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"]
+    return plot_hyperparam_search(load_path, algorithms)
+
+
+@save_figure("figure/hyperparam_search_gp_deep.pdf")
+def plot_hyperparam_search_gp_deep():
+    load_path = "exp_result/save_hyper_deep/hyper_search_"
+    algorithms = ["DeepGPMultiOut", "NonlinearMultiTaskGP"]
+    return plot_hyperparam_search(load_path, algorithms)
+
+
 def plot_hyperparam_search(load_path, algorithms):
  
     kernel_names = ["matern", "rbf"]
@@ -578,21 +591,21 @@ def plot_hyperparam_search(load_path, algorithms):
         print(f"Second Optimal Kernel: {kernel_display[second_kernel]} Second Optimal Inp Len: {row_name[second_row]} Second Optimal PCA: {column_name[second_col]} Second Best CRPS {np.min(matrix)}")
         
         print("------------")
-
-    
-    # print(all_algo[0])
-    # assert False
-    
-    plt.show()
     
     return fig, axes
 
+@save_figure("figure/compare_cluster_best.pdf")
+def plot_compare_cluster_best():
+    return plot_compare_cluster("exp_result/range_best_hyperparam/compare_cluster_4.json")
 
-@save_figure("figure/compare_cluster.pdf")
-def plot_compare_cluster():
-    # result_cluster = others.load_json("exp_result/cluster_compare_non_deep/compare_cluster.json")
-    result_cluster = others.load_json("exp_result/cluster_compare_all/worst_all.json")
-    # result_cluster = others.load_json("exp_result/cluster_compare_all/best_some_dspp.json")
+@save_figure("figure/compare_cluster_worst.pdf")
+def plot_compare_cluster_worst():
+    return plot_compare_cluster("exp_result/range_worst_hyperparam/compare_cluster_4.json")
+
+
+def plot_compare_cluster(data_path):
+    result_cluster = others.load_json(data_path)
+
 
     keys = list(result_cluster.keys())
     multi_task_gp = sorted(list(result_cluster[keys[0]].keys()))
@@ -614,23 +627,42 @@ def plot_compare_cluster():
 
         diff_result = []
         for i, (test_name, result) in enumerate(result_cluster.items()):
+            convert = {
+                "-".join(k.split(" ")) : v
+                for k, v in 
+                cluster_type_to_display_name.items()
+            }
             if j == 0:
-                all_cluster_names.append(cluster_type_to_display_name[test_name])
+                all_cluster_names.append(convert[test_name])
             
             if not result[mtl_gp] is None:
-                diff = full_model_result[mtl_gp] - result[mtl_gp]  
-                ax.scatter(x=diff, y=i, color=color["r"] if diff < 0 else color["g"], s=40, zorder=3)
+                result_mean, result_std = result[mtl_gp]
+                full_mean, full_std = full_model_result[mtl_gp]
+
+                diff = full_mean - result_mean
+                data_err = np.sqrt(result_std**2+full_std**2)
+                ax.scatter(
+                    x=diff, y=i, 
+                    color=color["r"] if diff < 0 else color["g"], 
+                    s=40, zorder=6
+                )
+                ax.errorbar(
+                    x=diff, y=i, xerr=data_err, 
+                    color=color["k"], linewidth=1.5, 
+                    zorder=3, capsize=5
+                )
+
                 diff_result.append(diff)
 
         if np.sign(np.max(diff_result)) != np.sign(np.min(diff_result)):
             ax.axvline(x=0.0, color=color["k"], linestyle="--")
 
-        ax.set_xlim(
-            np.min(diff_result)-np.std(diff_result)/2.0, 
-            np.max(diff_result)+np.std(diff_result)/2.0
-        )
+        # ax.set_xlim(
+        #     np.min(diff_result)-np.std(diff_result)/2.0, 
+        #     np.max(diff_result)+np.std(diff_result)/2.0
+        # )
         ax.xaxis.set_minor_locator(AutoMinorLocator())
-        ax.grid(zorder=0)
+        ax.grid(zorder=0, linestyle='--')
         ax.set_title(algo_dict.class_name_to_display[mtl_gp])
         ax.set_xlabel("Improvement")
         ax.ticklabel_format(axis="x", style="sci", scilimits=(0, 0))
@@ -643,13 +675,17 @@ def plot_compare_cluster():
     fig.tight_layout()
     # plt.show()
     return fig, axes
+
+@save_figure("figure/compare_graph_best.pdf")
+def plot_compare_graph_best(): 
+    return plot_compare_graph("exp_result/graph_compare/bound_compare_graph_best.json")
+
+@save_figure("figure/compare_graph_worst.pdf")
+def plot_compare_graph_worst(): 
+    return plot_compare_graph("exp_result/graph_compare/bound_compare_graph_worst.json")
     
-@save_figure("figure/compare_graph.pdf")
-def plot_compare_graph():
-    result_cluster = others.load_json(
-        "exp_result/graph_compare/compare_graph_best.json"
-        # "exp_result/graph_compare/compare_graph_worst.json"
-    )
+def plot_compare_graph(path):
+    result_cluster = others.load_json(path)
 
     suitable_baseline_compare = {
         "SparseMaternGraphGP": "SparseGPIndex",
@@ -687,16 +723,25 @@ def plot_compare_graph():
     for j, (mtl_gp, ax) in enumerate(zip(multi_task_gp, axes)):
         list_improvement = []
         for i, graph in enumerate(type_graph):
-            diff = baseline_result[
+            baseline_mean, baseline_std = baseline_result[
                 suitable_baseline_compare[mtl_gp]
-            ] - result_cluster[graph][mtl_gp]
+            ]
+            result_mean, result_std = result_cluster[graph][mtl_gp]
+
+            diff = baseline_mean - result_mean
 
             list_improvement.append(diff)
 
             ax.scatter(
                 x=diff, y=i, 
                 color=color["r"] if diff < 0 else color["g"], 
-                s=40, zorder=3
+                s=40, zorder=6
+            )
+            ax.errorbar(
+                x=diff, y=i, 
+                xerr=np.sqrt(baseline_std**2+result_std**2),
+                color=color["k"], linewidth=1.5, 
+                zorder=3, capsize=5,
             )
         
         least_imporv, max_improv = min(list_improvement), max(list_improvement) 
@@ -704,10 +749,10 @@ def plot_compare_graph():
         if np.sign(np.max(list_improvement)) != np.sign(np.min(list_improvement)):
             ax.axvline(x=0.0, color=color["k"], linestyle="--")
 
-        ax.set_xlim(
-            least_imporv-np.std(list_improvement)/2.0, 
-            max_improv+np.std(list_improvement)/2.0
-        )
+        # ax.set_xlim(
+        #     least_imporv-np.std(list_improvement)/2.0, 
+        #     max_improv+np.std(list_improvement)/2.0
+        # )
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.grid(zorder=0)
         ax.set_title(algo_dict.class_name_to_display[mtl_gp])
@@ -818,11 +863,9 @@ def plot_range_algo(base_path):
     learning_methods = sorted(list(sample_data[cluster_methods[0]].keys()))
     cluster_methods.remove("full_model")
 
-    # cluster_type_to_display_name
-
     # methods.remove("full_model")
-    print(learning_methods)
-    print(cluster_methods)
+    # print(learning_methods)
+    # print(cluster_methods)
 
     num_row = len(cluster_methods)
     num_col = len(learning_methods)
@@ -833,7 +876,7 @@ def plot_range_algo(base_path):
     fig, axes = plt.subplots(
         nrows=num_row,
         ncols=num_col, 
-        figsize=(26, 25),
+        figsize=(25, 25),
         # figsize=(10, 10)
     )
 
@@ -851,27 +894,40 @@ def plot_range_algo(base_path):
                 cluster_path = base_path + f"{num_cluster}.json"
                 data = others.load_json(cluster_path)
 
-                full_model_result = data["full_model"][algo_name]
-                result = data[cluster_name][algo_name]
+                full_mean, full_std = data["full_model"][algo_name]
+                result_mean, result_std = data[cluster_name][algo_name]
 
-                if result is None:
+                if result_mean is None:
                     pass
                 else:
-                    diff = full_model_result - result
-                    all_data.append([num_cluster, diff])
+                    diff = full_mean - result_mean
+                    real_std = np.sqrt(full_std**2 + result_std**2)
+                    all_data.append([num_cluster, diff, real_std])
 
             all_data = np.array(all_data)
-            x, y = all_data.T
-            
-            for data_x, data_y in zip(x, y):
-                curr_axes.scatter(x=data_x, y=data_y, color=color["r"] if data_y < 0 else color["g"], s=50, zorder=3)
-            
-            curr_axes.plot(x, y, zorder=1, color=color["gray"], linewidth=0.5)
+            x, y, err = all_data.T
+
+            for data_x, data_y, data_err in zip(x, y, err):
+                curr_color = color["r"] if data_y < 0 else color["g"]
+                curr_axes.scatter(
+                    x=data_x, y=data_y, 
+                    color=curr_color, 
+                    s=60, zorder=6
+                )
+ 
+                curr_axes.errorbar(
+                    data_x, data_y, yerr=data_err,
+                    zorder=3, color=color["gray"], 
+                    linewidth=1.5, 
+                    ecolor=color["k"], capsize=5
+                )
+
+            curr_axes.plot(x, y, zorder=3, color=color["gray"], linewidth=0.5)
 
             if np.sign(np.max(y)) != np.sign(np.min(y)):
                 curr_axes.axhline(y=0, color=color["k"], linestyle="--")
             
-            curr_axes.grid(zorder=0)
+            curr_axes.grid(zorder=0, linestyle='--')
             
             if row == 0:
                 curr_axes.set_title(
@@ -880,8 +936,13 @@ def plot_range_algo(base_path):
                 )
             
             if col == 0: 
+                convert = {
+                    "-".join(k.split(" ")) : v
+                    for k, v in 
+                    cluster_type_to_display_name.items()
+                }
                 curr_axes.set_ylabel(
-                    cluster_type_to_display_name[cluster_name], 
+                    convert[cluster_name], 
                     rotation=0, fontsize=16, labelpad=15
                 )
                 curr_axes.yaxis.set_label_coords(-0.5, 0.5)

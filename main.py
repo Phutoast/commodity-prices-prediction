@@ -268,34 +268,15 @@ if __name__ == '__main__':
 
     # fix_hyper_data()
 
-    # load_path = "exp_result/save_hyper/hyper_search_"
-    # algorithms = ["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"]
-    # data_visualization.plot_hyperparam_search(load_path, algorithms)
-    
-    # load_path = "exp_result/save_hyper_deep/hyper_search_"
-    # algorithms = ["DeepGPMultiOut", "NonlinearMultiTaskGP"]
-    # data_visualization.plot_hyperparam_search(load_path, algorithms)
+    data_visualization.plot_hyperparam_search_gp()
+    data_visualization.plot_hyperparam_search_gp_deep()
 
     # data_visualization.plot_arma_hyper_search("exp_result/hyper_param_arma")
-    # data_visualization.plot_compare_cluster()
 
-    # data_visualization.plot_compare_graph()
-    
-    # example_plot_walk_forward(
-    #     {}, "GPMultiTaskMultiOut",
-    #     is_save=False, is_load=True, is_show=True,
-    #     # load_path="Hard_Cluster_Walk_Forward"
-    #     load_path="09-01-21-00-22-08-GPMultiTaskMultiOut"
-    # )
-
-    # assert False
-
-    # print()
-    # explore_data.plot_graph_hsic()
-    
-    # main()
-    # gen_experiment.cluster_index_to_nested([0, 3, 0, 2, 3, 1, 1, 1, 2, 4])
-
-    data_visualization.plot_range_algo_best()
-    data_visualization.plot_range_algo_worst()
+    # data_visualization.plot_range_algo_best()
+    # data_visualization.plot_range_algo_worst()
+    # data_visualization.plot_compare_cluster_best()
+    # data_visualization.plot_compare_cluster_worst()
+    # data_visualization.plot_compare_graph_best()
+    # data_visualization.plot_compare_graph_worst()
 
