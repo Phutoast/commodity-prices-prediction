@@ -828,34 +828,37 @@ def print_tables_side_by_side(tables, headers, titles, spacing=3):
         final_line_string = "".join(line_each_table)
         print(final_line_string)
 
-@save_figure("figure/grid_all_deep_gp.pdf")
-def plot_grid_commodity_deep():
-    return plot_grid_commodity_all("exp_result/grid_result/grid_result_non_deep.json")
+# @save_figure("figure/grid_all_deep_gp.pdf")
+# def plot_grid_commodity_deep():
+#     return plot_grid_commodity_all("exp_result/grid_result/grid_result_non_deep.json")
 
-@save_figure("figure/grid_all_gp.pdf")
+@save_figure("figure/grid_all.pdf")
 def plot_grid_commodity_gp():
-    return plot_grid_commodity_all("exp_result/grid_result/grid_result_deep.json")
+    # return plot_grid_commodity_all("exp_result/grid_result/grid_result_deep.json")
+    return plot_grid_commodity_all("exp_result/grid_result/grid_result_all.json")
 
 def plot_grid_commodity_all(load_path):
     load_details = others.load_json(load_path)
     all_algo = [algo for algo in list(load_details.keys()) if algo != "metal_names"]
     metal_names = others.find_all_metal_names()
     
-    fig, axes = plt.subplots(ncols=len(load_details), nrows=1, figsize=(25, 15))
+    fig, axes = plt.subplots(ncols=4, nrows=2, figsize=(35, 15))
 
     for i, algo in enumerate(all_algo):
         curr_axes = axes.flatten()[i]
         result = np.array(load_details[algo], dtype=np.float32)
         result = result + result.T
+        np.fill_diagonal(result, np.nan)
         plot_heat_map(
-            curr_axes, result, metal_names, 
-            metal_names, xlabel="Commodities", 
+            curr_axes, result, [metal_to_display_name[n] for n in metal_names], 
+            [metal_to_display_name[n] for n in metal_names],  xlabel="Commodities", 
             ylabel="Commodities", 
             round_acc=3
         )
         plt.setp(curr_axes.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
         curr_axes.set_title(algo_dict.class_name_to_display[algo], fontsize=20)
      
+    fig.delaxes(axes.flatten()[-1])
     fig.tight_layout()
     # plt.show()
     return fig, axes

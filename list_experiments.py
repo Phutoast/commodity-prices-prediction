@@ -82,37 +82,37 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
     )
 
     default_config = {
-        "GPMultiTaskMultiOut": base_multi_task_fast_lr,
-        "GPMultiTaskIndex": base_multi_task_fast_lr,
-        "DeepGPMultiOut": base_multi_task_slow_lr,
+        # "GPMultiTaskMultiOut": base_multi_task_fast_lr,
+        # "GPMultiTaskIndex": base_multi_task_fast_lr,
+        # "DeepGPMultiOut": base_multi_task_slow_lr,
         # Might be wrong.....
-        "DSPPMultiOut": base_multi_task_slow_dspp,
+        # "DSPPMultiOut": base_multi_task_slow_dspp,
         "SparseGPIndex": base_multi_task_slow_lr,
         "SparseMaternGraphGP": base_multi_task_slow_lr,
-        "DeepGraphMultiOutputGP": base_multi_task_slower_lr,
-        "DeepGraphInfoMaxMultiOutputGP": base_multi_task_fast_lr,
+        # "DeepGraphMultiOutputGP": base_multi_task_slower_lr,
+        # "DeepGraphInfoMaxMultiOutputGP": base_multi_task_fast_lr,
         # Optim = 4 is enough....
-        "NonlinearMultiTaskGP": base_multi_task_slow_lr,
-        "NonlinearMultiTaskGSPP": base_multi_task_slow_dspp,
-        # "DeepGPGraphPropagate": base_multi_task_fast_lr,
-        # "DeepGPGraphInteract": base_multi_task_fast_lr,
-        # "DSPPGraphInteract": base_multi_task_fast_lr,
-        # "DSPPGraphPropagate": base_multi_task_fast_lr,
-        "IndependentGP": algo_dict.encode_params(
-            "gp", is_verbose=is_verbose, 
-            is_test=is_test, 
-            kernel="Composite_1", 
-            optim_iter=optim_iter,
-            len_inp=10
-        ),
-        "IIDDataModel": algo_dict.encode_params(
-            "iid", is_verbose=is_verbose, 
-            is_test=is_test, dist="gaussian"
-        ),
-        "ARIMAModel": algo_dict.encode_params(
-            "arima", is_verbose=is_verbose, 
-            is_test=is_test, order=(11, 2, 11)
-        ),
+        # "NonlinearMultiTaskGP": base_multi_task_slow_lr,
+        # "NonlinearMultiTaskGSPP": base_multi_task_slow_dspp,
+        "DeepGPGraphPropagate": base_multi_task_fast_lr,
+        "DeepGPGraphInteract": base_multi_task_fast_lr,
+        "DSPPGraphInteract": base_multi_task_fast_lr,
+        "DSPPGraphPropagate": base_multi_task_fast_lr,
+        # "IndependentGP": algo_dict.encode_params(
+        #     "gp", is_verbose=is_verbose, 
+        #     is_test=is_test, 
+        #     kernel="Composite_1", 
+        #     optim_iter=25,
+        #     len_inp=10
+        # ),
+        # "IIDDataModel": algo_dict.encode_params(
+        #     "iid", is_verbose=is_verbose, 
+        #     is_test=is_test, dist="gaussian"
+        # ),
+        # "ARIMAModel": algo_dict.encode_params(
+        #     "arima", is_verbose=is_verbose, 
+        #     is_test=is_test, order=(11, 2, 11)
+        # ),
     }
 
     task = gen_experiment.gen_task_cluster(
@@ -747,45 +747,45 @@ def general_test_run():
     is_verbose=args.is_verbose
     
     best_setting = [
-        ("IIDDataModel", 
-            2, 2, "Matern", 
-            "exp_result/graph_result/distance correlation_test_graph.npy"),
-        ("ARIMAModel", 
-            2, 2, "Matern", 
-            "exp_result/graph_result/distance correlation_test_graph.npy"),
-        ("IndependentGP", 
-            2, 2, "Matern", 
-            "exp_result/graph_result/distance correlation_test_graph.npy"),
-        ("SparseGPIndex", 
-            2, 2, "Matern", 
-            "exp_result/graph_result/distance correlation_test_graph.npy"),
-        ("GPMultiTaskMultiOut", 
-            2, 2, 
-            "Matern", "exp_result/graph_result/distance correlation_test_graph.npy"), 
-        ("GPMultiTaskIndex", 
-            8, 2, "RBF", 
-            "exp_result/graph_result/distance correlation_test_graph.npy"),
-        ("DeepGPMultiOut", 
-            10, 6, "Matern", 
-            "exp_result/graph_result/distance correlation_test_graph.npy"), 
-        ("DSPPMultiOut", 
-            10, 6, "Matern", 
-            "exp_result/graph_result/distance correlation_test_graph.npy"), 
-        ("NonlinearMultiTaskGP", 
-            6, 3, "Matern", 
-            "exp_result/graph_result/distance correlation_test_graph.npy"), 
-        ("NonlinearMultiTaskGSPP", 
-            6, 3, "Matern", 
-            "exp_result/graph_result/distance correlation_test_graph.npy"), 
-        ("DeepGraphMultiOutputGP", 
-            2, 2, "Matern", 
-            "exp_result/graph_result/spearman_test_graph.npy"), 
-        ("DeepGraphInfoMaxMultiOutputGP",
-            2, 2, "Matern", 
-            "exp_result/graph_result/hsic_test_graph.npy"),
-        ("SparseMaternGraphGP", 
-            2, 2, "Matern", 
-            "exp_result/graph_result/distance correlation_test_graph.npy"),
+        # ("IIDDataModel", 
+        #     2, 2, "Matern", 
+        #     "exp_result/graph_result/distance correlation_test_graph.npy"),
+        # ("ARIMAModel", 
+        #     2, 2, "Matern", 
+        #     "exp_result/graph_result/distance correlation_test_graph.npy"),
+        # ("IndependentGP", 
+        #     2, 2, "Matern", 
+        #     "exp_result/graph_result/distance correlation_test_graph.npy"),
+        # ("SparseGPIndex", 
+        #     2, 2, "Matern", 
+        #     "exp_result/graph_result/distance correlation_test_graph.npy"),
+        # ("GPMultiTaskMultiOut", 
+        #     2, 2, 
+        #     "Matern", "exp_result/graph_result/distance correlation_test_graph.npy"), 
+        # ("GPMultiTaskIndex", 
+        #     8, 2, "RBF", 
+        #     "exp_result/graph_result/distance correlation_test_graph.npy"),
+        # ("DeepGPMultiOut", 
+        #     10, 6, "Matern", 
+        #     "exp_result/graph_result/distance correlation_test_graph.npy"), 
+        # ("DSPPMultiOut", 
+        #     10, 6, "Matern", 
+        #     "exp_result/graph_result/distance correlation_test_graph.npy"), 
+        # ("NonlinearMultiTaskGP", 
+        #     6, 3, "Matern", 
+        #     "exp_result/graph_result/distance correlation_test_graph.npy"), 
+        # ("NonlinearMultiTaskGSPP", 
+        #     6, 3, "Matern", 
+        #     "exp_result/graph_result/distance correlation_test_graph.npy"), 
+        # ("DeepGraphMultiOutputGP", 
+        #     2, 2, "Matern", 
+        #     "exp_result/graph_result/spearman_test_graph.npy"), 
+        # ("DeepGraphInfoMaxMultiOutputGP",
+        #     2, 2, "Matern", 
+        #     "exp_result/graph_result/hsic_test_graph.npy"),
+        # ("SparseMaternGraphGP", 
+        #     2, 2, "Matern", 
+        #     "exp_result/graph_result/distance correlation_test_graph.npy"),
         ("DeepGPGraphPropagate", 
             3, 10, "Matern", 
             "exp_result/graph_result/hsic_test_graph.npy"),
@@ -801,8 +801,8 @@ def general_test_run():
     ] 
 
     save_path = "exp_result/general_running/"
-    # general_testing(save_path, best_setting, is_verbose, is_test)
-    general_testing_legacy(is_verbose, is_test)
+    general_testing(save_path, best_setting, is_verbose, is_test)
+    # general_testing_legacy(is_verbose, is_test)
 
 def compare_cluster():
     args = argument_parser()
@@ -951,8 +951,8 @@ def main():
     # compare_cluster()
     # compare_many_clusters()
     # hyperparameter_search()
-    run_ARMA_param_search()
-    # general_test_run()
+    # run_ARMA_param_search()
+    general_test_run()
     # grid_commodities()
     # grid_compare_graph()
 

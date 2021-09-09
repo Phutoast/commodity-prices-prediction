@@ -58,7 +58,7 @@ class SparseGPIndex(GPMultiTaskIndex):
             self.likelihood, self.model,
             num_data=self.train_y.size(0)
         )
- 
+
         train_dataset = TensorDataset(
             torch.cat([self.train_x, self.train_ind], dim=1), self.train_y
         )

@@ -55,7 +55,7 @@ class SparseMaternGraphGP(SparseGPIndex):
         if self.hyperparam["is_gpu"]:
             self.ind_index = self.ind_index.cuda()
             self.ind_points = self.ind_points.cuda()
-
+            
         self.model = SparseGraphGP(
             self.ind_points, kernel, (self.eigen_vec, self.eigen_val)
         )
