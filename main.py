@@ -222,8 +222,8 @@ if __name__ == '__main__':
 
     # fix_hyper_data()
 
-    data_visualization.plot_hyperparam_search_gp()
-    data_visualization.plot_hyperparam_search_gp_deep()
+    # data_visualization.plot_hyperparam_search_gp()
+    # data_visualization.plot_hyperparam_search_gp_deep()
 
     # data_visualization.plot_arma_hyper_search("exp_result/hyper_param_arma")
     # data_visualization.plot_table_cluster()
@@ -249,12 +249,12 @@ if __name__ == '__main__':
     # most_final.update(interact_result)
     # others.dump_json("exp_result/final_result/final_most.json", most_final)
 
-    # most_final = others.load_json("exp_result/final_result/final_most.json")
+    most_final = others.load_json("exp_result/final_result/final_most.json")
 
-    # data_visualization.plot_latex(
-    #     names=[list(most_final.keys())],
-    #     results=[most_final],
-    #     multi_task_name=[others.find_all_metal_names()],
-    #     display_name_to_algo=algo_dict.class_name_to_display
-    # )
+    data_visualization.plot_latex(
+        names=[list(most_final.keys())],
+        results=[most_final],
+        multi_task_name=[others.find_all_metal_names()],
+        display_name_to_algo=algo_dict.class_name_to_display
+    )
 

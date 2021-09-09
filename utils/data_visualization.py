@@ -475,8 +475,8 @@ def plot_latex(names, results, multi_task_name, display_name_to_algo):
                 else:
                     if index_method == min_values[task_num, eval_num]:
                         bold_max = contents[eval_num].split(" ")
-                        # bold_max[0] = "\\textbf{" + bold_max[0] + "}" 
-                        bold_max[0] = bold_max[0] + "*"
+                        bold_max[0] = "\\textbf{" + bold_max[0] + "}" 
+                        # bold_max[0] = bold_max[0] + "*"
                         eval_values[eval_num].append(' '.join(bold_max))
                     else:
                         eval_values[eval_num].append(contents[eval_num])
@@ -523,22 +523,21 @@ def plot_heat_map(ax, matrix, row_name, column_name, xlabel="PCA", ylabel="Backw
 def plot_hyperparam_search_gp():
     load_path = "exp_result/save_hyper/hyper_search_"
     algorithms = ["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"]
-    return plot_hyperparam_search(load_path, algorithms)
+    kernel_names = ["matern", "rbf"]
+    kernel_display = ["Matern", "Radial Basis Function"]
+    return plot_hyperparam_search(load_path, algorithms, kernel_names, kernel_display)
 
 
 @save_figure("figure/hyperparam_search_gp_deep.pdf", False)
 def plot_hyperparam_search_gp_deep():
     load_path = "exp_result/save_hyper_deep/hyper_search_"
     algorithms = ["DeepGPMultiOut", "NonlinearMultiTaskGP"]
-    return plot_hyperparam_search(load_path, algorithms)
+    kernel_names = ["matern"]
+    kernel_display = ["Matern"]
+    return plot_hyperparam_search(load_path, algorithms, kernel_names, kernel_display)
 
 
-def plot_hyperparam_search(load_path, algorithms):
- 
-    kernel_names = ["matern", "rbf"]
-    kernel_display = ["Matern", "Radical Basis Function"]
-    # kernel_names = ["matern"]
-    # kernel_display = ["Matern"]
+def plot_hyperparam_search(load_path, algorithms, kernel_names, kernel_display):
 
     row_name = np.arange(2, 12, step=2)
     column_name = np.arange(2, 7)
@@ -786,11 +785,8 @@ def plot_arma_hyper_search(main_path):
     for path in all_path:
         # fig, ax = plt.subplots(figsize=(10, 10))
         data = np.load(main_path + "/" + path) * 0.00001
-        print(data)
-        batch, row, col = np.unravel_index(data.argmin(), data.shape)
-        print(data.min())
-        assert False
-        print(f"For Metal {metal_to_display_name[path.split('.')[0]]}: Optimal Order: ({row_name[row]}, 0, {col_name[col]})")
+        p, q, d = np.unravel_index(data.argmin(), data.shape)
+        print(f"For Metal {metal_to_display_name[path.split('.')[0]]}: Optimal Order: ({row_name[p]}, {batch_name[d]}, {col_name[q]})")
 
 def cluster_label_to_dict(labels):
     num_cluster = len(set(labels))

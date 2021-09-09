@@ -7,7 +7,7 @@ import argparse
 import os.path
 
 from utils.others import create_folder, dump_json, load_json, find_sub_string, find_all_metal_names
-from utils.data_visualization import plot_latex, plot_grid_commodity
+from utils.data_visualization import plot_latex
 from utils.data_structure import DatasetTaskDesc, CompressMethod
 from utils.data_preprocessing import load_transform_data, parse_series_time, load_metal_data, get_data
 from experiments import algo_dict, gen_experiment, metal_desc
@@ -111,7 +111,7 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
         ),
         "ARIMAModel": algo_dict.encode_params(
             "arima", is_verbose=is_verbose, 
-            is_test=is_test, order=(2, 1, 5)
+            is_test=is_test, order=(11, 2, 11)
         ),
     }
 
@@ -583,7 +583,7 @@ def run_ARMA_param_search(save_folder="exp_result/hyper_param_arma_test"):
 
     create_folder(save_folder)
 
-    for metal in metal_names:
+    for metal in metal_names[:5]:
         for i, s1 in enumerate(np.arange(2, 12, step=1)):
             for j, s2 in enumerate(np.arange(2, 12, step=1)):
                 for k, s3 in enumerate(np.arange(2, 12, step=1)):
@@ -922,7 +922,6 @@ def grid_commodities():
         best_setting,
         is_test=is_test, is_verbose=is_verbose
     )
-    # plot_grid_commodity("grid_corr_plot/grid_result.json")
 
 def grid_compare_graph():
     args = argument_parser()
