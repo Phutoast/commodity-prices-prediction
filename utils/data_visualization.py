@@ -37,7 +37,7 @@ color = {
 }
 color = defaultdict(lambda:"#1a1a1a", color)
 
-def save_figure(save_path):
+def save_figure(save_path, is_bbox_inches=True):
     def actual_decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -46,7 +46,10 @@ def save_figure(save_path):
             if isinstance(out, tuple):
                 fig, ax = out
                 if save_path is not None:
-                    fig.savefig(save_path, bbox_inches='tight')
+                    if is_bbox_inches:
+                        fig.savefig(save_path, bbox_inches='tight')
+                    else:
+                        fig.savefig(save_path)
                 return fig, ax
             
             return out
@@ -429,7 +432,7 @@ def plot_latex(names, results, multi_task_name, display_name_to_algo):
                 eval_dict = all_results[name]
                 for eval_method, eval_result in eval_dict.items():
                     evals_per_task = [
-                        f"{mean:.5f} $\pm$ {std:.5f}"
+                        f"{mean*100:.4f} $\pm$ {std*100:.4f}"
                         for mean, std in eval_result
                     ]
                     total_eval.append(evals_per_task)
@@ -472,7 +475,8 @@ def plot_latex(names, results, multi_task_name, display_name_to_algo):
                 else:
                     if index_method == min_values[task_num, eval_num]:
                         bold_max = contents[eval_num].split(" ")
-                        bold_max[0] = "\\textbf{" + bold_max[0] + "}" 
+                        # bold_max[0] = "\\textbf{" + bold_max[0] + "}" 
+                        bold_max[0] = bold_max[0] + "*"
                         eval_values[eval_num].append(' '.join(bold_max))
                     else:
                         eval_values[eval_num].append(contents[eval_num])
@@ -515,14 +519,14 @@ def plot_heat_map(ax, matrix, row_name, column_name, xlabel="PCA", ylabel="Backw
     ax.set_ylabel(ylabel)
     return ax
 
-@save_figure("figure/hyperparam_search_gp.pdf")
+@save_figure("figure/hyperparam_search_gp.pdf", False)
 def plot_hyperparam_search_gp():
     load_path = "exp_result/save_hyper/hyper_search_"
     algorithms = ["SparseGPIndex", "GPMultiTaskMultiOut", "GPMultiTaskIndex"]
     return plot_hyperparam_search(load_path, algorithms)
 
 
-@save_figure("figure/hyperparam_search_gp_deep.pdf")
+@save_figure("figure/hyperparam_search_gp_deep.pdf", False)
 def plot_hyperparam_search_gp_deep():
     load_path = "exp_result/save_hyper_deep/hyper_search_"
     algorithms = ["DeepGPMultiOut", "NonlinearMultiTaskGP"]
@@ -591,6 +595,8 @@ def plot_hyperparam_search(load_path, algorithms):
         print(f"Second Optimal Kernel: {kernel_display[second_kernel]} Second Optimal Inp Len: {row_name[second_row]} Second Optimal PCA: {column_name[second_col]} Second Best CRPS {np.min(matrix)}")
         
         print("------------")
+
+    # fig.tight_layout(rect=[0, 0.03, 1, 3])
     
     return fig, axes
 
@@ -826,27 +832,36 @@ def print_tables_side_by_side(tables, headers, titles, spacing=3):
         final_line_string = "".join(line_each_table)
         print(final_line_string)
 
-@save_figure("figure/grid_error.pdf")
-def plot_grid_commodity(load_path):
+@save_figure("figure/grid_all_deep_gp.pdf")
+def plot_grid_commodity_deep():
+    return plot_grid_commodity_all("exp_result/grid_result/grid_result_non_deep.json")
+
+@save_figure("figure/grid_all_gp.pdf")
+def plot_grid_commodity_gp():
+    return plot_grid_commodity_all("exp_result/grid_result/grid_result_deep.json")
+
+def plot_grid_commodity_all(load_path):
     load_details = others.load_json(load_path)
     all_algo = [algo for algo in list(load_details.keys()) if algo != "metal_names"]
-    metal_names = load_details["metal_names"]
+    metal_names = others.find_all_metal_names()
     
-    fig, axes = plt.subplots(ncols=len(all_algo), nrows=1, figsize=(16, 8))
+    fig, axes = plt.subplots(ncols=len(load_details), nrows=1, figsize=(25, 15))
 
     for i, algo in enumerate(all_algo):
+        curr_axes = axes.flatten()[i]
         result = np.array(load_details[algo], dtype=np.float32)
+        result = result + result.T
         plot_heat_map(
-            axes[i], result, metal_names, 
+            curr_axes, result, metal_names, 
             metal_names, xlabel="Commodities", 
             ylabel="Commodities", 
             round_acc=3
         )
-        plt.setp(axes[i].get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
-        axes.set_title(algo_dict.class_name_to_display[algo])
+        plt.setp(curr_axes.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+        curr_axes.set_title(algo_dict.class_name_to_display[algo], fontsize=20)
      
     fig.tight_layout()
-    plt.show()
+    # plt.show()
     return fig, axes
 
 @save_figure("figure/range_algo_best.pdf")
@@ -1052,3 +1067,87 @@ def plot_table_cluster():
             f.write("\\caption{some caption}\n")
             f.write("\\label{some label}\n")
             f.write("\\end{table}\n")
+
+@save_figure("figure/embedding_graph.pdf")
+def plot_embedding():
+    embedding_noinfomax = np.load("exp_result/embedding/embedding_noinfomax.npy")
+    embedding_infomax = np.load("exp_result/embedding/embedding_infomax.npy")
+    embedding_start = np.load("exp_result/embedding/pre_embedding_infomax.npy")
+    # embedding = embedding[:50]
+    num_data = embedding_start.shape[0]
+    fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(18, 6))
+
+    def plot_data(embedding, ax, i):
+        embedding = np.reshape(embedding,(-1, embedding.shape[-1]) )
+        labels = np.concatenate([
+            np.arange(0, 10)
+            for i in range(num_data)
+        ])
+        colors = ["#ff7500", "#5a08bf", "#0062b8", "#1a1a1a", "#20c406", "#ebebeb","#d6022a", "#009688", "#00e5ff", "#1a237e"]
+        
+        all_metal_name = others.find_all_metal_names()
+        display_name_metal = {
+            "aluminium": "Al",
+            "carbon": "CC",
+            "copper": "Cu",
+            "lldpe": "LLDPE",
+            "natgas": "NG",
+            "nickel": "Ni",
+            "palladium": "Pd",
+            "platinum": "Pt",
+            "pvc": "PVC",
+            "wheat": "WH",
+        }
+
+        all_metal_name = [display_name_metal[a] for a in all_metal_name]
+
+        from sklearn.decomposition import PCA
+        from sklearn.manifold import TSNE
+        import umap
+        import matplotlib
+     
+        # def plot_3D():
+        #     pca = PCA(n_components=3)
+        #     reduced_data = pca.fit_transform(embedding)
+
+        #     fig, ax = plt.subplots(figsize=(10, 10),subplot_kw=dict(projection='3d'))
+        #     x, y, z = reduced_data.T
+        #     ax.scatter3D(
+        #         x, y, z, c=labels, s=10.0, 
+        #         cmap=matplotlib.colors.ListedColormap(colors)
+        #     )
+        
+        # def plot_2D():
+
+        pca = TSNE(n_components=2, perplexity=50)
+        # pca = PCA(n_components=2)
+        reduced_data = pca.fit_transform(embedding).T
+        # reduced_data = np.load("cache.npy")
+        # np.save("cache.npy", reduced_data)
+
+        import matplotlib.patches as mpatches
+        recs = []
+        for i in range(0,len(colors)):
+            recs.append(mpatches.Rectangle((0,0),1,1,fc=colors[i]))
+        ax.legend(recs, all_metal_name, loc=4, ncol=2)
+
+        
+        ax.scatter(
+            reduced_data[0], 
+            reduced_data[1], 
+            c=labels, 
+            cmap=matplotlib.colors.ListedColormap(colors),
+            zorder=3
+        )
+
+        ax.grid(zorder=0)
+
+    plot_data(embedding_start, axes[0], 0)
+    plot_data(embedding_noinfomax, axes[1], 1)
+    plot_data(embedding_infomax, axes[2], 2)
+
+    fig.tight_layout()
+    plt.show()
+
+    return fig, axes
+

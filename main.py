@@ -5,7 +5,7 @@ import torch
 import json
 
 from examples.simple_example import example_plot_all_algo_lag, example_plot_walk_forward
-from utils.others import create_folder, find_all_metal_names
+from utils.others import create_folder, find_all_metal_names, load_json, dump_json
 
 from utils.data_structure import CompressMethod
 from utils import data_visualization
@@ -215,65 +215,21 @@ def fix_hyper_data():
         all_final_result_path.append(search_path)
     
     others.dump_json(path + "/" + file_path, merge_json(all_final_result_path))
-    
-def plot_embedding():
-    embedding = np.load("embedding.npy")
-    # embedding = embedding[:50]
-    num_data = embedding.shape[0]
-    embedding = np.reshape(embedding,(-1, embedding.shape[-1]) )
-    labels = np.concatenate([
-        np.arange(0, 10)
-        for i in range(num_data)
-    ])
-    colors = ["#ff7500", "#5a08bf", "#0062b8", "#1a1a1a", "#20c406", "#ebebeb","#d6022a", "#009688", "#00e5ff", "#1a237e"]
-
-
-    from sklearn.decomposition import PCA
-    from sklearn.manifold import TSNE
-    import umap
-    import matplotlib
- 
-    def plot_3D():
-        pca = PCA(n_components=3)
-        reduced_data = pca.fit_transform(embedding)
-
-        fig, ax = plt.subplots(figsize=(10, 10),subplot_kw=dict(projection='3d'))
-        x, y, z = reduced_data.T
-        ax.scatter3D(
-            x, y, z, c=labels, s=10.0, 
-            cmap=matplotlib.colors.ListedColormap(colors)
-        )
-    
-    def plot_2D():
-        pca = TSNE(n_components=2, perplexity=100)
-        reduced_data = pca.fit_transform(embedding).T
-        
-        fig, ax = plt.subplots(figsize=(10, 10))
-        ax.scatter(
-            reduced_data[0], 
-            reduced_data[1], 
-            c=labels, 
-            cmap=matplotlib.colors.ListedColormap(colors),
-            zorder=3
-        )
-
-        ax.grid(zorder=0)
-
-    plot_2D()
-    plt.show()
-
-        
+            
 if __name__ == '__main__':
-    # plot_embedding()
+    # data_visualization.plot_embedding()
     # save_date_common("raw_data", "data")
 
     # fix_hyper_data()
 
-    # data_visualization.plot_hyperparam_search_gp()
-    # data_visualization.plot_hyperparam_search_gp_deep()
+    data_visualization.plot_hyperparam_search_gp()
+    data_visualization.plot_hyperparam_search_gp_deep()
 
     # data_visualization.plot_arma_hyper_search("exp_result/hyper_param_arma")
-    data_visualization.plot_table_cluster()
+    # data_visualization.plot_table_cluster()
+
+    # data_visualization.plot_grid_commodity_deep()
+    # data_visualization.plot_grid_commodity_gp() 
 
     # data_visualization.plot_range_algo_best()
     # data_visualization.plot_range_algo_worst()
@@ -281,4 +237,24 @@ if __name__ == '__main__':
     # data_visualization.plot_compare_cluster_worst()
     # data_visualization.plot_compare_graph_best()
     # data_visualization.plot_compare_graph_worst()
+
+    # most_final = others.load_json(
+    #     "exp_result/final_result/final_result.json"
+    # )
+
+    # interact_result = others.load_json(
+    #     "exp_result/final_result/final_result_interact.json"
+    # )
+
+    # most_final.update(interact_result)
+    # others.dump_json("exp_result/final_result/final_most.json", most_final)
+
+    # most_final = others.load_json("exp_result/final_result/final_most.json")
+
+    # data_visualization.plot_latex(
+    #     names=[list(most_final.keys())],
+    #     results=[most_final],
+    #     multi_task_name=[others.find_all_metal_names()],
+    #     display_name_to_algo=algo_dict.class_name_to_display
+    # )
 
