@@ -976,7 +976,7 @@ def plot_table_cluster():
         "aluminium": "Al",
         "carbon": "CC",
         "copper": "Cu",
-        "lldpe": "Cu",
+        "lldpe": "LLDPE",
         "natgas": "NG",
         "nickel": "Ni",
         "palladium": "Pd",
