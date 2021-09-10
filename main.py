@@ -217,7 +217,7 @@ def fix_hyper_data():
     others.dump_json(path + "/" + file_path, merge_json(all_final_result_path))
             
 if __name__ == '__main__':
-    # data_visualization.plot_embedding()
+    data_visualization.plot_embedding()
     # save_date_common("raw_data", "data")
 
     # fix_hyper_data()
@@ -229,7 +229,7 @@ if __name__ == '__main__':
     # data_visualization.plot_table_cluster()
 
     # data_visualization.plot_grid_commodity_deep()
-    data_visualization.plot_grid_commodity_gp() 
+    # data_visualization.plot_grid_commodity_gp() 
 
     # data_visualization.plot_range_algo_best()
     # data_visualization.plot_range_algo_worst()
@@ -249,7 +249,7 @@ if __name__ == '__main__':
     # most_final.update(interact_result)
     # others.dump_json("exp_result/final_result/final_most.json", most_final)
 
-    # most_final = others.load_json("exp_result/final_result/final_most.json")
+    # most_final = others.load_json("exp_result/final_result/final_most_add_info.json")
 
     # data_visualization.plot_latex(
     #     names=[list(most_final.keys())],

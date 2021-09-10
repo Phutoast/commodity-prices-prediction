@@ -1067,16 +1067,18 @@ def plot_table_cluster():
             f.write("\\label{some label}\n")
             f.write("\\end{table}\n")
 
-@save_figure("figure/embedding_graph.pdf")
+@save_figure("figure/embedding_graph_all.pdf")
 def plot_embedding():
     embedding_noinfomax = np.load("exp_result/embedding/embedding_noinfomax.npy")
+    embedding_noinfomax_better_graph = np.load("exp_result/embedding/gcn_embedding_hsic.npy")
     embedding_infomax = np.load("exp_result/embedding/embedding_infomax.npy")
     embedding_start = np.load("exp_result/embedding/pre_embedding_infomax.npy")
     # embedding = embedding[:50]
     num_data = embedding_start.shape[0]
-    fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(18, 6))
+    # fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(24, 6))
+    fig, axes = plt.subplots(nrows=1, ncols=4, figsize=(26, 6))
 
-    def plot_data(embedding, ax, i):
+    def plot_data(embedding, ax, i, name):
         embedding = np.reshape(embedding,(-1, embedding.shape[-1]) )
         labels = np.concatenate([
             np.arange(0, 10)
@@ -1118,9 +1120,12 @@ def plot_embedding():
         
         # def plot_2D():
 
-        pca = TSNE(n_components=2, perplexity=50)
+        # pca = TSNE(n_components=2, perplexity=50)
         # pca = PCA(n_components=2)
-        reduced_data = pca.fit_transform(embedding).T
+        # reduced_data = pca.fit_transform(embedding).T
+
+        reduced_data = np.load(f"cache_{i}.npy")
+
         # reduced_data = np.load("cache.npy")
         # np.save("cache.npy", reduced_data)
 
@@ -1129,6 +1134,7 @@ def plot_embedding():
         for i in range(0,len(colors)):
             recs.append(mpatches.Rectangle((0,0),1,1,fc=colors[i]))
         ax.legend(recs, all_metal_name, loc=4, ncol=2)
+        ax.set_title(name, fontsize=20)
 
         
         ax.scatter(
@@ -1141,12 +1147,13 @@ def plot_embedding():
 
         ax.grid(zorder=0)
 
-    plot_data(embedding_start, axes[0], 0)
-    plot_data(embedding_noinfomax, axes[1], 1)
-    plot_data(embedding_infomax, axes[2], 2)
+    plot_data(embedding_start, axes[0], 0, "Initial Embedding")
+    plot_data(embedding_noinfomax, axes[1], 1, "Embedding After training with GCN")
+    plot_data(embedding_noinfomax_better_graph, axes[2], 2, "Embedding After training with GCN with HSIC")
+    plot_data(embedding_infomax, axes[3], 4, "Embedding After Graph InfoMax")
 
     fig.tight_layout()
-    plt.show()
+    # plt.show()
 
     return fig, axes
 
