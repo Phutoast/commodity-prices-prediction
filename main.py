@@ -226,6 +226,7 @@ if __name__ == '__main__':
     # data_visualization.plot_hyperparam_search_gp_deep()
 
     # data_visualization.plot_arma_hyper_search("exp_result/hyper_param_arma")
+    # data_visualization.plot_arma_hyper_search("exp_result/hyper_param_arma_test_3")
     # data_visualization.plot_table_cluster()
 
     # data_visualization.plot_grid_commodity_deep()

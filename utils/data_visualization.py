@@ -1148,9 +1148,9 @@ def plot_embedding():
         ax.grid(zorder=0)
 
     plot_data(embedding_start, axes[0], 0, "Initial Embedding")
-    plot_data(embedding_noinfomax, axes[1], 1, "Embedding After training with GCN")
-    plot_data(embedding_noinfomax_better_graph, axes[2], 2, "Embedding After training with GCN with HSIC")
-    plot_data(embedding_infomax, axes[3], 4, "Embedding After Graph InfoMax")
+    plot_data(embedding_noinfomax, axes[1], 1, "After training with GCN with Spearman")
+    plot_data(embedding_noinfomax_better_graph, axes[2], 2, "After training with GCN with HSIC")
+    plot_data(embedding_infomax, axes[3], 4, "After Graph InfoMax with HSIC")
 
     fig.tight_layout()
     # plt.show()

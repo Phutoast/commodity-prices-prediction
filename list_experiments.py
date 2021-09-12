@@ -98,21 +98,21 @@ def run_multi_task_gp(save_path, modifier, multi_task_desc, len_inp=10,
         "DeepGPGraphInteract": base_multi_task_fast_lr,
         "DSPPGraphInteract": base_multi_task_fast_lr,
         "DSPPGraphPropagate": base_multi_task_fast_lr,
-        # "IndependentGP": algo_dict.encode_params(
-        #     "gp", is_verbose=is_verbose, 
-        #     is_test=is_test, 
-        #     kernel="Composite_1", 
-        #     optim_iter=25,
-        #     len_inp=10
-        # ),
-        # "IIDDataModel": algo_dict.encode_params(
-        #     "iid", is_verbose=is_verbose, 
-        #     is_test=is_test, dist="gaussian"
-        # ),
-        # "ARIMAModel": algo_dict.encode_params(
-        #     "arima", is_verbose=is_verbose, 
-        #     is_test=is_test, order=(11, 2, 11)
-        # ),
+        "IndependentGP": algo_dict.encode_params(
+            "gp", is_verbose=is_verbose, 
+            is_test=is_test, 
+            kernel="Matern", 
+            optim_iter=25,
+            len_inp=10
+        ),
+        "IIDDataModel": algo_dict.encode_params(
+            "iid", is_verbose=is_verbose, 
+            is_test=is_test, dist="gaussian"
+        ),
+        "ARIMAModel": algo_dict.encode_params(
+            "arima", is_verbose=is_verbose, 
+            is_test=is_test, order=(11, 2, 11)
+        ),
     }
 
     task = gen_experiment.gen_task_cluster(
@@ -951,8 +951,8 @@ def main():
     # compare_cluster()
     # compare_many_clusters()
     # hyperparameter_search()
-    # run_ARMA_param_search()
-    general_test_run()
+    run_ARMA_param_search()
+    # general_test_run()
     # grid_commodities()
     # grid_compare_graph()
 
